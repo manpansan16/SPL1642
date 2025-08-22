@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Webhook (top)
+-- Webhook (reads from loader)
 local WEBHOOK_URL = (getgenv and getgenv().Webhook) or ""
 local WEBHOOK_PING_ID = (getgenv and getgenv().UserID) or ""
 
@@ -23,9 +23,7 @@ end
 local function postWebhook(usernameLabel, titleText, descText, mentionUserId)
 	if not WEBHOOK_URL or WEBHOOK_URL == '' then return end
 	local request = getRequestFunc()
-	if not request then
-		return
-	end
+	if not request then return end
 	local contentText, allowedUsers = nil, {}
 	if mentionUserId and tostring(mentionUserId) ~= '' then
 		contentText = '<@' .. tostring(mentionUserId) .. '>'
@@ -62,6 +60,18 @@ local function sendPanicWebhook(playerName)
 	postWebhook('Panic Bot', 'Panic Activated', playerName .. ' Triggered Panic', WEBHOOK_PING_ID)
 end
 
+-- number formatter (k/m/b/t/qd)
+local function formatNumber(n)
+	n = tonumber(n) or 0
+	local abs = math.abs(n)
+	if abs >= 1e15 then return (string.format('%.2f', n/1e15):gsub('%.?0+$',''))..'qd' end
+	if abs >= 1e12 then return (string.format('%.2f', n/1e12):gsub('%.?0+$',''))..'t' end
+	if abs >= 1e9  then return (string.format('%.2f', n/1e9 ):gsub('%.?0+$',''))..'b' end
+	if abs >= 1e6  then return (string.format('%.2f', n/1e6 ):gsub('%.?0+$',''))..'m' end
+	if abs >= 1e3  then return (string.format('%.2f', n/1e3 ):gsub('%.?0+$',''))..'k' end
+	return tostring(n)
+end
+
 -- Config
 local config = {
 	FireBallAimbot = false,
@@ -83,6 +93,7 @@ local config = {
 	AutoBuyPotions = false,
 	VendingPotionAutoBuy = false,
 	RemoveMapClutter = false,
+	StatsWebhook = false,
 	fireballCooldown = 0.1,
 	cityFireballCooldown = 0.5,
 	universalFireballInterval = 1.0,
@@ -417,7 +428,6 @@ local function addTeleport(parent, parts, label) CreateButton(parent,label,funct
 do
 	addTitle(RightCol,'Players')
 
-	-- container so Saved Position can appear under all player buttons
 	local PlayersList = make('Frame',{Name='PlayersList',Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RightCol)
 	local PlayersListLayout = make('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PlayersList)
 	PlayersListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
@@ -447,7 +457,7 @@ do
 	Players.PlayerAdded:Connect(function(plr) if plr~=LocalPlayer then buttons[plr]=makePlayerButton(plr) end end)
 	Players.PlayerRemoving:Connect(function(plr) if buttons[plr] then pcall(function() buttons[plr]:Destroy() end); buttons[plr]=nil end end)
 
-	-- Saved Position under the player buttons
+	-- Saved Position under the player buttons (stacked)
 	addTitle(RightCol,'Saved Position')
 	local row = make('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RightCol)
 	local rowList = make('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
@@ -722,7 +732,7 @@ end
 local function TogglePlayerESP(enabled)
 	getgenv().PlayerESP = enabled
 	if not Drawing then return end
-	if getgenv().__PlayerESPConn then getgenv().__PlayerESPConn:Disconnect(); getgenv().__PlayerESPConn=nil end
+	if getgenv().__PlayerESPConn then getgenv().__PlayerESPConn:Disconnect(); getgenv__.__PlayerESPConn=nil end
 	local boxes = {}
 	local function mk(player)
 		local box=Drawing.new('Square'); box.Filled=false; box.Thickness=2; box.Visible=false
@@ -774,7 +784,7 @@ local function ToggleMobESP(enabled)
 		["1"]="Goblin", ["2"]="Thug", ["3"]="Gym Rat", ["4"]="Veteran", ["5"]="Yakuza",
 		["6"]="Mutant", ["7"]="Samurai", ["8"]="Ninja", ["9"]="Animatronic",
 		["10"]="Catacombs Guard", ["11"]="Catacombs Guard", ["12"]="Catacombs Guard",
-		["13"]="Demon", ["14"]="The Judger", ["15"]="Dominator", ["16"]="?", ["17"]="The Emperor",
+		["13"]="Demon", ["14"]="The Judger", ["15"]="Dominator", ["16"]="?", ["17"]="The Emperor',
 		["18"]="Ancient Gladiator", ["19"]="Old Knight",
 	}
 	local CATACOMBS_IDS = { ["10"]=true, ["11"]=true, ["12"]=true }
@@ -1155,6 +1165,55 @@ local function ToggleCityAimbot(enabled)
 	end)
 end
 
+-- Stats Webhook (every 15 minutes, no ping)
+getgenv().StatWebhookEnabled = getgenv().StatWebhookEnabled or false
+local function ToggleStatsWebhook(on)
+	getgenv().StatWebhookEnabled = on
+	if not on then return end
+
+	local rs = game:GetService('ReplicatedStorage')
+	local statsFolder = rs:WaitForChild('Data', 9e9):WaitForChild(LocalPlayer.Name, 9e9):WaitForChild('Stats', 9e9)
+
+	local function getSnapshot()
+		return {
+			Power = statsFolder.Power.Value,
+			Defense = statsFolder.Defense.Value,
+			Health = statsFolder.Health.Value,
+			Magic = statsFolder.Magic.Value,
+			Psychics = statsFolder.Psychics.Value,
+		}
+	end
+
+	local last = getSnapshot()
+
+	task.spawn(function()
+		while getgenv().StatWebhookEnabled do
+			for i=1,900 do if not getgenv().StatWebhookEnabled then break end; task.wait(1) end
+			if not getgenv().StatWebhookEnabled then break end
+
+			local now = getSnapshot()
+			local dP = now.Power - last.Power
+			local dD = now.Defense - last.Defense
+			local dH = now.Health - last.Health
+			local dM = now.Magic - last.Magic
+			local dY = now.Psychics - last.Psychics
+
+			last = now
+
+			local title = (LocalPlayer.Name)..' Stats Gained Last 15 Minutes'
+			local desc = '**Power**: '..formatNumber(dP)
+				..'\n**Defense**: '..formatNumber(dD)
+				..'\n**Health**: '..formatNumber(dH)
+				..'\n**Magic**: '..formatNumber(dM)
+				..'\n**Psychics**: '..formatNumber(dY)
+
+			pcall(function()
+				postWebhook('Stat Bot', title, desc, nil) -- no ping
+			end)
+		end
+	end)
+end
+
 -- Side Tasks helper
 local function startSideTaskLoop(getKey, cfgKey, taskId)
 	getgenv()[getKey] = true
@@ -1267,6 +1326,7 @@ CreateToggle(UtilitySection,'Remove Map Clutter','RemoveMapClutter',function(on)
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Webhooks',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
 CreateToggle(UtilitySection,'Death Webhook','DeathWebhook',function(on) config.DeathWebhook=on; saveConfig() end)
 CreateToggle(UtilitySection,'Panic Webhook','PanicWebhook',function(on) config.PanicWebhook=on; saveConfig() end)
+CreateToggle(UtilitySection,'Stats Webhook (every 15 min)','StatsWebhook',ToggleStatsWebhook)
 
 -- Visual
 local VisualSection = CreateSection(VisualTab,'Visual Features')
