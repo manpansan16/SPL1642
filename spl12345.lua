@@ -81,11 +81,12 @@ local config = {
 	AutoNinjaSideTask = false,
 	AutoAnimatronicsSideTask = false,
 	AutoMutantsSideTask = false,
-	-- REPLACED: AutoBuyPotions with DualExoticShop
 	DualExoticShop = false,
 	VendingPotionAutoBuy = false,
 	RemoveMapClutter = false,
 	StatWebhook15m = false,
+	KillAura = false,
+	StatGui = false,
 	fireballCooldown = 0.1,
 	cityFireballCooldown = 0.5,
 	universalFireballInterval = 1.0,
@@ -499,8 +500,8 @@ addTeleports('Stand Stores', {
 	{{'Pads','StandIndex','1'},'Stand Store 1'},
 	{{'Pads','StandIndex','2'},'Greater Stands'},
 	{{'Pads','StandIndex','3'},'Demonic Stands'},
-	{{'Pads','StandIndex','4'},'Anime Stands'},
-	{{'Pads','StandIndex','5'},'Premium Anime Stands'},
+	-- removed Anime Stands
+	-- removed Premium Anime Stands
 })
 addTeleports('Deluxo Upgrades', {
 	{{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade'},
@@ -511,10 +512,9 @@ addTeleports('Questlines', {
 	{{'Pads','MainTasks','LucaTask'},'Luca Questline'},
 	{{'Pads','MainTasks','ReaperTask'},'Reaper Questline'},
 	{{'Pads','MainTasks','GladiatorTask'},'Gladiator Questline'},
-	{{'Pads','MainTasks','GUKUQuests'},'Guku Questline'},
+	-- removed Guku Questline
 	{{'Pads','MainTasks','TowerFacility'},'Tower Questline'},
 	{{'Pads','MainTasks','AncientQuests'},'Ancient Questline'},
-	-- CHANGED: Defence -> TankQuests
 	{{'Pads','MainTasks','TankQuests'},'Defence Questline'},
 	{{'Pads','MainTasks','PowerQuests'},'Power Questline'},
 	{{'Pads','MainTasks','MagicQuests'},'Magic Questline'},
@@ -533,7 +533,6 @@ addTeleports('Experiments', {
 	{{'Experiment','SurvivalHitbox'},'Health Experiment'},
 	{{'Pads','Telekinesis','Telekinesis'},'Psychic Experiment'},
 	{{'WallGame','WallHitbox'},'Power Experiment'},
-	-- NEW: Magic Experiment (Energy["15"].Part)
 	{{'Experiment','Energy','15','Part'},'Magic Experiment'},
 })
 
@@ -1103,12 +1102,10 @@ local function ToggleMutantsSide(on)
 end
 
 -- Shops
--- NEW: Dual Exotic Shop (replaces single Exotic auto buy)
 local function ToggleDualExoticShop(on)
 	config.DualExoticShop = on; saveConfig()
 	getgenv().DualExoticShop = on
 	if not on then return end
-
 	task.spawn(function()
 		local function getPadPart(padModel)
 			if not padModel then return nil end
@@ -1116,65 +1113,34 @@ local function ToggleDualExoticShop(on)
 			if padModel:IsA("Model") then return padModel:FindFirstChildWhichIsA("BasePart") end
 			return nil
 		end
-
-		-- Wait a bit before starting like original snippet
 		task.wait(10)
-
 		while getgenv().DualExoticShop do
 			pcall(function()
-				local char, hum, hrp = getCharHumanoid(); if not hrp or (hum and hum.Health<=0) then return end
-
-				-- Acquire remotes and GUIs each cycle (robust if UI reloads)
+				local _, hum, hrp = getCharHumanoid(); if not hrp or (hum and hum.Health<=0) then return end
 				local spent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Spent")
 				local remote1 = spent:WaitForChild("BuyExotic")
 				local remote2 = spent:WaitForChild("BuyExotic2")
-
 				local frames = LocalPlayer.PlayerGui:WaitForChild("Frames")
 				local gui1 = frames:WaitForChild("ExoticStore")
 				local gui2 = frames:WaitForChild("ExoticStore2")
-
 				local pad1 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore"):WaitForChild("1"))
 				local pad2 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore2"):WaitForChild("1"))
-
 				local function buyPotions(shopFrame, remote)
 					local list = shopFrame and shopFrame:FindFirstChild("Content") and shopFrame.Content:FindFirstChild("ExoticList")
 					if not list then return end
 					for _, v in pairs(list:GetChildren()) do
-						local info = v:FindFirstChild("Info")
-						local info2 = info and info:FindFirstChild("Info")
+						local info2 = v:FindFirstChild("Info") and v.Info:FindFirstChild("Info")
 						if info2 and info2.Text == "POTION" then
 							local itemNumber = tonumber(string.match(v.Name, "%d+"))
 							if itemNumber then pcall(function() remote:FireServer(itemNumber) end) end
 						end
 					end
 				end
-
 				local original = hrp.CFrame
-
-				-- Shop 1
-				if pad1 then
-					hrp.CFrame = pad1.CFrame + Vector3.new(0,3,0)
-					task.wait(1)
-					buyPotions(gui1, remote1)
-					hrp.CFrame = original
-					task.wait(1)
-				end
-
-				-- Shop 2
-				if pad2 then
-					hrp.CFrame = pad2.CFrame + Vector3.new(0,3,0)
-					task.wait(1)
-					buyPotions(gui2, remote2)
-					hrp.CFrame = original
-					task.wait(1)
-				end
+				if pad1 then hrp.CFrame = pad1.CFrame + Vector3.new(0,3,0); task.wait(1); buyPotions(gui1, remote1); hrp.CFrame = original; task.wait(1) end
+				if pad2 then hrp.CFrame = pad2.CFrame + Vector3.new(0,3,0); task.wait(1); buyPotions(gui2, remote2); hrp.CFrame = original; task.wait(1) end
 			end)
-
-			-- Wait 10 minutes like original snippet
-			for i=1,600 do
-				if not getgenv().DualExoticShop then break end
-				task.wait(1)
-			end
+			for i=1,600 do if not getgenv().DualExoticShop then break end; task.wait(1) end
 		end
 	end)
 end
@@ -1201,12 +1167,10 @@ local function ToggleStatWebhook15m(on)
 	config.StatWebhook15m = on; saveConfig()
 	getgenv().StatWebhook15m = on
 	if not on then return end
-
 	task.spawn(function()
 		local stats = ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats")
 		local oldPower, oldDefense, oldHealth, oldMagic, oldPsy =
 			stats.Power.Value, stats.Defense.Value, stats.Health.Value, stats.Magic.Value, stats.Psychics.Value
-
 		local function formatNumber(n)
 			n = tonumber(n) or 0
 			if n >= 1e15 then return string.format('%.1f', n/1e15)..'qd' end
@@ -1216,17 +1180,11 @@ local function ToggleStatWebhook15m(on)
 			if n >= 1e3  then return string.format('%.1f', n/1e3 )..'k' end
 			return tostring(n)
 		end
-
 		while getgenv().StatWebhook15m do
-			for i=1,900 do
-				if not getgenv().StatWebhook15m then break end
-				task.wait(1)
-			end
+			for i=1,900 do if not getgenv().StatWebhook15m then break end; task.wait(1) end
 			if not getgenv().StatWebhook15m then break end
-
 			local newPower, newDefense, newHealth, newMagic, newPsy =
 				stats.Power.Value, stats.Defense.Value, stats.Health.Value, stats.Magic.Value, stats.Psychics.Value
-
 			if newPower > oldPower or newDefense > oldDefense or newHealth > oldHealth or newMagic > oldMagic or newPsy > oldPsy then
 				local title = LocalPlayer.Name .. " Stats Gained Last 15 Minutes"
 				local desc = "**Power:** " .. formatNumber(newPower - oldPower)
@@ -1235,10 +1193,160 @@ local function ToggleStatWebhook15m(on)
 					.. "\n**Magic:** " .. formatNumber(newMagic - oldMagic)
 					.. "\n**Psychics:** " .. formatNumber(newPsy - oldPsy)
 				postWebhook('Stat Bot', title, desc, nil)
-
 				oldPower, oldDefense, oldHealth, oldMagic, oldPsy = newPower, newDefense, newHealth, newMagic, newPsy
 			end
 		end
+	end)
+end
+
+-- Combat: Kill Aura
+local __KillAuraConn
+local function ToggleKillAura(on)
+	config.KillAura = on; saveConfig()
+	getgenv().KillAura = on
+	if __KillAuraConn then __KillAuraConn:Disconnect(); __KillAuraConn=nil end
+	if not on then return end
+	__KillAuraConn = RS.Heartbeat:Connect(function()
+		local _, _, hrp = getCharHumanoid(); if not hrp then return end
+		local enemiesFolder = workspace:FindFirstChild("Enemies"); if not enemiesFolder then return end
+		for _, sub in ipairs(enemiesFolder:GetChildren()) do
+			for _, enemy in ipairs(sub:GetChildren()) do
+				if enemy:IsA("Model") then
+					local part = enemy:FindFirstChild("HumanoidRootPart")
+					local dead = enemy:FindFirstChild("Dead")
+					if part and (not dead or dead.Value ~= true) then
+						local dist = (hrp.Position - part.Position).Magnitude
+						if dist <= 500 then
+							pcall(function()
+								ReplicatedStorage.Events.Other.Ability:InvokeServer("Weapon")
+							end)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+-- Utility: Stat GUI
+local __StatGui = { gui=nil, running=false }
+local function ToggleStatGui(on)
+	config.StatGui = on; saveConfig()
+	getgenv().StatGui = on
+	if not on then
+		__StatGui.running=false
+		if __StatGui.gui then pcall(function() __StatGui.gui:Destroy() end); __StatGui.gui=nil end
+		return
+	end
+	task.spawn(function()
+		local LocalPlayer = Players.LocalPlayer
+		local ReplicatedStorage = game:GetService("ReplicatedStorage")
+		local function formatNumber(n)
+			n = tonumber(n) or 0
+			if n >= 1e18 then return string.format('%.3f', n/1e18).."Qn" end
+			if n >= 1e15 then return string.format('%.3f', n/1e15).."Qd" end
+			if n >= 1e12 then return string.format('%.3f', n/1e12).."T" end
+			if n >= 1e9  then return string.format('%.3f', n/1e9 ).."B" end
+			if n >= 1e6  then return string.format('%.3f', n/1e6 ).."M" end
+			if n >= 1e3  then return string.format('%.3f', n/1e3 ).."K" end
+			return tostring(n)
+		end
+		local function darkenColor(color, amount)
+			return Color3.fromRGB(
+				math.clamp(color.R * 255 - amount, 0, 255),
+				math.clamp(color.G * 255 - amount, 0, 255),
+				math.clamp(color.B * 255 - amount, 0, 255)
+			)
+		end
+		local statColors = {
+			Power = Color3.fromRGB(220, 60, 60),
+			Health = Color3.fromRGB(100, 220, 100),
+			Defense = Color3.fromRGB(100, 150, 220),
+			Psychic = Color3.fromRGB(140, 50, 180),
+			Magic = Color3.fromRGB(210, 140, 255),
+			Mobility = Color3.fromRGB(240, 240, 80),
+		}
+		local screenGui = Instance.new("ScreenGui")
+		screenGui.Name = "StatsGUI"
+		screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+		__StatGui.gui = screenGui
+		local statsFrame = Instance.new("Frame")
+		statsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		statsFrame.BorderSizePixel = 1
+		statsFrame.BorderColor3 = Color3.fromRGB(50, 50, 50)
+		statsFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		statsFrame.Size = UDim2.new(0, 500, 0, 350)
+		statsFrame.Parent = screenGui
+		statsFrame.Active = true
+		statsFrame.Draggable = true
+		local stroke = Instance.new("UIStroke"); stroke.Parent = statsFrame; stroke.Thickness = 2; stroke.Color = Color3.fromRGB(70, 70, 70)
+		local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 12); corner.Parent = statsFrame
+		local layout = Instance.new("UIListLayout"); layout.Parent = statsFrame; layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Padding = UDim.new(0, 4); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center; layout.FillDirection = Enum.FillDirection.Vertical; layout.VerticalAlignment = Enum.VerticalAlignment.Top
+		local paddingTop = Instance.new("UIPadding"); paddingTop.PaddingTop = UDim.new(0, 10); paddingTop.PaddingBottom = UDim2.new(0, 10).Y; paddingTop.PaddingLeft = UDim2.new(0, 10).X; paddingTop.PaddingRight = UDim2.new(0, 10).X; paddingTop.Parent = statsFrame
+		local currentBoxWidth, perHourBoxWidth, boxHeight, rowPadding = 280, 160, 55, 5
+		local function createStatRow(name, color)
+			local row = Instance.new("Frame"); row.Size = UDim2.new(0, currentBoxWidth + perHourBoxWidth + rowPadding, 0, boxHeight); row.BackgroundTransparency = 1; row.Parent = statsFrame
+			local rowLayout = Instance.new("UIListLayout"); rowLayout.FillDirection = Enum.FillDirection.Horizontal; rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; rowLayout.SortOrder = Enum.SortOrder.LayoutOrder; rowLayout.Padding = UDim.new(0, rowPadding); rowLayout.Parent = row
+			local function makeBox(width, isCurrent)
+				local box = Instance.new("Frame"); box.Size = UDim2.new(0, width, 1, 0); box.BackgroundColor3 = darkenColor(color, 80)
+				local boxCorner = Instance.new("UICorner"); boxCorner.CornerRadius = UDim.new(0, 8); boxCorner.Parent = box
+				local boxStroke = Instance.new("UIStroke"); boxStroke.Parent = box; boxStroke.Color = Color3.fromRGB(60, 60, 60); boxStroke.Thickness = 1
+				local label = Instance.new("TextLabel"); label.Size = UDim2.new(1, -12, 1, 0); label.Position = UDim2.new(0, 6, 0, 0); label.BackgroundTransparency = 1; label.TextColor3 = color; label.Font = Enum.Font.GothamBold; label.TextSize = 28; label.Text = isCurrent and (name .. ": 0") or "0/h"; label.TextXAlignment = Enum.TextXAlignment.Left; label.TextYAlignment = Enum.TextYAlignment.Center; label.Parent = box
+				box.Parent = row
+				return label
+			end
+			local currentLabel = makeBox(currentBoxWidth, true)
+			local perHourLabel = makeBox(perHourBoxWidth, false)
+			return currentLabel, perHourLabel
+		end
+		local powerLabel, powerPerHour = createStatRow("Power", statColors.Power)
+		local healthLabel, healthPerHour = createStatRow("Health", statColors.Health)
+		local defenseLabel, defensePerHour = createStatRow("Defense", statColors.Defense)
+		local psychicLabel, psychicPerHour = createStatRow("Psychic", statColors.Psychic)
+		local magicLabel, magicPerHour = createStatRow("Magic", statColors.Magic)
+		local mobilityLabel, mobilityPerHour = createStatRow("Mobility", statColors.Mobility)
+		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			local frameWidth = currentBoxWidth + perHourBoxWidth + rowPadding + 20
+			local frameHeight = layout.AbsoluteContentSize.Y + 20
+			statsFrame.Size = UDim2.new(0, frameWidth, 0, frameHeight)
+			statsFrame.Position = UDim2.new(0.5, -frameWidth/2, 0.5, -frameHeight/2)
+		end)
+		local function fetchStats()
+			local statsFolder = ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats")
+			return {
+				Power = statsFolder.Power and statsFolder.Power.Value or 0,
+				Health = statsFolder.Health and statsFolder.Health.Value or 0,
+				Defense = statsFolder.Defense and statsFolder.Defense.Value or 0,
+				Psychic = statsFolder.Psychics and statsFolder.Psychics.Value or 0,
+				Magic = statsFolder.Magic and statsFolder.Magic.Value or 0,
+				Mobility = statsFolder.Mobility and statsFolder.Mobility.Value or 0
+			}
+		end
+		local history, historyDuration = {}, 600
+		__StatGui.running = true
+		while __StatGui.running and getgenv().StatGui and __StatGui.gui do
+			local now = os.clock()
+			local stats = fetchStats()
+			table.insert(history, {time = now, stats = stats})
+			while #history > 0 and (now - history[1].time > historyDuration) do table.remove(history, 1) end
+			local perHour = {}
+			if #history > 1 then
+				local first = history[1]; local elapsed = now - first.time
+				for statName, value in pairs(stats) do
+					local gained = value - (first.stats[statName] or 0)
+					perHour[statName] = gained * (3600 / math.max(elapsed, 1))
+				end
+			end
+			powerLabel.Text = "Power: " .. formatNumber(stats.Power); powerPerHour.Text = formatNumber(perHour.Power or 0) .. "/h"
+			healthLabel.Text = "Health: " .. formatNumber(stats.Health); healthPerHour.Text = formatNumber(perHour.Health or 0) .. "/h"
+			defenseLabel.Text = "Defense: " .. formatNumber(stats.Defense); defensePerHour.Text = formatNumber(perHour.Defense or 0) .. "/h"
+			psychicLabel.Text = "Psychic: " .. formatNumber(stats.Psychic); psychicPerHour.Text = formatNumber(perHour.Psychic or 0) .. "/h"
+			magicLabel.Text = "Magic: " .. formatNumber(stats.Magic); magicPerHour.Text = formatNumber(perHour.Magic or 0) .. "/h"
+			mobilityLabel.Text = "Mobility: " .. formatNumber(stats.Mobility); mobilityPerHour.Text = formatNumber(perHour.Mobility or 0) .. "/h"
+			task.wait(0.5)
+		end
+		if __StatGui.gui then pcall(function() __StatGui.gui:Destroy() end) end
+		__StatGui.gui=nil
 	end)
 end
 
@@ -1256,6 +1364,10 @@ CreateSlider(CombatSection,'City Fireball Cooldown','cityFireballCooldown',0.05,
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Panic',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
 CreateToggle(CombatSection,'Smart Panic','SmartPanic',function(on) config.SmartPanic=on; getgenv().SmartPanic=on; saveConfig() end)
 
+-- Pvp
+make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Pvp',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
+CreateToggle(CombatSection,'Kill Aura','KillAura',ToggleKillAura)
+
 -- Movement
 local MovementSection = CreateSection(MovementTab,'Movement Features')
 CreateToggle(MovementSection,'No Clip','NoClip',ToggleNoClip)
@@ -1270,8 +1382,47 @@ CreateToggle(UtilitySection,'Remove Map Clutter','RemoveMapClutter',function(on)
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Webhooks',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
 CreateToggle(UtilitySection,'Death Webhook','DeathWebhook',function(on) config.DeathWebhook=on; saveConfig() end)
 CreateToggle(UtilitySection,'Panic Webhook','PanicWebhook',function(on) config.PanicWebhook=on; saveConfig() end)
--- NEW: 15m Stat Webhook
-CreateToggle(UtilitySection,'15m Stat Webhook','StatWebhook15m',ToggleStatWebhook15m)
+CreateToggle(UtilitySection,'Stat Webhook (15m)','StatWebhook15m',ToggleStatWebhook15m)
+
+-- Server Hop
+make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Server Hop',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
+CreateButton(UtilitySection,'Find Low Server',function()
+	local HttpService = game:GetService("HttpService")
+	local TeleportService = game:GetService("TeleportService")
+	local plrs = game:GetService("Players")
+	local localPlayer = plrs.LocalPlayer
+	local function findLowestPopulationServer()
+		local placeId = game.PlaceId
+		local currentJob = game.JobId
+		local best = nil
+		local cursor = nil
+		while true do
+			local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s", placeId, cursor and ("&cursor=" .. cursor) or "")
+			local ok, body = pcall(function() return game:HttpGet(url) end)
+			if not ok then break end
+			local data = HttpService:JSONDecode(body)
+			if not data or not data.data then break end
+			for _, srv in ipairs(data.data) do
+				if srv.id ~= currentJob and srv.playing < srv.maxPlayers then
+					if (not best) or srv.playing < best.playing then
+						best = srv
+						if best.playing <= 1 then return best end
+					end
+				end
+			end
+			cursor = data.nextPageCursor
+			if not cursor then break end
+			task.wait(0.1)
+		end
+		return best
+	end
+	local target = findLowestPopulationServer()
+	if target then TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, localPlayer) else warn("No suitable server found to hop to.") end
+end)
+
+-- Stat Gui
+make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Stat Gui',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
+CreateToggle(UtilitySection,'Stat Gui','StatGui',ToggleStatGui)
 
 -- Visual
 local VisualSection = CreateSection(VisualTab,'Visual Features')
@@ -1287,9 +1438,8 @@ CreateToggle(QuestsSection,'Mutants Side Task','AutoMutantsSideTask',ToggleMutan
 
 -- Shops
 local ShopsSection = CreateSection(ShopsTab,'Shop Automation')
--- REPLACED: Exotic Shop Potion Auto Buy -> Dual Exotic Shop
 CreateToggle(ShopsSection,'Dual Exotic Shop','DualExoticShop',ToggleDualExoticShop)
-CreateToggle(ShopsSection,'Vending Machine Potion Auto Buy','VendingPotionAutoBuy',ToggleVending)
+CreateToggle(ShopsSection,'Vending Machine','VendingPotionAutoBuy',ToggleVending)
 
 -- Config
 local ConfigSection = CreateSection(ConfigTab,'Configuration')
@@ -1313,6 +1463,8 @@ local LoadButton = CreateButton(ConfigSection,'Load Config',function()
 		applyDiff(config.DualExoticShop,function() return getgenv().DualExoticShop or false end,ToggleDualExoticShop)
 		applyDiff(config.VendingPotionAutoBuy,function() return getgenv().VendingPotionAutoBuy or false end,ToggleVending)
 		applyDiff(config.StatWebhook15m,function() return getgenv().StatWebhook15m or false end,ToggleStatWebhook15m)
+		applyDiff(config.KillAura,function() return getgenv().KillAura or false end,ToggleKillAura)
+		applyDiff(config.StatGui,function() return getgenv().StatGui or false end,ToggleStatGui)
 		getgenv().SmartPanic = config.SmartPanic and true or false
 	end
 end)
