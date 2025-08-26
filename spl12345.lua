@@ -13,9 +13,9 @@ local ReplicatedStorage = game:GetService('ReplicatedStorage')
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
--- Webhook (top)
-local WEBHOOK_URL = 'https://discord.com/api/webhooks/1408101949613539429/-7NyMTr4xxMy_DLpH9uQBWyh52P6g5voZd_IZlpBpDxLgukH49QxUWYYd9v5vDTVbG7v'
-local WEBHOOK_PING_ID = '' -- set your Discord user ID here to ping
+-- Webhook (top) - reads from loadstring getgenv
+local WEBHOOK_URL = (getgenv and getgenv().Webhook) or ''
+local WEBHOOK_PING_ID = (getgenv and tostring(getgenv().UserID)) or ''
 
 local function getRequestFunc()
 	return (syn and syn.request)
@@ -136,12 +136,14 @@ local function disableAllAimbots()
 	end
 end
 
--- Death + Panic watcher
-local lastPanicSentAt, PANIC_THRESHOLD, PANIC_COOLDOWN, REARM_AT_PERCENT = 0, 0.95, 3, 0.95
+-- Death + Panic watcher (panic has 5s lockout; stat webhook never pings)
+local lastPanicSentAt, PANIC_THRESHOLD, PANIC_COOLDOWN, REARM_AT_PERCENT = 0, 0.95, 5, 0.95
 local function initializeDeathAndPanicWatchers()
 	local function hookCharacter(char)
 		local hum = char:WaitForChild('Humanoid', 10); if not hum then return end
 		local lastDamager, deathSent, panicArmed = nil, false, true
+		local lastPanicAt, PANIC_MIN_INTERVAL = 0, 5
+
 		hum.Died:Connect(function()
 			if config.DeathWebhook and not deathSent then
 				deathSent = true
@@ -152,11 +154,15 @@ local function initializeDeathAndPanicWatchers()
 			end
 			panicArmed = true
 		end)
+
 		hum.HealthChanged:Connect(function(hp)
 			local max = hum.MaxHealth
 			if not max or max <= 0 then return end
 			local ratio, now = hp / max, os.clock()
+
 			if ratio <= PANIC_THRESHOLD and panicArmed then
+				if (now - lastPanicAt) < PANIC_MIN_INTERVAL then return end
+				lastPanicAt = now
 				panicArmed = false
 				disableAllAimbots()
 				if config.PanicWebhook and (now - lastPanicSentAt) >= PANIC_COOLDOWN then
@@ -167,6 +173,7 @@ local function initializeDeathAndPanicWatchers()
 				panicArmed = true
 			end
 		end)
+
 		task.defer(function()
 			for _, part in ipairs(workspace:GetDescendants()) do
 				if part:IsA('BasePart') then
@@ -178,12 +185,13 @@ local function initializeDeathAndPanicWatchers()
 			end
 		end)
 	end
+
 	if LocalPlayer.Character then hookCharacter(LocalPlayer.Character) end
 	LocalPlayer.CharacterAdded:Connect(hookCharacter)
 end
 initializeDeathAndPanicWatchers()
 
--- Smart Panic
+-- Smart Panic (simple teleport assist)
 getgenv().SmartPanic = config.SmartPanic and true or false
 local TARGET_PLACE_ID = 79106917651793
 local function findDescendantByName(root, name) for _, d in ipairs(root:GetDescendants()) do if d.Name == name then return d end end end
@@ -736,7 +744,7 @@ local function TogglePlayerESP(enabled)
 	end
 end
 
--- Mob ESP (kept as-is or your earlier implementation)
+-- Mob ESP (your EnemyESP2 implementation can be kept here)
 
 -- Remove Map Clutter
 local function RunRemoveMapClutter()
@@ -952,7 +960,7 @@ local function ToggleVending(on)
 	end
 end
 
--- Utility: 15m Stat Webhook
+-- Utility: 15m Stat Webhook (no ping)
 local function ToggleStatWebhook15m(on)
 	config.StatWebhook15m = on; saveConfig()
 	getgenv().StatWebhook15m = on
@@ -1140,7 +1148,7 @@ local function ToggleStatGui(on)
 	end)
 end
 
--- Auto Ability toggles (check every 0.5s effectively via Heartbeat)
+-- Auto Ability (checks ~0.5s)
 local __AutoAbility = { inv=nil, res=nil, fly=nil }
 local function ToggleAutoInvisible(on)
 	config.AutoInvisible = on; saveConfig()
@@ -1151,8 +1159,7 @@ local function ToggleAutoInvisible(on)
 	local last = 0
 	__AutoAbility.inv = RS.Heartbeat:Connect(function()
 		local now = os.clock(); if now - last < 0.5 then return end; last = now
-		local plr = LocalPlayer
-		local tv = plr:FindFirstChild("TempValues")
+		local tv = LocalPlayer:FindFirstChild("TempValues")
 		local flag = tv and tv:FindFirstChild("IsInvisible")
 		if not (flag and flag.Value == true) then
 			pcall(function() ability:InvokeServer("Invisibility", Vector3.new(1936.171142578125, 56.015625, -1960.4375)) end)
@@ -1168,8 +1175,7 @@ local function ToggleAutoResize(on)
 	local last = 0
 	__AutoAbility.res = RS.Heartbeat:Connect(function()
 		local now = os.clock(); if now - last < 0.5 then return end; last = now
-		local plr = LocalPlayer
-		local tv = plr:FindFirstChild("TempValues")
+		local tv = LocalPlayer:FindFirstChild("TempValues")
 		local flag = tv and tv:FindFirstChild("IsResized")
 		if not (flag and flag.Value == true) then
 			pcall(function() ability:InvokeServer("Resize", Vector3.new(1936.959228515625, 56.015625, -1974.80908203125)) end)
@@ -1185,8 +1191,7 @@ local function ToggleAutoFly(on)
 	local last = 0
 	__AutoAbility.fly = RS.Heartbeat:Connect(function()
 		local now = os.clock(); if now - last < 0.5 then return end; last = now
-		local plr = LocalPlayer
-		local tv = plr:FindFirstChild("TempValues")
+		local tv = LocalPlayer:FindFirstChild("TempValues")
 		local flag = tv and tv:FindFirstChild("IsFlying")
 		if not (flag and flag.Value == true) then
 			pcall(function() ability:InvokeServer("Fly", Vector3.new(1932.461181640625, 56.015625, -1965.3206787109375)) end)
@@ -1194,30 +1199,33 @@ local function ToggleAutoFly(on)
 	end)
 end
 
--- Health Exploit
+-- Health Exploit (uses paths from loadstring vars)
 local __HealthExploitConn
+local function resolveHealthPart(which)
+	local city = workspace:FindFirstChild("CatacombsCity"); if not city then return nil end
+	local kids = city:GetChildren()
+	local path = which == "low" and (getgenv and getgenv().HealthPart15Path) or (getgenv and getgenv().HealthPart95Path)
+	local idx = tonumber(type(path)=="string" and path:match("%[(%d+)%]") or nil)
+	if not idx then idx = (which=="low") and 2145 or 2389 end
+	return kids[idx]
+end
 local function ToggleHealthExploit(on)
 	config.HealthExploit = on; saveConfig()
 	getgenv().HealthExploit = on
 	if __HealthExploitConn then __HealthExploitConn:Disconnect(); __HealthExploitConn=nil end
 	if not on then return end
-	local lowIndex, highIndex = 2145, 2389
 	local last = 0
 	__HealthExploitConn = RS.Heartbeat:Connect(function()
 		local now = os.clock(); if now - last < 0.5 then return end; last = now
 		local char, hum = getCharHumanoid()
 		if not (char and hum and hum.MaxHealth and hum.MaxHealth > 0 and hum.Health > 0) then return end
 		local ratio = hum.Health / hum.MaxHealth
-		local city = workspace:FindFirstChild("CatacombsCity"); if not city then return end
-		local children = city:GetChildren()
-		local function tpToIndex(idx)
-			local part = children[idx]
-			if part and part.CFrame then pcall(function() char:PivotTo(part.CFrame + Vector3.new(0,3,0)) end) end
-		end
 		if ratio <= 0.15 then
-			tpToIndex(lowIndex)
+			local part = resolveHealthPart("low")
+			if part and part.CFrame then pcall(function() char:PivotTo(part.CFrame + Vector3.new(0,3,0)) end) end
 		elseif ratio >= 0.95 then
-			tpToIndex(highIndex)
+			local part = resolveHealthPart("high")
+			if part and part.CFrame then pcall(function() char:PivotTo(part.CFrame + Vector3.new(0,3,0)) end) end
 		end
 	end)
 end
@@ -1303,7 +1311,7 @@ CreateToggle(UtilitySection,'Stat Gui','StatGui',ToggleStatGui)
 -- Visual
 local VisualSection = CreateSection(VisualTab,'Visual Features')
 CreateToggle(VisualSection,'Player ESP','PlayerESP',TogglePlayerESP)
-CreateToggle(VisualSection,'Mob ESP','MobESP',function(on) end) -- your existing MobESP here
+CreateToggle(VisualSection,'Mob ESP','MobESP',function(on) end) -- keep your EnemyESP2 as desired
 
 -- Quests
 local QuestsSection = CreateSection(QuestsTab,'Quest Automation')
