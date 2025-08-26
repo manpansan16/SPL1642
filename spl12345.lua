@@ -462,10 +462,10 @@ local function TDualExotic(on)
           end
         end
         local orig=hrp.CFrame
-        if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(1);buy(g1,r1);hrp.CFrame=orig;task.wait(1)end
-        if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(1);buy(g2,r2);hrp.CFrame=orig;task.wait(1)end
+        if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g1,r1);hrp.CFrame=orig;task.wait(2)end
+        if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g2,r2);hrp.CFrame=orig;task.wait(2)end
       end)
-      for i=1,600 do if not getgenv().DualExoticShop then break end;task.wait(1)end
+      for i=1,600 do if not getgenv().DualExoticShop then break end task.wait(1)end
     end
   end)
 end
@@ -513,7 +513,7 @@ local function TStatGui(on)cfg.StatGui=on;save();getgenv().StatGui=on;if not on 
     local fr=Instance.new('Frame');fr.BackgroundColor3=Color3.fromRGB(20,20,20);fr.BorderSizePixel=1;fr.BorderColor3=Color3.fromRGB(50,50,50);fr.Position=UDim2.new(0.5,0,0.5,0);fr.Size=UDim2.new(0,500,0,350);fr.Parent=gui;fr.Active=true;fr.Draggable=true
     local st=Instance.new('UIStroke');st.Parent=fr;st.Thickness=2;st.Color=Color3.fromRGB(70,70,70);local c=Instance.new('UICorner');c.CornerRadius=UDim.new(0,12);c.Parent=fr
     local lay=Instance.new('UIListLayout');lay.Parent=fr;lay.SortOrder=Enum.SortOrder.LayoutOrder;lay.Padding=UDim.new(0,4);lay.HorizontalAlignment=Enum.HorizontalAlignment.Center;lay.FillDirection=Enum.FillDirection.Vertical;lay.VerticalAlignment=Enum.VerticalAlignment.Top
-    local pad=Instance.new('UIPadding');pad.PaddingTop=UDim.new(0,10);pad.PaddingBottom=UDim.new(0,10);pad.PaddingLeft=UDim.new(0,10);pad.PaddingRight=UDim.new(0,10);pad.Parent=fr
+    local pad=Instance.new('UIPadding');pad.PaddingTop=UDim2.new().X;pad.PaddingBottom=UDim2.new().X;pad.PaddingLeft=UDim2.new().X;pad.PaddingRight=UDim2.new().X;pad.PaddingTop=UDim.new(0,10);pad.PaddingBottom=UDim.new(0,10);pad.PaddingLeft=UDim.new(0,10);pad.PaddingRight=UDim.new(0,10);pad.Parent=fr
     local cw,pw,bh,rp=280,160,55,5
     local function row(n,cl)
       local r=Instance.new('Frame');r.Size=UDim2.new(0,cw+pw+rp,0,bh);r.BackgroundTransparency=1;r.Parent=fr
