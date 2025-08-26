@@ -81,9 +81,11 @@ local config = {
 	AutoNinjaSideTask = false,
 	AutoAnimatronicsSideTask = false,
 	AutoMutantsSideTask = false,
-	AutoBuyPotions = false,
+	-- REPLACED: AutoBuyPotions with DualExoticShop
+	DualExoticShop = false,
 	VendingPotionAutoBuy = false,
 	RemoveMapClutter = false,
+	StatWebhook15m = false,
 	fireballCooldown = 0.1,
 	cityFireballCooldown = 0.5,
 	universalFireballInterval = 1.0,
@@ -512,7 +514,8 @@ addTeleports('Questlines', {
 	{{'Pads','MainTasks','GUKUQuests'},'Guku Questline'},
 	{{'Pads','MainTasks','TowerFacility'},'Tower Questline'},
 	{{'Pads','MainTasks','AncientQuests'},'Ancient Questline'},
-	{{'Pads','MainTasks','MainTask'},'Defence Questline'},
+	-- CHANGED: Defence -> TankQuests
+	{{'Pads','MainTasks','TankQuests'},'Defence Questline'},
 	{{'Pads','MainTasks','PowerQuests'},'Power Questline'},
 	{{'Pads','MainTasks','MagicQuests'},'Magic Questline'},
 	{{'Pads','MainTasks','MobilityQuests'},'Mobility Questline'},
@@ -530,6 +533,8 @@ addTeleports('Experiments', {
 	{{'Experiment','SurvivalHitbox'},'Health Experiment'},
 	{{'Pads','Telekinesis','Telekinesis'},'Psychic Experiment'},
 	{{'WallGame','WallHitbox'},'Power Experiment'},
+	-- NEW: Magic Experiment (Energy["15"].Part)
+	{{'Experiment','Energy','15','Part'},'Magic Experiment'},
 })
 
 -- Controllers
@@ -613,13 +618,9 @@ local function ToggleGraphicsOptAdvanced(on)
 	setProp('lighting', Lighting, 'EnvironmentSpecularScale', 0)
 	for _, o in ipairs(Lighting:GetChildren()) do
 		local c = o.ClassName
-		if c == 'BloomEffect' or c == 'DepthOfFieldEffect' or c == 'ColorCorrectionEffect' or c == 'SunRaysEffect' or c == 'BlurEffect' then
-			setProp('lighting', o, 'Enabled', false)
-		elseif c == 'Atmosphere' then
-			setProp('lighting', o, 'Density', 0); setProp('lighting', o, 'Haze', 0); setProp('lighting', o, 'Glare', 0)
-		elseif c == 'Clouds' then
-			setProp('lighting', o, 'Coverage', 0); setProp('lighting', o, 'Density', 0)
-		end
+		if c == 'BloomEffect' or c == 'DepthOfFieldEffect' or c == 'ColorCorrectionEffect' or c == 'SunRaysEffect' or c == 'BlurEffect' then pcall(function() o.Enabled = false end)
+		elseif c == 'Atmosphere' then setProp('lighting', o, 'Density', 0); setProp('lighting', o, 'Haze', 0); setProp('lighting', o, 'Glare', 0)
+		elseif c == 'Clouds' then setProp('lighting', o, 'Coverage', 0); setProp('lighting', o, 'Density', 0) end
 	end
 	if Terrain then
 		setProp('terrain', Terrain, 'Decoration', false)
@@ -1102,32 +1103,80 @@ local function ToggleMutantsSide(on)
 end
 
 -- Shops
-local isAutoBuyingPotions=false
-local function ToggleExoticAutoBuy(on)
-	getgenv().AutoBuyPotions = on
-	if on then
-		isAutoBuyingPotions=true
-		task.spawn(function()
-			task.wait(10)
-			while isAutoBuyingPotions do
-				pcall(function()
-					local _,hum = getCharHumanoid(); if hum and hum.Health<=0 then isAutoBuyingPotions=false; getgenv().AutoBuyPotions=false; config.AutoBuyPotions=false; saveConfig(); return end
-					local frames = LocalPlayer.PlayerGui:FindFirstChild('Frames'); local exotic = frames and frames:FindFirstChild('ExoticStore')
-					local list = exotic and exotic:FindFirstChild('Content') and exotic.Content:FindFirstChild('ExoticList')
-					if list then
-						for _,v in ipairs(list:GetChildren()) do
-							if v.Info and v.Info.Info and v.Info.Info.Text=='POTION' then
-								local o = tonumber(string.match(v.Name,'%d+')); if o then ReplicatedStorage.Events.Spent.BuyExotic:FireServer(o); task.wait(60) end
-							end
+-- NEW: Dual Exotic Shop (replaces single Exotic auto buy)
+local function ToggleDualExoticShop(on)
+	config.DualExoticShop = on; saveConfig()
+	getgenv().DualExoticShop = on
+	if not on then return end
+
+	task.spawn(function()
+		local function getPadPart(padModel)
+			if not padModel then return nil end
+			if padModel:IsA("BasePart") then return padModel end
+			if padModel:IsA("Model") then return padModel:FindFirstChildWhichIsA("BasePart") end
+			return nil
+		end
+
+		-- Wait a bit before starting like original snippet
+		task.wait(10)
+
+		while getgenv().DualExoticShop do
+			pcall(function()
+				local char, hum, hrp = getCharHumanoid(); if not hrp or (hum and hum.Health<=0) then return end
+
+				-- Acquire remotes and GUIs each cycle (robust if UI reloads)
+				local spent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Spent")
+				local remote1 = spent:WaitForChild("BuyExotic")
+				local remote2 = spent:WaitForChild("BuyExotic2")
+
+				local frames = LocalPlayer.PlayerGui:WaitForChild("Frames")
+				local gui1 = frames:WaitForChild("ExoticStore")
+				local gui2 = frames:WaitForChild("ExoticStore2")
+
+				local pad1 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore"):WaitForChild("1"))
+				local pad2 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore2"):WaitForChild("1"))
+
+				local function buyPotions(shopFrame, remote)
+					local list = shopFrame and shopFrame:FindFirstChild("Content") and shopFrame.Content:FindFirstChild("ExoticList")
+					if not list then return end
+					for _, v in pairs(list:GetChildren()) do
+						local info = v:FindFirstChild("Info")
+						local info2 = info and info:FindFirstChild("Info")
+						if info2 and info2.Text == "POTION" then
+							local itemNumber = tonumber(string.match(v.Name, "%d+"))
+							if itemNumber then pcall(function() remote:FireServer(itemNumber) end) end
 						end
 					end
-				end)
+				end
+
+				local original = hrp.CFrame
+
+				-- Shop 1
+				if pad1 then
+					hrp.CFrame = pad1.CFrame + Vector3.new(0,3,0)
+					task.wait(1)
+					buyPotions(gui1, remote1)
+					hrp.CFrame = original
+					task.wait(1)
+				end
+
+				-- Shop 2
+				if pad2 then
+					hrp.CFrame = pad2.CFrame + Vector3.new(0,3,0)
+					task.wait(1)
+					buyPotions(gui2, remote2)
+					hrp.CFrame = original
+					task.wait(1)
+				end
+			end)
+
+			-- Wait 10 minutes like original snippet
+			for i=1,600 do
+				if not getgenv().DualExoticShop then break end
 				task.wait(1)
 			end
-		end)
-	else
-		isAutoBuyingPotions=false
-	end
+		end
+	end)
 end
 
 local function ToggleVending(on)
@@ -1145,6 +1194,52 @@ local function ToggleVending(on)
 			end
 		end)
 	end
+end
+
+-- Utility: 15m Stat Webhook
+local function ToggleStatWebhook15m(on)
+	config.StatWebhook15m = on; saveConfig()
+	getgenv().StatWebhook15m = on
+	if not on then return end
+
+	task.spawn(function()
+		local stats = ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats")
+		local oldPower, oldDefense, oldHealth, oldMagic, oldPsy =
+			stats.Power.Value, stats.Defense.Value, stats.Health.Value, stats.Magic.Value, stats.Psychics.Value
+
+		local function formatNumber(n)
+			n = tonumber(n) or 0
+			if n >= 1e15 then return string.format('%.1f', n/1e15)..'qd' end
+			if n >= 1e12 then return string.format('%.1f', n/1e12)..'t' end
+			if n >= 1e9  then return string.format('%.1f', n/1e9 )..'b' end
+			if n >= 1e6  then return string.format('%.1f', n/1e6 )..'m' end
+			if n >= 1e3  then return string.format('%.1f', n/1e3 )..'k' end
+			return tostring(n)
+		end
+
+		while getgenv().StatWebhook15m do
+			for i=1,900 do
+				if not getgenv().StatWebhook15m then break end
+				task.wait(1)
+			end
+			if not getgenv().StatWebhook15m then break end
+
+			local newPower, newDefense, newHealth, newMagic, newPsy =
+				stats.Power.Value, stats.Defense.Value, stats.Health.Value, stats.Magic.Value, stats.Psychics.Value
+
+			if newPower > oldPower or newDefense > oldDefense or newHealth > oldHealth or newMagic > oldMagic or newPsy > oldPsy then
+				local title = LocalPlayer.Name .. " Stats Gained Last 15 Minutes"
+				local desc = "**Power:** " .. formatNumber(newPower - oldPower)
+					.. "\n**Defense:** " .. formatNumber(newDefense - oldDefense)
+					.. "\n**Health:** " .. formatNumber(newHealth - oldHealth)
+					.. "\n**Magic:** " .. formatNumber(newMagic - oldMagic)
+					.. "\n**Psychics:** " .. formatNumber(newPsy - oldPsy)
+				postWebhook('Stat Bot', title, desc, nil)
+
+				oldPower, oldDefense, oldHealth, oldMagic, oldPsy = newPower, newDefense, newHealth, newMagic, newPsy
+			end
+		end
+	end)
 end
 
 -- Sections and toggles
@@ -1175,6 +1270,8 @@ CreateToggle(UtilitySection,'Remove Map Clutter','RemoveMapClutter',function(on)
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Webhooks',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
 CreateToggle(UtilitySection,'Death Webhook','DeathWebhook',function(on) config.DeathWebhook=on; saveConfig() end)
 CreateToggle(UtilitySection,'Panic Webhook','PanicWebhook',function(on) config.PanicWebhook=on; saveConfig() end)
+-- NEW: 15m Stat Webhook
+CreateToggle(UtilitySection,'15m Stat Webhook','StatWebhook15m',ToggleStatWebhook15m)
 
 -- Visual
 local VisualSection = CreateSection(VisualTab,'Visual Features')
@@ -1190,7 +1287,8 @@ CreateToggle(QuestsSection,'Mutants Side Task','AutoMutantsSideTask',ToggleMutan
 
 -- Shops
 local ShopsSection = CreateSection(ShopsTab,'Shop Automation')
-CreateToggle(ShopsSection,'Exotic Shop Potion Auto Buy','AutoBuyPotions',ToggleExoticAutoBuy)
+-- REPLACED: Exotic Shop Potion Auto Buy -> Dual Exotic Shop
+CreateToggle(ShopsSection,'Dual Exotic Shop','DualExoticShop',ToggleDualExoticShop)
 CreateToggle(ShopsSection,'Vending Machine Potion Auto Buy','VendingPotionAutoBuy',ToggleVending)
 
 -- Config
@@ -1212,8 +1310,9 @@ local LoadButton = CreateButton(ConfigSection,'Load Config',function()
 		applyDiff(config.AutoNinjaSideTask,function() return getgenv().AutoNinjaSideTask or false end,ToggleNinjaSide)
 		applyDiff(config.AutoAnimatronicsSideTask,function() return getgenv().AutoAnimatronicsSideTask or false end,ToggleAnimSide)
 		applyDiff(config.AutoMutantsSideTask,function() return getgenv().AutoMutantsSideTask or false end,ToggleMutantsSide)
-		applyDiff(config.AutoBuyPotions,function() return getgenv().AutoBuyPotions or false end,ToggleExoticAutoBuy)
+		applyDiff(config.DualExoticShop,function() return getgenv().DualExoticShop or false end,ToggleDualExoticShop)
 		applyDiff(config.VendingPotionAutoBuy,function() return getgenv().VendingPotionAutoBuy or false end,ToggleVending)
+		applyDiff(config.StatWebhook15m,function() return getgenv().StatWebhook15m or false end,ToggleStatWebhook15m)
 		getgenv().SmartPanic = config.SmartPanic and true or false
 	end
 end)
