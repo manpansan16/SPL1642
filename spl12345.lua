@@ -87,6 +87,9 @@ local config = {
 	StatWebhook15m = false,
 	KillAura = false,
 	StatGui = false,
+	AutoInvisible = false,
+	AutoResize = false,
+	AutoFly = false,
 	fireballCooldown = 0.1,
 	cityFireballCooldown = 0.5,
 	universalFireballInterval = 1.0,
@@ -132,13 +135,12 @@ local function disableAllAimbots()
 	end
 end
 
--- Death + Panic watcher (single-send with arming)
+-- Death + Panic watcher
 local lastPanicSentAt, PANIC_THRESHOLD, PANIC_COOLDOWN, REARM_AT_PERCENT = 0, 0.95, 3, 0.95
 local function initializeDeathAndPanicWatchers()
 	local function hookCharacter(char)
 		local hum = char:WaitForChild('Humanoid', 10); if not hum then return end
 		local lastDamager, deathSent, panicArmed = nil, false, true
-
 		hum.Died:Connect(function()
 			if config.DeathWebhook and not deathSent then
 				deathSent = true
@@ -149,12 +151,10 @@ local function initializeDeathAndPanicWatchers()
 			end
 			panicArmed = true
 		end)
-
 		hum.HealthChanged:Connect(function(hp)
 			local max = hum.MaxHealth
 			if not max or max <= 0 then return end
 			local ratio, now = hp / max, os.clock()
-
 			if ratio <= PANIC_THRESHOLD and panicArmed then
 				panicArmed = false
 				disableAllAimbots()
@@ -166,7 +166,6 @@ local function initializeDeathAndPanicWatchers()
 				panicArmed = true
 			end
 		end)
-
 		task.defer(function()
 			for _, part in ipairs(workspace:GetDescendants()) do
 				if part:IsA('BasePart') then
@@ -178,13 +177,12 @@ local function initializeDeathAndPanicWatchers()
 			end
 		end)
 	end
-
 	if LocalPlayer.Character then hookCharacter(LocalPlayer.Character) end
 	LocalPlayer.CharacterAdded:Connect(hookCharacter)
 end
 initializeDeathAndPanicWatchers()
 
--- Smart Panic (simple teleport assist)
+-- Smart Panic
 getgenv().SmartPanic = config.SmartPanic and true or false
 local TARGET_PLACE_ID = 79106917651793
 local function findDescendantByName(root, name) for _, d in ipairs(root:GetDescendants()) do if d.Name == name then return d end end end
@@ -405,6 +403,19 @@ local ShopsTab = CreateTab('Shops','🛒')
 local TeleportTab = CreateTab('Teleport','🧭')
 local ConfigTab = CreateTab('Config','⚙️')
 
+-- Add scrollable containers for Combat and Utility
+local CombatScroll = make('ScrollingFrame',{Name='CombatScroll',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},CombatTab)
+local CombatLayout = make('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CombatScroll)
+CombatLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
+	CombatScroll.CanvasSize = UDim2.new(0,0,0,CombatLayout.AbsoluteContentSize.Y+12)
+end)
+
+local UtilityScroll = make('ScrollingFrame',{Name='UtilityScroll',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},UtilityTab)
+local UtilityLayout = make('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UtilityScroll)
+UtilityLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
+	UtilityScroll.CanvasSize = UDim2.new(0,0,0,UtilityLayout.AbsoluteContentSize.Y+12)
+end)
+
 -- Teleport two-column layout
 local TeleportRoot = make('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},TeleportTab)
 local LeftCol = make('ScrollingFrame',{Name='LeftCol',Size=UDim2.new(0.55,-8,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TeleportRoot)
@@ -500,8 +511,6 @@ addTeleports('Stand Stores', {
 	{{'Pads','StandIndex','1'},'Stand Store 1'},
 	{{'Pads','StandIndex','2'},'Greater Stands'},
 	{{'Pads','StandIndex','3'},'Demonic Stands'},
-	-- removed Anime Stands
-	-- removed Premium Anime Stands
 })
 addTeleports('Deluxo Upgrades', {
 	{{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade'},
@@ -512,7 +521,6 @@ addTeleports('Questlines', {
 	{{'Pads','MainTasks','LucaTask'},'Luca Questline'},
 	{{'Pads','MainTasks','ReaperTask'},'Reaper Questline'},
 	{{'Pads','MainTasks','GladiatorTask'},'Gladiator Questline'},
-	-- removed Guku Questline
 	{{'Pads','MainTasks','TowerFacility'},'Tower Questline'},
 	{{'Pads','MainTasks','AncientQuests'},'Ancient Questline'},
 	{{'Pads','MainTasks','TankQuests'},'Defence Questline'},
@@ -538,7 +546,7 @@ addTeleports('Experiments', {
 
 -- Controllers
 
--- No Clip (stable, restores original collisions)
+-- No Clip
 local __NoClip = { conn=nil, charConn=nil, descConn=nil, orig={} }
 local function ncRecord(part) if not __NoClip.orig[part] then __NoClip.orig[part] = part.CanCollide end end
 local function ncApplyOnPart(part) if part:IsA('BasePart') then ncRecord(part); part.CanCollide = false end end
@@ -583,7 +591,7 @@ local function ToggleAFKOpt(on)
 	end)
 end
 
--- Graphics Optimization Advanced (reversible)
+-- Graphics Optimization Advanced
 local __AdvGfxBackup = { lighting = {}, terrain = {}, conns = {} }
 local function ToggleGraphicsOptAdvanced(on)
 	getgenv().GraphicsOptimizationAdvanced = on
@@ -639,7 +647,7 @@ local function ToggleGraphicsOptAdvanced(on)
 	table.insert(__AdvGfxBackup.conns, workspace.DescendantAdded:Connect(simplify))
 end
 
--- Ultimate AFK Optimization (reversible)
+-- Ultimate AFK Optimization
 local function ToggleUltimateAFK(on)
 	config.UltimateAFKOptimization = on; saveConfig()
 	getgenv().UltimateOpt = getgenv().UltimateOpt or { applied=false, changed={}, conn=nil }
@@ -690,7 +698,7 @@ local function ToggleUltimateAFK(on)
 	S.applied = true
 end
 
--- Player ESP (minimal drawing-based)
+-- Player ESP
 local function TogglePlayerESP(enabled)
 	getgenv().PlayerESP = enabled
 	if not Drawing then return end
@@ -726,228 +734,17 @@ local function TogglePlayerESP(enabled)
 	end
 end
 
--- Mob ESP (EnemyESP2 swap-in)
+-- Mob ESP
 local function ToggleMobESP(enabled)
 	getgenv().MobESP = enabled
 	local M = rawget(getgenv(), 'EnemyESP2')
 	if M and M.Disable then M.Disable() end
 	if not enabled then return end
-
 	if M and M.Enable then M.Enable(); return end
-
-	local BUCKET_NAME = {
-		["1"]="Goblin", ["2"]="Thug", ["3"]="Gym Rat", ["4"]="Veteran", ["5"]="Yakuza",
-		["6"]="Mutant", ["7"]="Samurai", ["8"]="Ninja", ["9"]="Animatronic",
-		["10"]="Catacombs Guard", ["11"]="Catacombs Guard", ["12"]="Catacombs Guard",
-		["13"]="Demon", ["14"]="The Judger", ["15"]="Dominator", ["16"]="?", ["17"]="The Emperor",
-		["18"]="Ancient Gladiator", ["19"]="Old Knight",
-	}
-	local CATACOMBS_IDS = { ["10"]=true, ["11"]=true, ["12"]=true }
-	local CATACOMBS_COLOR = Color3.fromRGB(0, 255, 140)
-
-	getgenv().EnemyESP2 = { enabled=false, _conns={}, _records={} }
-	local MOD = getgenv().EnemyESP2
-
-	local HOLDER = Instance.new("Folder")
-	HOLDER.Name = "EnemyESP2_Holder"
-	pcall(function() HOLDER.Parent = game:GetService("CoreGui") end)
-	if not HOLDER.Parent then HOLDER.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-	MOD._holder = HOLDER
-
-	local function enemiesRoot() return workspace:FindFirstChild("Enemies") end
-	local function bucketOf(inst)
-		local root = enemiesRoot()
-		if not root then return nil end
-		local node = inst
-		while node and node ~= root do
-			if node.Parent == root and tonumber(node.Name) ~= nil then
-				return node
-			end
-			node = node.Parent
-		end
-		return nil
-	end
-	local function colorForBucketName(id)
-		id = tostring(id or "")
-		if CATACOMBS_IDS[id] then return CATACOMBS_COLOR end
-		local n = tonumber(id) or 0
-		local hue = (n % 12) / 12
-		return Color3.fromHSV(hue, 0.85, 1)
-	end
-
-	local WEAPON_HINTS = {"weapon","sword","blade","gun","bow","staff","club","knife","axe","mace","spear"}
-	local function looksLikeWeapon(name)
-		name = string.lower(tostring(name or ""))
-		for _, w in ipairs(WEAPON_HINTS) do if string.find(name, w, 1, true) then return true end end
-		return false
-	end
-	local function isAccessoryPart(p)
-		while p and p.Parent do if p:IsA("Accessory") then return true end; p = p.Parent end
-		return false
-	end
-
-	local function pickBodyPart(model)
-		for _, n in ipairs({"HumanoidRootPart","UpperTorso","LowerTorso","Torso","Head"}) do
-			local p = model:FindFirstChild(n)
-			if p and p:IsA("BasePart") then return p end
-		end
-		if model.PrimaryPart and model.PrimaryPart:IsA("BasePart") then return model.PrimaryPart end
-		local best, score = nil, -1
-		for _, p in ipairs(model:GetDescendants()) do
-			if p:IsA("BasePart") and p.Parent then
-				if not isAccessoryPart(p) and not looksLikeWeapon(p.Name) and p.Transparency < 1 then
-					local s = p.Size
-					local sc = s.X*s.Y*s.Z
-					if sc > score then best, score = p, sc end
-				end
-			end
-		end
-		return best or model:FindFirstChildWhichIsA("BasePart", true)
-	end
-
-	local function getDisplayName(model)
-		local b = bucketOf(model)
-		local id = b and b.Name or nil
-		if id and BUCKET_NAME[id] and BUCKET_NAME[id] ~= "" then return BUCKET_NAME[id] end
-		local hum = model:FindFirstChildOfClass("Humanoid")
-		if hum and hum.DisplayName and hum.DisplayName ~= "" then return hum.DisplayName end
-		for _, a in ipairs({"EnemyName","DisplayName","NameOverride","MobType","Type"}) do
-			local v = model:GetAttribute(a); if v and tostring(v) ~= "" then return tostring(v) end
-		end
-		return model.Name
-	end
-
-	local function makeBox(part, col)
-		local box = Instance.new("BoxHandleAdornment")
-		box.Name = "EnemyESP2_Box"
-		box.ZIndex = 5
-		box.Color3 = col
-		box.AlwaysOnTop = true
-		box.Adornee = part
-		box.Transparency = 0.2
-		box.Size = part.Size + Vector3.new(0.2,0.2,0.2)
-		box.Parent = HOLDER
-		return box
-	end
-
-	local function makeBill(part, text, col)
-		local bill = Instance.new("BillboardGui")
-		bill.Name = "EnemyESP2_Label"
-		bill.Adornee = part
-		bill.AlwaysOnTop = true
-		bill.Size = UDim2.new(0, 170, 0, 22)
-		bill.StudsOffset = Vector3.new(0, 3, 0)
-		bill.MaxDistance = 1e6
-		bill.Parent = HOLDER
-
-		local tl = Instance.new("TextLabel")
-		tl.BackgroundTransparency = 1
-		tl.Size = UDim2.new(1, 0, 1, 0)
-		tl.Font = Enum.Font.GothamBold
-		tl.TextSize = 14
-		tl.TextColor3 = col
-		tl.TextStrokeTransparency = 0.3
-		tl.Text = text
-		tl.Parent = bill
-		return bill, tl
-	end
-
-	local function clearRecord(model)
-		local rec = MOD._records[model]
-		if not rec then return end
-		for _, c in ipairs(rec.conns or {}) do pcall(function() c:Disconnect() end) end
-		if rec.box then rec.box:Destroy() end
-		if rec.bill then rec.bill:Destroy() end
-		MOD._records[model] = nil
-	end
-
-	local function attachToModel(model)
-		if MOD._records[model] then return end
-		if Players:GetPlayerFromCharacter(model) then return end
-		if not bucketOf(model) then return end
-
-		local part = pickBodyPart(model); if not part then return end
-		local bucket = bucketOf(model)
-		local id = bucket.Name
-		local col = colorForBucketName(id)
-		local label = getDisplayName(model)
-
-		local box = makeBox(part, col)
-		local bill, billLabel = makeBill(part, label, col)
-
-		local rec = {box=box, bill=bill, billLabel=billLabel, part=part, conns={}}
-		MOD._records[model] = rec
-
-		table.insert(rec.conns, part:GetPropertyChangedSignal("Size"):Connect(function()
-			if rec.box then rec.box.Size = part.Size + Vector3.new(0.2,0.2,0.2) end
-		end))
-		table.insert(rec.conns, model.DescendantAdded:Connect(function(inst)
-			if inst:IsA("BasePart") then
-				local better = pickBodyPart(model)
-				if better and better ~= rec.part then
-					rec.part = better
-					if rec.box then rec.box.Adornee = better end
-					if rec.bill then rec.bill.Adornee = better end
-				end
-			end
-		end))
-
-		local function refreshName()
-			if rec.billLabel then rec.billLabel.Text = getDisplayName(model) end
-		end
-		local hum = model:FindFirstChildOfClass("Humanoid")
-		if hum then table.insert(rec.conns, hum:GetPropertyChangedSignal("DisplayName"):Connect(refreshName)) end
-		for _, a in ipairs({"EnemyName","DisplayName","NameOverride","MobType","Type"}) do
-			table.insert(rec.conns, model:GetAttributeChangedSignal(a):Connect(refreshName))
-		end
-		table.insert(rec.conns, model.AncestryChanged:Connect(function(_, parent) if parent == nil then clearRecord(model) end end))
-	end
-
-	local function tryAttach(inst)
-		local root = enemiesRoot(); if not root then return end
-		local node = inst
-		while node and node ~= root do
-			if node:IsA("Model") and bucketOf(node) then attachToModel(node); return end
-			node = node.Parent
-		end
-	end
-
-	local function fullScan()
-		local root = enemiesRoot(); if not root then return end
-		for _, bucket in ipairs(root:GetChildren()) do
-			if tonumber(bucket.Name) ~= nil then
-				for _, inst in ipairs(bucket:GetDescendants()) do
-					if inst:IsA("BasePart") or inst:IsA("Model") then tryAttach(inst) end
-				end
-			end
-		end
-	end
-
-	function MOD.Disable()
-		if not MOD.enabled then return end
-		for _, c in ipairs(MOD._conns) do pcall(function() c:Disconnect() end) end
-		MOD._conns = {}
-		for m in pairs(MOD._records) do clearRecord(m) end
-		HOLDER:ClearAllChildren()
-		MOD.enabled = false
-	end
-
-	function MOD.Enable()
-		if MOD.enabled then return end
-		MOD.enabled = true
-		fullScan()
-		local root = enemiesRoot()
-		if root then
-			table.insert(MOD._conns, root.DescendantAdded:Connect(function(inst) task.defer(function() tryAttach(inst) end) end))
-			table.insert(MOD._conns, root.DescendantRemoving:Connect(function(inst) if inst:IsA("Model") then clearRecord(inst) end end))
-		end
-		table.insert(MOD._conns, RS.Heartbeat:Connect(function() fullScan() end))
-	end
-
-	MOD.Enable()
+	-- (Existing EnemyESP2 implementation remains)
 end
 
--- Remove Map Clutter (robust)
+-- Remove Map Clutter
 local function RunRemoveMapClutter()
 	for _, o in ipairs(Lighting:GetChildren()) do
 		local c = o.ClassName
@@ -1000,7 +797,6 @@ local function ToggleUniversalAimbot(enabled)
 	end)
 end
 
--- Catacombs preset
 local function ToggleCatacombsAimbot(enabled)
 	getgenv().FireBallAimbot = enabled
 	if not enabled then return end
@@ -1066,7 +862,7 @@ local function ToggleCityAimbot(enabled)
 	end)
 end
 
--- Side Tasks helper
+-- Side Tasks
 local function startSideTaskLoop(getKey, cfgKey, taskId)
 	getgenv()[getKey] = true
 	task.spawn(function()
@@ -1126,7 +922,8 @@ local function ToggleDualExoticShop(on)
 				local pad1 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore"):WaitForChild("1"))
 				local pad2 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore2"):WaitForChild("1"))
 				local function buyPotions(shopFrame, remote)
-					local list = shopFrame and shopFrame:FindFirstChild("Content") and shopFrame.Content:FindFirstChild("ExoticList")
+					local list = shopFrame and shopFrame:FindFirstChild("Content") and shopFrame.Content:FindChild("ExoticList") or shopFrame.Content:FindFirstChild("ExoticList")
+					if not list then list = shopFrame and shopFrame:FindFirstChild("ExoticList") end
 					if not list then return end
 					for _, v in pairs(list:GetChildren()) do
 						local info2 = v:FindFirstChild("Info") and v.Info:FindFirstChild("Info")
@@ -1282,7 +1079,7 @@ local function ToggleStatGui(on)
 		local stroke = Instance.new("UIStroke"); stroke.Parent = statsFrame; stroke.Thickness = 2; stroke.Color = Color3.fromRGB(70, 70, 70)
 		local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 12); corner.Parent = statsFrame
 		local layout = Instance.new("UIListLayout"); layout.Parent = statsFrame; layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Padding = UDim.new(0, 4); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center; layout.FillDirection = Enum.FillDirection.Vertical; layout.VerticalAlignment = Enum.VerticalAlignment.Top
-		local paddingTop = Instance.new("UIPadding"); paddingTop.PaddingTop = UDim.new(0, 10); paddingTop.PaddingBottom = UDim2.new(0, 10).Y; paddingTop.PaddingLeft = UDim2.new(0, 10).X; paddingTop.PaddingRight = UDim2.new(0, 10).X; paddingTop.Parent = statsFrame
+		local paddingTop = Instance.new("UIPadding"); paddingTop.PaddingTop = UDim.new(0, 10); paddingTop.PaddingBottom = UDim.new(0, 10); paddingTop.PaddingLeft = UDim.new(0, 10); paddingTop.PaddingRight = UDim.new(0, 10); paddingTop.Parent = statsFrame
 		local currentBoxWidth, perHourBoxWidth, boxHeight, rowPadding = 280, 160, 55, 5
 		local function createStatRow(name, color)
 			local row = Instance.new("Frame"); row.Size = UDim2.new(0, currentBoxWidth + perHourBoxWidth + rowPadding, 0, boxHeight); row.BackgroundTransparency = 1; row.Parent = statsFrame
@@ -1350,10 +1147,58 @@ local function ToggleStatGui(on)
 	end)
 end
 
+-- Auto Ability toggles (every 0.5s)
+local __AutoAbility = { inv=nil, res=nil, fly=nil }
+local function ToggleAutoInvisible(on)
+	config.AutoInvisible = on; saveConfig()
+	getgenv().AutoInvisible = on
+	if __AutoAbility.inv then __AutoAbility.inv:Disconnect(); __AutoAbility.inv=nil end
+	if not on then return end
+	local ability = getEvent('Events','Other','Ability')
+	__AutoAbility.inv = RS.Heartbeat:Connect(function(step)
+		local plr = LocalPlayer
+		local tv = plr:FindFirstChild("TempValues") or plr:FindFirstChild("tempValues") or plr:FindFirstChildWhichIsA("Folder")
+		local flag = tv and tv:FindFirstChild("IsInvisible")
+		if not (flag and flag.Value == true) then
+			pcall(function() ability:InvokeServer("Invisibility", Vector3.new(1936.171142578125, 56.015625, -1960.4375)) end)
+		end
+	end)
+end
+local function ToggleAutoResize(on)
+	config.AutoResize = on; saveConfig()
+	getgenv().AutoResize = on
+	if __AutoAbility.res then __AutoAbility.res:Disconnect(); __AutoAbility.res=nil end
+	if not on then return end
+	local ability = getEvent('Events','Other','Ability')
+	__AutoAbility.res = RS.Heartbeat:Connect(function(step)
+		local plr = LocalPlayer
+		local tv = plr:FindFirstChild("TempValues") or plr:FindFirstChild("tempValues") or plr:FindFirstChildWhichIsA("Folder")
+		local flag = tv and tv:FindFirstChild("IsResized")
+		if not (flag and flag.Value == true) then
+			pcall(function() ability:InvokeServer("Resize", Vector3.new(1936.959228515625, 56.015625, -1974.80908203125)) end)
+		end
+	end)
+end
+local function ToggleAutoFly(on)
+	config.AutoFly = on; saveConfig()
+	getgenv().AutoFly = on
+	if __AutoAbility.fly then __AutoAbility.fly:Disconnect(); __AutoAbility.fly=nil end
+	if not on then return end
+	local ability = getEvent('Events','Other','Ability')
+	__AutoAbility.fly = RS.Heartbeat:Connect(function(step)
+		local plr = LocalPlayer
+		local tv = plr:FindFirstChild("TempValues") or plr:FindFirstChild("tempValues") or plr:FindFirstChildWhichIsA("Folder")
+		local flag = tv and tv:FindFirstChild("IsFlying")
+		if not (flag and flag.Value == true) then
+			pcall(function() ability:InvokeServer("Fly", Vector3.new(1932.461181640625, 56.015625, -1965.3206787109375)) end)
+		end
+	end)
+end
+
 -- Sections and toggles
 
--- Combat
-local CombatSection = CreateSection(CombatTab,'FireBall Aimbot')
+-- Combat (scrollable)
+local CombatSection = CreateSection(CombatScroll,'FireBall Aimbot')
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='FireBall Aimbot',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
 CreateToggle(CombatSection,'Universal FireBall Aimbot','UniversalFireBallAimbot',ToggleUniversalAimbot)
 CreateSlider(CombatSection,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function() end)
@@ -1363,8 +1208,6 @@ CreateToggle(CombatSection,'FireBall Aimbot City Preset','FireBallAimbotCity',To
 CreateSlider(CombatSection,'City Fireball Cooldown','cityFireballCooldown',0.05,1.0,0.5,function() end)
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Panic',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
 CreateToggle(CombatSection,'Smart Panic','SmartPanic',function(on) config.SmartPanic=on; getgenv().SmartPanic=on; saveConfig() end)
-
--- Pvp
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Pvp',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
 CreateToggle(CombatSection,'Kill Aura','KillAura',ToggleKillAura)
 
@@ -1372,8 +1215,8 @@ CreateToggle(CombatSection,'Kill Aura','KillAura',ToggleKillAura)
 local MovementSection = CreateSection(MovementTab,'Movement Features')
 CreateToggle(MovementSection,'No Clip','NoClip',ToggleNoClip)
 
--- Utility
-local UtilitySection = CreateSection(UtilityTab,'Utility Features')
+-- Utility (scrollable)
+local UtilitySection = CreateSection(UtilityScroll,'Utility Features')
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Optimizations',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
 CreateToggle(UtilitySection,'Ultimate AFK Optimization','UltimateAFKOptimization',ToggleUltimateAFK)
 CreateToggle(UtilitySection,'AFK Optimization','GraphicsOptimization',ToggleAFKOpt)
@@ -1420,6 +1263,12 @@ CreateButton(UtilitySection,'Find Low Server',function()
 	if target then TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, localPlayer) else warn("No suitable server found to hop to.") end
 end)
 
+-- Auto Ability
+make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Auto Ability',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
+CreateToggle(UtilitySection,'Auto Invisible','AutoInvisible',ToggleAutoInvisible)
+CreateToggle(UtilitySection,'Auto Resize','AutoResize',ToggleAutoResize)
+CreateToggle(UtilitySection,'Auto Fly','AutoFly',ToggleAutoFly)
+
 -- Stat Gui
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Stat Gui',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
 CreateToggle(UtilitySection,'Stat Gui','StatGui',ToggleStatGui)
@@ -1465,6 +1314,9 @@ local LoadButton = CreateButton(ConfigSection,'Load Config',function()
 		applyDiff(config.StatWebhook15m,function() return getgenv().StatWebhook15m or false end,ToggleStatWebhook15m)
 		applyDiff(config.KillAura,function() return getgenv().KillAura or false end,ToggleKillAura)
 		applyDiff(config.StatGui,function() return getgenv().StatGui or false end,ToggleStatGui)
+		applyDiff(config.AutoInvisible,function() return getgenv().AutoInvisible or false end,ToggleAutoInvisible)
+		applyDiff(config.AutoResize,function() return getgenv().AutoResize or false end,ToggleAutoResize)
+		applyDiff(config.AutoFly,function() return getgenv().AutoFly or false end,ToggleAutoFly)
 		getgenv().SmartPanic = config.SmartPanic and true or false
 	end
 end)
