@@ -1,1383 +1,666 @@
--- Wait for game and essentials
 if not game:IsLoaded() then game.Loaded:Wait() end
-local Players = game:GetService('Players')
-while not Players.LocalPlayer or not workspace.CurrentCamera do task.wait() end
+local P=game:GetService('Players');while not P.LocalPlayer or not workspace.CurrentCamera do task.wait() end
+local U=game:GetService('UserInputService');local R=game:GetService('RunService');local H=game:GetService('HttpService')
+local L=game:GetService('Lighting');local RS=game:GetService('ReplicatedStorage')
+local LP=P.LocalPlayer;local Cam=workspace.CurrentCamera
 
--- Services
-local UIS = game:GetService('UserInputService')
-local RS = game:GetService('RunService')
-local HttpService = game:GetService('HttpService')
-local Lighting = game:GetService('Lighting')
-local Players = game:GetService('Players')
-local ReplicatedStorage = game:GetService('ReplicatedStorage')
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-
--- Webhook (top) - reads from loadstring getgenv
-local WEBHOOK_URL = (getgenv and getgenv().Webhook) or ''
-local WEBHOOK_PING_ID = (getgenv and tostring(getgenv().UserID)) or ''
-
-local function getRequestFunc()
-	return (syn and syn.request)
-		or (http and http.request)
-		or (getgenv and getgenv().request)
-		or http_request
-		or (fluxus and fluxus.request)
+local WURL=(getgenv and getgenv().Webhook)or'';local WID=(getgenv and tostring(getgenv().UserID))or''
+local function req()return(syn and syn.request)or(http and http.request)or(getgenv and getgenv().request)or http_request or(fluxus and fluxus.request)end
+local function webhook(user,title,desc,ping)
+  if WURL=='' then return end
+  local r=req();if not r then return end
+  local content,allowed;if ping and tostring(ping)~='' then content='<@'..tostring(ping)..'>';allowed={tostring(ping)} end
+  local pl={username=user,content=content,embeds={{title=title,description=desc,color=16711680,footer={text='Roblox • '..os.date('%H:%M')}}},allowed_mentions={parse={},users=allowed or {}}}
+  pcall(function()r({Url=WURL,Method='POST',Headers={['Content-Type']='application/json'},Body=H:JSONEncode(pl)})end)
 end
+local function deathWH(n,k)webhook('Death Bot','⚠️ Player Killed!',n..' was killed.',WID)end
+local function panicWH(n)webhook('Panic Bot','Panic Activated',n..' Triggered Panic',WID)end
 
-local function postWebhook(usernameLabel, titleText, descText, mentionUserId)
-	if not WEBHOOK_URL or WEBHOOK_URL == '' then return end
-	local request = getRequestFunc()
-	if not request then return end
-	local contentText, allowedUsers
-	if mentionUserId and tostring(mentionUserId) ~= '' then
-		contentText = '<@' .. tostring(mentionUserId) .. '>'
-		allowedUsers = { tostring(mentionUserId) }
-	end
-	local payload = {
-		username = usernameLabel,
-		content = contentText,
-		embeds = {{
-			title = titleText,
-			description = descText,
-			color = 16711680,
-			footer = { text = 'Roblox • ' .. os.date('%H:%M') },
-		}},
-		allowed_mentions = { parse = {}, users = allowedUsers or {} },
-	}
-	pcall(function()
-		request({
-			Url = WEBHOOK_URL,
-			Method = 'POST',
-			Headers = { ['Content-Type'] = 'application/json' },
-			Body = HttpService:JSONEncode(payload),
-		})
-	end)
-end
-
-local function sendDeathWebhook(playerName, killerName)
-	postWebhook('Death Bot', '⚠️ Player Killed!', playerName .. ' was killed.', WEBHOOK_PING_ID)
-end
-
-local function sendPanicWebhook(playerName)
-	postWebhook('Panic Bot', 'Panic Activated', playerName .. ' Triggered Panic', WEBHOOK_PING_ID)
-end
-
--- Config
-local config = {
-	FireBallAimbot = false,
-	FireBallAimbotCity = false,
-	UniversalFireBallAimbot = false,
-	SmartPanic = false,
-	DeathWebhook = true,
-	PanicWebhook = false,
-	GraphicsOptimization = false,
-	GraphicsOptimizationAdvanced = false,
-	UltimateAFKOptimization = false,
-	NoClip = false,
-	PlayerESP = false,
-	MobESP = false,
-	AutoWashDishes = false,
-	AutoNinjaSideTask = false,
-	AutoAnimatronicsSideTask = false,
-	AutoMutantsSideTask = false,
-	DualExoticShop = false,
-	VendingPotionAutoBuy = false,
-	RemoveMapClutter = false,
-	StatWebhook15m = false,
-	KillAura = false,
-	StatGui = false,
-	AutoInvisible = false,
-	AutoResize = false,
-	AutoFly = false,
-	HealthExploit = false,
-	fireballCooldown = 0.1,
-	cityFireballCooldown = 0.5,
-	universalFireballInterval = 1.0,
-	HideGUIKey = 'RightControl',
+local cfg={
+  FireBallAimbot=false,FireBallAimbotCity=false,UniversalFireBallAimbot=false,SmartPanic=false,
+  DeathWebhook=true,PanicWebhook=false,GraphicsOptimization=false,GraphicsOptimizationAdvanced=false,
+  UltimateAFKOptimization=false,NoClip=false,PlayerESP=false,MobESP=false,AutoWashDishes=false,
+  AutoNinjaSideTask=false,AutoAnimatronicsSideTask=false,AutoMutantsSideTask=false,DualExoticShop=false,
+  VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
+  AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,
+  fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
+local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
+local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
+load()
 
-local function saveConfig()
-	pcall(function()
-		writefile('SuperPowerLeague_Config.json', HttpService:JSONEncode(config))
-	end)
-end
-local function loadConfig()
-	local ok = pcall(function()
-		if isfile('SuperPowerLeague_Config.json') then
-			local loaded = HttpService:JSONDecode(readfile('SuperPowerLeague_Config.json'))
-			for k,v in pairs(loaded) do config[k] = v end
-		end
-	end)
-	return ok
-end
-loadConfig()
-
-local function getCharHumanoid()
-	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-	return char, char:FindFirstChildOfClass('Humanoid'), char:FindFirstChild('HumanoidRootPart')
-end
-local function getEvent(...)
-	local node = ReplicatedStorage
-	for _,name in ipairs({...}) do node = node:WaitForChild(name, 9e9) end
-	return node
+local function charHum()local c=LP.Character or LP.CharacterAdded:Wait();return c,c:FindFirstChildOfClass('Humanoid'),c:FindFirstChild('HumanoidRootPart')end
+local function ev(...)local n=RS;for _,p in ipairs({...})do n=n:WaitForChild(p,9e9)end;return n end
+local function disableAimbots()
+  if getgenv().UniversalFireBallAimbot or getgenv().FireBallAimbot or getgenv().FireBallAimbotCity then
+    getgenv().UniversalFireBallAimbot=false;getgenv().FireBallAimbot=false;getgenv().FireBallAimbotCity=false
+    cfg.UniversalFireBallAimbot=false;cfg.FireBallAimbot=false;cfg.FireBallAimbotCity=false;save()
+  end
 end
 
--- Disable all aimbots helper
-local function disableAllAimbots()
-	if getgenv().UniversalFireBallAimbot or getgenv().FireBallAimbot or getgenv().FireBallAimbotCity then
-		getgenv().UniversalFireBallAimbot = false
-		getgenv().FireBallAimbot = false
-		getgenv().FireBallAimbotCity = false
-		config.UniversalFireBallAimbot = false
-		config.FireBallAimbot = false
-		config.FireBallAimbotCity = false
-		saveConfig()
-	end
+local lastPanicSentAt,PANIC_THRESHOLD,PANIC_COOLDOWN,REARM=0,0.95,5,0.95
+local function initDeathPanic()
+  local function hook(c)
+    local h=c:WaitForChild('Humanoid',10);if not h then return end
+    local lastD,dsent,armed=nil,false,true
+    local lastP,MIN=0,5
+    h.Died:Connect(function()
+      if cfg.DeathWebhook and not dsent then dsent=true;disableAimbots();deathWH(LP.Name,(lastD and lastD.Name)or'Unknown') else disableAimbots() end
+      armed=true
+    end)
+    h.HealthChanged:Connect(function(hp)
+      local m=h.MaxHealth;if not m or m<=0 then return end
+      local r,now=hp/m,os.clock()
+      if r<=PANIC_THRESHOLD and armed then
+        if(now-lastP)<MIN then return end;lastP=now;armed=false;disableAimbots()
+        if cfg.PanicWebhook and(now-lastPanicSentAt)>=PANIC_COOLDOWN then lastPanicSentAt=now;panicWH(LP.Name) end
+      elseif r>=REARM then armed=true end
+    end)
+    task.defer(function()
+      for _,p in ipairs(workspace:GetDescendants())do if p:IsA('BasePart')then p.Touched:Connect(function(hit)local pl=P:GetPlayerFromCharacter(hit.Parent);if pl then lastD=pl.Character end end)end end
+    end)
+  end
+  if LP.Character then hook(LP.Character) end;LP.CharacterAdded:Connect(hook)
 end
+initDeathPanic()
 
--- Death + Panic watcher (panic has 5s lockout; stat webhook never pings)
-local lastPanicSentAt, PANIC_THRESHOLD, PANIC_COOLDOWN, REARM_AT_PERCENT = 0, 0.95, 5, 0.95
-local function initializeDeathAndPanicWatchers()
-	local function hookCharacter(char)
-		local hum = char:WaitForChild('Humanoid', 10); if not hum then return end
-		local lastDamager, deathSent, panicArmed = nil, false, true
-		local lastPanicAt, PANIC_MIN_INTERVAL = 0, 5
-
-		hum.Died:Connect(function()
-			if config.DeathWebhook and not deathSent then
-				deathSent = true
-				disableAllAimbots()
-				sendDeathWebhook(LocalPlayer.Name, (lastDamager and lastDamager.Name) or 'Unknown')
-			else
-				disableAllAimbots()
-			end
-			panicArmed = true
-		end)
-
-		hum.HealthChanged:Connect(function(hp)
-			local max = hum.MaxHealth
-			if not max or max <= 0 then return end
-			local ratio, now = hp / max, os.clock()
-
-			if ratio <= PANIC_THRESHOLD and panicArmed then
-				if (now - lastPanicAt) < PANIC_MIN_INTERVAL then return end
-				lastPanicAt = now
-				panicArmed = false
-				disableAllAimbots()
-				if config.PanicWebhook and (now - lastPanicSentAt) >= PANIC_COOLDOWN then
-					lastPanicSentAt = now
-					sendPanicWebhook(LocalPlayer.Name)
-				end
-			elseif ratio >= REARM_AT_PERCENT then
-				panicArmed = true
-			end
-		end)
-
-		task.defer(function()
-			for _, part in ipairs(workspace:GetDescendants()) do
-				if part:IsA('BasePart') then
-					part.Touched:Connect(function(hit)
-						local p = Players:GetPlayerFromCharacter(hit.Parent)
-						if p then lastDamager = p.Character end
-					end)
-				end
-			end
-		end)
-	end
-
-	if LocalPlayer.Character then hookCharacter(LocalPlayer.Character) end
-	LocalPlayer.CharacterAdded:Connect(hookCharacter)
-end
-initializeDeathAndPanicWatchers()
-
--- Smart Panic (simple teleport assist)
-getgenv().SmartPanic = config.SmartPanic and true or false
-local TARGET_PLACE_ID = 79106917651793
-local function findDescendantByName(root, name) for _, d in ipairs(root:GetDescendants()) do if d.Name == name then return d end end end
-local function fallbackCFrame()
-	for _, d in ipairs(workspace:GetDescendants()) do if d:IsA('SpawnLocation') then return d.CFrame end end
-	local _,_,hrp = getCharHumanoid(); return hrp and (hrp.CFrame + Vector3.new(0,35,0)) or nil
-end
-local function getPanicCFrame()
-	if game.PlaceId == TARGET_PLACE_ID then
-		local lobby = workspace:FindFirstChild('Lobby'); local extras = lobby and lobby:FindFirstChild('Extras'); local pvpsign = extras and extras:FindFirstChild('PvPSign') or findDescendantByName(workspace,'PvPSign')
-		if pvpsign then return pvpsign:IsA('Model') and pvpsign:GetPivot() or pvpsign.CFrame end
-	else
-		local ts8 = workspace:FindFirstChild('TopStat8'); local design = ts8 and ts8:FindFirstChild('Design')
-		if design then local node = design:GetChildren()[30]; if node then return node:IsA('Model') and node:GetPivot() or (node.CFrame or nil) end end
-	end
-	return fallbackCFrame()
+getgenv().SmartPanic=cfg.SmartPanic and true or false
+local TARGET_PLACE=79106917651793
+local function fallbackCF()for _,d in ipairs(workspace:GetDescendants())do if d:IsA('SpawnLocation')then return d.CFrame end end local _,_,hrp=charHum();return hrp and(hrp.CFrame+Vector3.new(0,35,0)) or nil end
+local function panicCF()
+  if game.PlaceId==TARGET_PLACE then
+    local l=workspace:FindFirstChild('Lobby');local e=l and l:FindFirstChild('Extras');local s=e and e:FindFirstChild('PvPSign')or nil
+    if not s then for _,d in ipairs(workspace:GetDescendants())do if d.Name=='PvPSign'then s=d;break end end end
+    if s then return s:IsA('Model') and s:GetPivot() or s.CFrame end
+  else
+    local ts=workspace:FindFirstChild('TopStat8');local d=ts and ts:FindFirstChild('Design');if d then local n=d:GetChildren()[30];if n then return n:IsA('Model')and n:GetPivot() or n.CFrame end end
+  end
+  return fallbackCF()
 end
 task.spawn(function()
-	local lastTp, armed = 0, true
-	while true do
-		if getgenv().SmartPanic then
-			local _, hum = getCharHumanoid()
-			if hum then
-				local max = (hum.MaxHealth and hum.MaxHealth > 0) and hum.MaxHealth or 100
-				local now = os.clock()
-				if armed and hum.Health > 0 and hum.Health <= (0.90 * max) and (now - lastTp) >= 1.5 then
-					local cf = getPanicCFrame(); if cf and LocalPlayer.Character then pcall(function() LocalPlayer.Character:PivotTo(cf) end) end
-					lastTp = now; armed = false
-				elseif not armed and hum.Health >= (REARM_AT_PERCENT * max) then
-					armed = true
-				end
-			end
-		end
-		task.wait(0.1)
-	end
+  local last,armed=0,true
+  while true do
+    if getgenv().SmartPanic then
+      local c,h=charHum();if h then local m=(h.MaxHealth and h.MaxHealth>0)and h.MaxHealth or 100;local now=os.clock()
+        if armed and h.Health>0 and h.Health<=0.90*m and(now-last)>=1.5 then local cf=panicCF();if cf and LP.Character then pcall(function()LP.Character:PivotTo(cf)end)end last=now;armed=false
+        elseif not armed and h.Health>=REARM*m then armed=true end
+      end
+    end
+    task.wait(0.1)
+  end
 end)
 
--- UI: Build
-local ScreenGui = Instance.new('ScreenGui')
-ScreenGui.Name = 'SuperPowerLeagueGUI'
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-ScreenGui.IgnoreGuiInset = true
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Enabled = true
-local function safeParent(gui)
-	local parent = (gethui and gethui()) or game:FindFirstChildOfClass('CoreGui') or Players.LocalPlayer:WaitForChild('PlayerGui')
-	if syn and syn.protect_gui and parent == game:GetService('CoreGui') then pcall(syn.protect_gui, gui) end
-	gui.Parent = parent
-end
-safeParent(ScreenGui)
+local G=Instance.new('ScreenGui');G.Name='SuperPowerLeagueGUI';G.ZIndexBehavior=Enum.ZIndexBehavior.Global;G.IgnoreGuiInset=true;G.ResetOnSpawn=false;G.Enabled=true
+local function parentGui(gui)local p=(gethui and gethui())or game:FindFirstChildOfClass('CoreGui')or LP:WaitForChild('PlayerGui');if syn and syn.protect_gui and p==game:GetService('CoreGui')then pcall(syn.protect_gui,gui)end gui.Parent=p end
+parentGui(G)
+local function mk(t,pr,par)local i=Instance.new(t);for k,v in pairs(pr or{})do i[k]=v end;if par then i.Parent=par end;return i end
 
-local function make(uiclass, props, parent) local i=Instance.new(uiclass); for k,v in pairs(props or {}) do i[k]=v end; if parent then i.Parent=parent end; return i end
+local BG=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},G)
+local SD=mk('ImageLabel',{Size=UDim2.new(0,860,0,560),Position=UDim2.new(0.5,-430,0.5,-280),BackgroundTransparency=1,Image='rbxassetid://5107167611',ImageColor3=Color3.fromRGB(0,0,0),ImageTransparency=0.25,ScaleType=Enum.ScaleType.Slice,SliceCenter=Rect.new(10,10,118,118)},BG)
+local MF=mk('Frame',{Name='MainFrame',Size=UDim2.new(0,840,0,540),Position=UDim2.new(0.5,-420,0.5,-270),BackgroundColor3=Color3.fromRGB(22,22,28),BorderSizePixel=0},BG)
+mk('UICorner',{CornerRadius=UDim.new(0,14)},MF)
+local TB=mk('Frame',{Name='TitleBar',Size=UDim2.new(1,0,0,48),BackgroundColor3=Color3.fromRGB(28,28,36),BorderSizePixel=0},MF)
+mk('UICorner',{CornerRadius=UDim.new(0,14)},TB)
+mk('UIGradient',{Color=ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(40,40,54)),ColorSequenceKeypoint.new(1,Color3.fromRGB(28,28,36))}},TB)
+mk('TextLabel',{Name='Title',Size=UDim2.new(1,-100,1,0),Position=UDim2.new(0,20,0,0),BackgroundTransparency=1,Text='Nedu Carti Hub',TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left},TB)
+mk('Frame',{Size=UDim2.new(1,0,0,2),Position=UDim2.new(0,0,1,-2),BackgroundColor3=Color3.fromRGB(0,170,255),BorderSizePixel=0},TB)
+local CB=mk('ImageButton',{Name='Close',Size=UDim2.new(0,28,0,28),Position=UDim2.new(1,-38,0,10),BackgroundTransparency=1,Image='rbxassetid://7072719338',ImageColor3=Color3.fromRGB(255,85,85)},TB)
+CB.MouseButton1Click:Connect(function()G:Destroy()end)
+local Tabs=mk('Frame',{Name='TabContainer',Size=UDim2.new(0,180,1,-58),Position=UDim2.new(0,12,0,54),BackgroundColor3=Color3.fromRGB(26,26,34),BorderSizePixel=0},MF)
+mk('UICorner',{CornerRadius=UDim.new(0,10)},Tabs)
+local CC=mk('Frame',{Name='ContentContainer',Size=UDim2.new(1,-208,1,-58),Position=UDim2.new(0,196,0,54),BackgroundColor3=Color3.fromRGB(18,18,24),BorderSizePixel=0},MF)
+mk('UICorner',{CornerRadius=UDim.new(0,10)},CC)
+mk('UIPadding',{PaddingTop=UDim.new(0,12),PaddingBottom=UDim.new(0,12),PaddingLeft=UDim.new(0,12),PaddingRight=UDim.new(0,12)},CC)
+local CS=mk('ScrollingFrame',{Name='ContentScroll',Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},CC)
+mk('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},CS)
 
-local Backdrop = make('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},ScreenGui)
-local Shadow = make('ImageLabel',{
-	Size=UDim2.new(0,860,0,560),Position=UDim2.new(0.5,-430,0.5,-280),
-	BackgroundTransparency=1,Image='rbxassetid://5107167611',ImageColor3=Color3.fromRGB(0,0,0),ImageTransparency=0.25,ScaleType=Enum.ScaleType.Slice,SliceCenter=Rect.new(10,10,118,118)
-},Backdrop)
-
-local MainFrame = make('Frame',{Name='MainFrame',Size=UDim2.new(0,840,0,540),Position=UDim2.new(0.5,-420,0.5,-270),BackgroundColor3=Color3.fromRGB(22,22,28),BorderSizePixel=0},Backdrop)
-make('UICorner',{CornerRadius=UDim.new(0,14)},MainFrame)
-
-local TitleBar = make('Frame',{Name='TitleBar',Size=UDim2.new(1,0,0,48),BackgroundColor3=Color3.fromRGB(28,28,36),BorderSizePixel=0},MainFrame)
-make('UICorner',{CornerRadius=UDim.new(0,14)},TitleBar)
-make('UIGradient',{Color=ColorSequence.new{
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,54)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(28,28,36))
-}},TitleBar)
-
-local Title = make('TextLabel',{
-	Name='Title',Size=UDim2.new(1,-100,1,0),Position=UDim2.new(0,20,0,0),BackgroundTransparency=1,
-	Text='Nedu Carti Hub',TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left
-},TitleBar)
-
-local AccentBar = make('Frame',{Size=UDim2.new(1,0,0,2),Position=UDim2.new(0,0,1,-2),BackgroundColor3=Color3.fromRGB(0,170,255),BorderSizePixel=0},TitleBar)
-
-local CloseButton = make('ImageButton',{
-	Name='Close',Size=UDim2.new(0,28,0,28),Position=UDim2.new(1,-38,0,10),BackgroundTransparency=1,Image='rbxassetid://7072719338',ImageColor3=Color3.fromRGB(255,85,85)
-},TitleBar)
-CloseButton.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-
-local TabContainer = make('Frame',{Name='TabContainer',Size=UDim2.new(0,180,1,-58),Position=UDim2.new(0,12,0,54),BackgroundColor3=Color3.fromRGB(26,26,34),BorderSizePixel=0},MainFrame)
-make('UICorner',{CornerRadius=UDim.new(0,10)},TabContainer)
-
-local ContentContainer = make('Frame',{Name='ContentContainer',Size=UDim2.new(1,-208,1,-58),Position=UDim2.new(0,196,0,54),BackgroundColor3=Color3.fromRGB(18,18,24),BorderSizePixel=0},MainFrame)
-make('UICorner',{CornerRadius=UDim.new(0,10)},ContentContainer)
-make('UIPadding',{PaddingTop=UDim.new(0,12),PaddingBottom=UDim.new(0,12),PaddingLeft=UDim.new(0,12),PaddingRight=UDim.new(0,12)},ContentContainer)
-
-local ContentScroll = make('ScrollingFrame',{Name='ContentScroll',Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},ContentContainer)
-local ContentList = make('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},ContentScroll)
-
-local awaitingHideKeyCapture, SetHideKeyButtonRef = false, nil
-UIS.InputBegan:Connect(function(input, gp)
-	if gp then return end
-	if awaitingHideKeyCapture and input.UserInputType == Enum.UserInputType.Keyboard then
-		config.HideGUIKey = input.KeyCode.Name; saveConfig(); awaitingHideKeyCapture=false
-		if SetHideKeyButtonRef then SetHideKeyButtonRef.Text = "Set Hide Key ("..(config.HideGUIKey or 'RightControl')..")" end
-		return
-	end
-	if input.UserInputType == Enum.UserInputType.Keyboard then
-		if input.KeyCode.Name == (config.HideGUIKey or 'RightControl') then ScreenGui.Enabled = not ScreenGui.Enabled end
-	end
+local waitingKey,SetHideBtn=false,nil
+U.InputBegan:Connect(function(i,gp)
+  if gp then return end
+  if waitingKey and i.UserInputType==Enum.UserInputType.Keyboard then cfg.HideGUIKey=i.KeyCode.Name;save();waitingKey=false;if SetHideBtn then SetHideBtn.Text="Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")"end;return end
+  if i.UserInputType==Enum.UserInputType.Keyboard and i.KeyCode.Name==(cfg.HideGUIKey or'RightControl') then G.Enabled=not G.Enabled end
 end)
 
-local function TabButton(parent, text, icon)
-	local btn = make('TextButton',{
-		Size=UDim2.new(1,-16,0,40),Position=UDim2.new(0,8,0,0),BackgroundColor3=Color3.fromRGB(30,30,40),Text=icon..'  '..text,
-		TextColor3=Color3.fromRGB(210,210,220),TextScaled=true,Font=Enum.Font.Gotham,BorderSizePixel=0
-	},parent)
-	make('UICorner',{CornerRadius=UDim.new(0,8)},btn)
-	local accent = make('Frame',{Size=UDim2.new(0,3,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(0,170,255),Visible=false},btn)
-	return btn, accent
+local function TabBtn(p,t,ic)
+  local b=mk('TextButton',{Size=UDim2.new(1,-16,0,40),Position=UDim2.new(0,8,0,0),BackgroundColor3=Color3.fromRGB(30,30,40),Text=ic..'  '..t,TextColor3=Color3.fromRGB(210,210,220),TextScaled=true,Font=Enum.Font.Gotham,BorderSizePixel=0},p)
+  mk('UICorner',{CornerRadius=UDim.new(0,8)},b)
+  local a=mk('Frame',{Size=UDim2.new(0,3,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(0,170,255),Visible=false},b)
+  return b,a
+end
+local function Tab(name,icon)
+  local c=0;for _,x in ipairs(Tabs:GetChildren())do if x:IsA('TextButton')then c+=1 end end
+  local b,a=TabBtn(Tabs,name,icon);b.Position=UDim2.new(0,8,0,c*46+8)
+  local t=mk('Frame',{Name=name..'Content',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Visible=false},CS)
+  mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},t);mk('UIPadding',{PaddingLeft=UDim.new(0,4),PaddingRight=UDim.new(0,4)},t)
+  b.MouseButton1Click:Connect(function()
+    for _,ch in ipairs(CS:GetChildren())do if ch:IsA('Frame')and ch.Name:find('Content')then ch.Visible=false end end
+    for _,bb in ipairs(Tabs:GetChildren())do if bb:IsA('TextButton')then bb.BackgroundColor3=Color3.fromRGB(30,30,40);bb.TextColor3=Color3.fromRGB(210,210,220);local aa=bb:FindFirstChildOfClass('Frame');if aa then aa.Visible=false end end end
+    t.Visible=true;b.BackgroundColor3=Color3.fromRGB(45,45,60);b.TextColor3=Color3.fromRGB(240,240,250);a.Visible=true
+  end)
+  return t
+end
+local function Section(p,title)
+  local s=mk('Frame',{Name=title..'Section',Size=UDim2.new(1,-8,0,0),BackgroundColor3=Color3.fromRGB(24,24,32),BorderSizePixel=0,AutomaticSize=Enum.AutomaticSize.Y},p)
+  mk('UICorner',{CornerRadius=UDim.new(0,10)},s)
+  mk('TextLabel',{Name='Title',Size=UDim2.new(1,-12,0,28),Position=UDim2.new(0,12,0,8),BackgroundTransparency=1,Text=title,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left},s)
+  local c=mk('Frame',{Name='Content',Size=UDim2.new(1,-24,0,0),Position=UDim2.new(0,12,0,44),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.Y},s)
+  mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},c)
+  return c
+end
+local function Toggle(p,name,key,cb)
+  local r=mk('Frame',{Name=name..'Toggle',Size=UDim2.new(1,0,0,32),BackgroundTransparency=1},p)
+  local bg=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},r)
+  mk('UICorner',{CornerRadius=UDim.new(0,8)},bg)
+  mk('TextLabel',{Size=UDim2.new(1,-72,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=name,TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
+  local b=mk('TextButton',{Size=UDim2.new(0,52,0,24),Position=UDim2.new(1,-64,0.5,-12),BackgroundColor3=Color3.fromRGB(60,60,70),Text='',BorderSizePixel=0},bg)
+  mk('UICorner',{CornerRadius=UDim.new(1,0)},b)
+  local k=mk('Frame',{Size=UDim2.new(0,20,0,20),Position=UDim2.new(0,2,0.5,-10),BackgroundColor3=Color3.fromRGB(200,200,205),BorderSizePixel=0},b)
+  mk('UICorner',{CornerRadius=UDim.new(1,0)},k)
+  local function vis()local on=cfg[key];b.BackgroundColor3=on and Color3.fromRGB(0,170,255)or Color3.fromRGB(60,60,70);k:TweenPosition(on and UDim2.new(1,-22,0.5,-10)or UDim2.new(0,2,0.5,-10),'Out','Quad',0.15,true)end
+  b.MouseButton1Click:Connect(function()cfg[key]=not cfg[key];vis();if cb then cb(cfg[key])end;save()end)
+  vis();task.defer(function()if cb then cb(cfg[key])end end)
+  return r
+end
+local function Slider(p,name,key,min,max,def,cb)
+  local f=mk('Frame',{Name=name..'Slider',Size=UDim2.new(1,0,0,48),BackgroundTransparency=1},p)
+  local bg=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},f)
+  mk('UICorner',{CornerRadius=UDim.new(0,8)},bg)
+  local lbl=mk('TextLabel',{Size=UDim2.new(1,-12,0,20),Position=UDim2.new(0,12,0,6),BackgroundTransparency=1,Text=name..': '..(cfg[key]or def),TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
+  local bar=mk('Frame',{Size=UDim2.new(1,-24,0,6),Position=UDim2.new(0,12,1,-14),BackgroundColor3=Color3.fromRGB(55,55,65),BorderSizePixel=0},bg)
+  mk('UICorner',{CornerRadius=UDim.new(0,3)},bar)
+  local fill=mk('Frame',{Size=UDim2.new(0,0,1,0),BackgroundColor3=Color3.fromRGB(0,170,255),BorderSizePixel=0},bar);mk('UICorner',{CornerRadius=UDim.new(0,3)},fill)
+  local knob=mk('Frame',{Size=UDim2.new(0,14,0,14),Position=UDim2.new(0,-7,0.5,-7),BackgroundColor3=Color3.fromRGB(235,235,245),BorderSizePixel=0},bar);mk('UICorner',{CornerRadius=UDim.new(1,0)},knob)
+  local drag=false
+  local function apply(v)local s=0.01;v=math.floor((v/s)+0.5)*s;v=math.clamp(v,min,max);local pct=(v-min)/(max-min);fill.Size=UDim2.new(pct,0,1,0);knob.Position=UDim2.new(pct,-7,0.5,-7);lbl.Text=name..': '..string.format('%.2f',v);cfg[key]=v;if cb then cb(v)end;save()end
+  apply(cfg[key]or def)
+  bar.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true end end)
+  U.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
+  U.InputChanged:Connect(function(i)if drag and i.UserInputType==Enum.UserInputType.MouseMovement then local m=U:GetMouseLocation();local p=bar.AbsolutePosition;local s=bar.AbsoluteSize;local pct=math.clamp((m.X-p.X)/s.X,0,1);apply(min+(max-min)*pct)end end)
+  return f
+end
+local function Btn(p,n,cb)local b=mk('TextButton',{Name=n..'Button',Size=UDim2.new(0,260,0,32),BackgroundColor3=Color3.fromRGB(36,36,48),BorderSizePixel=0,Text=n,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.Gotham},p)mk('UICorner',{CornerRadius=UDim.new(0,8)},b)b.MouseButton1Click:Connect(function()if cb then pcall(cb)end end)return b end
+local function title(p,t)mk('TextLabel',{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},p)end
+
+local drag,dragIn,dragStart,startPos
+local function upd(i)local d=i.Position-dragStart;MF.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y);SD.Position=UDim2.new(0,MF.Position.X.Offset-10,0,MF.Position.Y.Offset-10)end
+TB.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true;dragStart=i.Position;startPos=MF.Position;i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then drag=false end end)end end)
+TB.InputChanged:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseMovement then dragIn=i end end)
+U.InputChanged:Connect(function(i)if i==dragIn and drag then upd(i)end end)
+
+local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','🏃');local Util=Tab('Utility','🔧');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','🛒');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Conf=Tab('Config','⚙️')
+
+local CScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Combat)
+local CLayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
+CLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()CScroll.CanvasSize=UDim2.new(0,0,0,CLayout.AbsoluteContentSize.Y+12)end)
+local UScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Util)
+local ULayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UScroll)
+ULayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()UScroll.CanvasSize=UDim2.new(0,0,0,ULayout.AbsoluteContentSize.Y+12)end)
+
+local TR=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},Tele)
+local LC=mk('ScrollingFrame',{Name='LeftCol',Size=UDim2.new(0.55,-8,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TR)
+local LL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},LC)
+LL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()LC.CanvasSize=UDim2.new(0,0,0,LL.AbsoluteContentSize.Y+20)end)
+local RC=mk('ScrollingFrame',{Name='RightCol',Size=UDim2.new(0.45,0,1,0),Position=UDim2.new(0.55,8,0,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TR)
+local RL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},RC)
+RL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()RC.CanvasSize=UDim2.new(0,0,0,RL.AbsoluteContentSize.Y+20)end)
+
+local function instAt(parts)local cur=workspace;for _,n in ipairs(parts)do if not cur or not cur.FindFirstChild then return nil end;cur=cur:FindFirstChild(n)end;return cur end
+local function tpTo(t)local c,_,hrp=charHum();if not(c and hrp and t)then return end;local cf=t:IsA('BasePart')and t.CFrame or(t:IsA('Model')and t:GetPivot()or nil);if not cf then return end;local d=CFrame.new(cf.Position+cf.LookVector*4+Vector3.new(0,3,0),cf.Position+cf.LookVector*5);c:PivotTo(d)end
+local function addTp(p,parts,label)Btn(p,label,function()local i=instAt(parts);if i then tpTo(i)end end)end
+
+title(RC,'Players')
+local PL=mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RC)
+local PLL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PL)
+PLL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()PL.Size=UDim2.new(1,0,0,PLL.AbsoluteContentSize.Y)end)
+local pbtn={}
+local function mkPB(plr)return Btn(PL,plr.Name,function()local c=plr.Character;local hrp=c and c:FindFirstChild('HumanoidRootPart');if hrp then local cf=CFrame.new(hrp.Position+Vector3.new(0,3,0),hrp.Position+hrp.CFrame.LookVector*2);local mc=LP.Character;if mc then pcall(function()mc:PivotTo(cf)end)end end end)end
+local function refresh()for pl,b in pairs(pbtn)do pcall(function()b:Destroy()end);pbtn[pl]=nil end;for _,pl in ipairs(P:GetPlayers())do if pl~=LP then pbtn[pl]=mkPB(pl)end end end
+refresh()
+P.PlayerAdded:Connect(function(pl)if pl~=LP then pbtn[pl]=mkPB(pl)end end)
+P.PlayerRemoving:Connect(function(pl)if pbtn[pl]then pcall(function()pbtn[pl]:Destroy()end);pbtn[pl]=nil end end)
+title(RC,'Saved Position')
+local row=mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RC)
+local rowL=mk('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
+Btn(row,'Save Place',function()local _,_,hrp=charHum();if hrp then _G.__SavedCFrame=hrp.CFrame end end)
+Btn(row,'Teleport To Save',function()local cf=_G.__SavedCFrame;local c=LP.Character;if cf and c then pcall(function()c:PivotTo(cf)end)end end)
+rowL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()row.Size=UDim2.new(1,0,0,rowL.AbsoluteContentSize.Y)end)
+
+title(LC,'Stores')
+addTp(LC,{'Pads','ExoticStore','1'},'Exotic Store');addTp(LC,{'Pads','ExoticStore2','1'},'Dark Exotic Store')
+addTp(LC,{'Pads','Store','1'},'Starter Store');addTp(LC,{'Pads','Store','2'},'Supermarket');addTp(LC,{'Pads','Store','3'},'Gym Store')
+addTp(LC,{'Pads','Store','4'},'Necklace Store');addTp(LC,{'Pads','Store','5'},'Melee Store');addTp(LC,{'Pads','Store','6'},'Premium Shop')
+addTp(LC,{'Pads','Store','7'},'Armour Shop 1');addTp(LC,{'Pads','Store','8'},'Armour Shop 2');addTp(LC,{'Pads','Store','9'},'Tower Store')
+title(LC,'Wand Stores')
+addTp(LC,{'Pads','Wands','1'},'Wand Store 1');addTp(LC,{'Pads','Wands','2'},'Wand Store 2')
+title(LC,'Weight Stores')
+for i=1,5 do addTp(LC,{'Pads','Weight',tostring(i)},'Weight Store '..i)end
+title(LC,'Stand Stores')
+addTp(LC,{'Pads','StandIndex','1'},'Stand Store 1');addTp(LC,{'Pads','StandIndex','2'},'Greater Stands');addTp(LC,{'Pads','StandIndex','3'},'Demonic Stands')
+title(LC,'Deluxo Upgrades')
+addTp(LC,{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade')
+title(LC,'Questlines')
+addTp(LC,{'Pads','MainTasks','MainTask'},'Main Questline');addTp(LC,{'Pads','MainTasks','AQuest'},'Extra Questline')
+addTp(LC,{'Pads','MainTasks','LucaTask'},'Luca Questline');addTp(LC,{'Pads','MainTasks','ReaperTask'},'Reaper Questline')
+addTp(LC,{'Pads','MainTasks','GladiatorTask'},'Gladiator Questline');addTp(LC,{'Pads','MainTasks','TowerFacility'},'Tower Questline')
+addTp(LC,{'Pads','MainTasks','AncientQuests'},'Ancient Questline');addTp(LC,{'Pads','MainTasks','TankQuests'},'Defence Questline')
+addTp(LC,{'Pads','MainTasks','PowerQuests'},'Power Questline');addTp(LC,{'Pads','MainTasks','MagicQuests'},'Magic Questline')
+addTp(LC,{'Pads','MainTasks','MobilityQuests'},'Mobility Questline')
+title(LC,'Side Tasks')
+addTp(LC,{'Pads','SideTasks','1'},'Dishes Side Task');addTp(LC,{'Pads','SideTasks','2'},'Spawn Mob Task')
+addTp(LC,{'Pads','SideTasks','3'},'City Mob Tasks 1');addTp(LC,{'Pads','SideTasks','4'},'City Mob Tasks 2')
+addTp(LC,{'Pads','SideTasks','5'},'Ninja Mob Tasks');addTp(LC,{'Pads','SideTasks','7'},'Arena Mob Tasks')
+title(LC,'Experiments')
+addTp(LC,{'Experiment','FloorHitbox'},'Mobility Experiment');addTp(LC,{'Experiment','SurvivalHitbox'},'Health Experiment')
+addTp(LC,{'Pads','Telekinesis','Telekinesis'},'Psychic Experiment');addTp(LC,{'WallGame','WallHitbox'},'Power Experiment')
+addTp(LC,{'Experiment','Energy','15','Part'},'Magic Experiment')
+
+local NC={conn=nil,char=nil,desc=nil,orig={}}
+local function ncRec(p)if not NC.orig[p]then NC.orig[p]=p.CanCollide end end
+local function ncPart(p)if p:IsA('BasePart')then ncRec(p);p.CanCollide=false end end
+local function ncAll()local c=LP.Character;if not c then return end;for _,p in ipairs(c:GetDescendants())do ncPart(p)end end
+local function ncRestore()for p,w in pairs(NC.orig)do if p and p.Parent then pcall(function()p.CanCollide=w end)end end;table.clear(NC.orig)end
+local function TNoClip(on)
+  getgenv().NoClip=on
+  if on then
+    if NC.conn then NC.conn:Disconnect()end;if NC.char then NC.char:Disconnect()end;if NC.desc then NC.desc:Disconnect()end
+    ncAll();NC.conn=R.Stepped:Connect(function()if getgenv().NoClip then ncAll()end end)
+    NC.char=LP.CharacterAdded:Connect(function(c)if getgenv().NoClip then table.clear(NC.orig);task.wait(0.1);ncAll();if NC.desc then NC.desc:Disconnect()end;NC.desc=c.DescendantAdded:Connect(function(i)if getgenv().NoClip then ncPart(i)end end)end end)
+    local c=LP.Character;if c then if NC.desc then NC.desc:Disconnect()end;NC.desc=c.DescendantAdded:Connect(function(i)if getgenv().NoClip then ncPart(i)end end)end
+  else
+    if NC.conn then NC.conn:Disconnect()NC.conn=nil end;if NC.char then NC.char:Disconnect()NC.char=nil end;if NC.desc then NC.desc:Disconnect()NC.desc=nil end;ncRestore()
+  end
 end
 
-local function CreateTab(name, icon)
-	local count = 0
-	for _,c in ipairs(TabContainer:GetChildren()) do if c:IsA('TextButton') then count+=1 end end
-	local btn, accent = TabButton(TabContainer, name, icon); btn.Position = UDim2.new(0,8,0,count*46+8)
-	local TabContent = make('Frame',{Name=name..'Content',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Visible=false},ContentScroll)
-	make('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},TabContent)
-	make('UIPadding',{PaddingLeft=UDim.new(0,4),PaddingRight=UDim.new(0,4)},TabContent)
-	btn.MouseButton1Click:Connect(function()
-		for _, child in ipairs(ContentScroll:GetChildren()) do if child:IsA('Frame') and child.Name:find('Content') then child.Visible=false end end
-		for _, b in ipairs(TabContainer:GetChildren()) do
-			if b:IsA('TextButton') then
-				b.BackgroundColor3=Color3.fromRGB(30,30,40); b.TextColor3=Color3.fromRGB(210,210,220)
-				local a=b:FindFirstChildOfClass('Frame'); if a then a.Visible=false end
-			end
-		end
-		TabContent.Visible=true; btn.BackgroundColor3=Color3.fromRGB(45,45,60); btn.TextColor3=Color3.fromRGB(240,240,250); accent.Visible=true
-	end)
-	return TabContent
+local function TAFK(on)getgenv().GraphicsOptimization=on;pcall(function()settings().Rendering.QualityLevel=on and 1 or 21;settings().Physics.PhysicsSendRate=on and 1 or 60 end)end
+
+local Adv={lighting={},terrain={},conns={}}
+local function TGfxAdv(on)
+  getgenv().GraphicsOptimizationAdvanced=on
+  local Ter=workspace:FindFirstChildOfClass('Terrain')
+  local function set(b,i,p,v)if Adv[b][i]==nil then Adv[b][i]={}end;if Adv[b][i][p]==nil then local ok,old=pcall(function()return i[p]end);if ok then Adv[b][i][p]=old end end;pcall(function()i[p]=v end)end
+  local function restore()for t,insts in pairs(Adv)do if t~='conns'then for i,props in pairs(insts)do for pr,ov in pairs(props)do pcall(function()i[pr]=ov end)end end Adv[t]={}end end;for _,c in ipairs(Adv.conns)do pcall(function()c:Disconnect()end)end Adv.conns={} end
+  if not on then restore();return end
+  set('lighting',L,'Brightness',2);set('lighting',L,'ClockTime',14);set('lighting',L,'GlobalShadows',false);set('lighting',L,'ShadowSoftness',0);set('lighting',L,'EnvironmentDiffuseScale',0);set('lighting',L,'EnvironmentSpecularScale',0)
+  for _,o in ipairs(L:GetChildren())do local c=o.ClassName
+    if c=='BloomEffect'or c=='DepthOfFieldEffect'or c=='ColorCorrectionEffect'or c=='SunRaysEffect'or c=='BlurEffect'then set('lighting',o,'Enabled',false)
+    elseif c=='Atmosphere'then set('lighting',o,'Density',0);set('lighting',o,'Haze',0);set('lighting',o,'Glare',0)
+    elseif c=='Clouds'then set('lighting',o,'Coverage',0);set('lighting',o,'Density',0)end
+  end
+  if Ter then set('terrain',Ter,'Decoration',false);set('terrain',Ter,'WaterReflectance',0);set('terrain',Ter,'WaterTransparency',1);set('terrain',Ter,'WaterWaveSize',0);set('terrain',Ter,'WaterWaveSpeed',0)end
+  local function simple(i)local c=i.ClassName
+    if c=='ParticleEmitter'or c=='Trail'or c=='Beam'or c=='Smoke'or c=='Fire'or c=='Sparkles'then pcall(function()i.Enabled=false end)
+    elseif c=='PointLight'or c=='SpotLight'or c=='SurfaceLight'then if i.Enabled~=nil then pcall(function()i.Enabled=false end)else pcall(function()i.Brightness=0 end)end
+    elseif c=='Decal'or c=='Texture'then pcall(function()i.Transparency=1 end)
+    elseif c=='MeshPart'then pcall(function()i.RenderFidelity=Enum.RenderFidelity.Performance end)end
+  end
+  for _,d in ipairs(workspace:GetDescendants())do simple(d)end
+  table.insert(Adv.conns,workspace.DescendantAdded:Connect(simple))
 end
 
-local function CreateSection(parent, title)
-	local Section = make('Frame',{Name=title..'Section',Size=UDim2.new(1,-8,0,0),BackgroundColor3=Color3.fromRGB(24,24,32),BorderSizePixel=0, AutomaticSize=Enum.AutomaticSize.Y},parent)
-	make('UICorner',{CornerRadius=UDim.new(0,10)},Section)
-	make('TextLabel',{Name='Title',Size=UDim2.new(1, -12, 0, 28),Position=UDim2.new(0, 12, 0, 8),BackgroundTransparency=1,Text=title,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left},Section)
-	local SectionContent = make('Frame',{Name='Content',Size=UDim2.new(1,-24,0,0),Position=UDim2.new(0,12,0,44),BackgroundTransparency=1, AutomaticSize=Enum.AutomaticSize.Y},Section)
-	make('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},SectionContent)
-	return SectionContent
+local UOpt={applied=false,changed={},conn=nil}
+local function TUltimate(on)cfg.UltimateAFKOptimization=on;save()
+  local S=UOpt
+  local function rest()for i=#S.changed,1,-1 do local r=S.changed[i];if r.inst and r.inst.Parent~=nil then pcall(function()r.inst[r.prop]=r.old end)end S.changed[i]=nil end;if S.conn then pcall(function()S.conn:Disconnect()end)S.conn=nil end;S.applied=false end
+  if not on then rest();pcall(function()settings().Rendering.QualityLevel=21;settings().Physics.PhysicsSendRate=60 end);return end
+  if S.applied then return end
+  local function set(i,p,v)pcall(function()local ok,old=pcall(function()return i[p]end);if ok then table.insert(S.changed,{inst=i,prop=p,old=old})end;i[p]=v end)end
+  pcall(function()settings().Rendering.QualityLevel=1;settings().Physics.PhysicsSendRate=1 end)
+  set(L,'Brightness',2);set(L,'ClockTime',14);set(L,'GlobalShadows',false);set(L,'ShadowSoftness',0);set(L,'EnvironmentDiffuseScale',0);set(L,'EnvironmentSpecularScale',0)
+  for _,o in ipairs(L:GetChildren())do local c=o.ClassName;if c=='BloomEffect'or c=='DepthOfFieldEffect'or c=='ColorCorrectionEffect'or c=='SunRaysEffect'or c=='BlurEffect'then set(o,'Enabled',false)
+    elseif c=='Atmosphere'then set(o,'Density',0);set(o,'Haze',0);set(o,'Glare',0)
+    elseif c=='Clouds'then set(o,'Coverage',0);set(o,'Density',0)end end
+  local t=workspace:FindFirstChildOfClass('Terrain');if t then set(t,'Decoration',false);set(t,'WaterReflectance',0);set(t,'WaterTransparency',1);set(t,'WaterWaveSize',0);set(t,'WaterWaveSpeed',0)end
+  local function simple(i)local c=i.ClassName
+    if c=='ParticleEmitter'or c=='Trail'or c=='Beam'or c=='Smoke'or c=='Fire'or c=='Sparkles'then if pcall(function()return i.Enabled end)then set(i,'Enabled',false)end
+    elseif c=='PointLight'or c=='SpotLight'or c=='SurfaceLight'then if pcall(function()return i.Enabled end)then set(i,'Enabled',false)else set(i,'Brightness',0)end
+    elseif c=='Decal'or c=='Texture'then set(i,'Transparency',1)
+    elseif c=='MeshPart'then set(i,'RenderFidelity',Enum.RenderFidelity.Performance)end
+  end
+  for _,d in ipairs(workspace:GetDescendants())do simple(d)end
+  S.conn=workspace.DescendantAdded:Connect(simple);S.applied=true
 end
 
-local function CreateToggle(parent, name, configKey, callback)
-	local row = make('Frame',{Name=name..'Toggle',Size=UDim2.new(1,0,0,32),BackgroundTransparency=1},parent)
-	local bg = make('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},row)
-	make('UICorner',{CornerRadius=UDim.new(0,8)},bg)
-	make('TextLabel',{Size=UDim2.new(1,-72,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=name,TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
-	local btn = make('TextButton',{Size=UDim2.new(0,52,0,24),Position=UDim2.new(1,-64,0.5,-12),BackgroundColor3=Color3.fromRGB(60,60,70),Text='',BorderSizePixel=0},bg)
-	make('UICorner',{CornerRadius=UDim.new(1,0)},btn)
-	local knob = make('Frame',{Size=UDim2.new(0,20,0,20),Position=UDim2.new(0,2,0.5,-10),BackgroundColor3=Color3.fromRGB(200,200,205),BorderSizePixel=0},btn)
-	make('UICorner',{CornerRadius=UDim.new(1,0)},knob)
-	local function vis()
-		local on = config[configKey]
-		btn.BackgroundColor3 = on and Color3.fromRGB(0,170,255) or Color3.fromRGB(60,60,70)
-		knob:TweenPosition(on and UDim2.new(1,-22,0.5,-10) or UDim2.new(0,2,0.5,-10), 'Out', 'Quad', 0.15, true)
-	end
-	btn.MouseButton1Click:Connect(function()
-		config[configKey] = not config[configKey]
-		vis()
-		if callback then callback(config[configKey]) end
-		saveConfig()
-	end)
-	vis(); task.defer(function() if callback then callback(config[configKey]) end end)
-	return row
+local function TPlayerESP(on)
+  getgenv().PlayerESP=on;if not Drawing then return end
+  if getgenv().__PESP then getgenv().__PESP:Disconnect();getgenv().__PESP=nil end
+  local boxes={}
+  local function mkb(p)local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false;local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.Visible=false;boxes[p]={b=b,t=t}end
+  local function rm(p)local e=boxes[p];if not e then return end;pcall(function()e.b:Remove()e.t:Remove()end);boxes[p]=nil end
+  if on then
+    getgenv().__PESP=R.RenderStepped:Connect(function()
+      if not getgenv().PlayerESP then for p in pairs(boxes)do rm(p)end return end
+      for _,p in ipairs(P:GetPlayers())do
+        if p~=LP and p.Character and p.Character:FindFirstChild('Head')then if not boxes[p]then mkb(p)end
+          local e=boxes[p];local head=p.Character.Head;local pos,vis=Cam:WorldToViewportPoint(head.Position)
+          if not vis then e.b.Visible=false;e.t.Visible=false else
+            local d=(Cam.CFrame.Position-head.Position).Magnitude;local sz=math.clamp((100/math.max(d,1))*100,20,80);local col=Color3.fromHSV((tick()*0.2)%1,1,1)
+            e.b.Position=Vector2.new(pos.X-sz/2,pos.Y-sz/2);e.b.Size=Vector2.new(sz,sz);e.b.Color=col;e.b.Visible=true
+            e.t.Text=p.Name;e.t.Position=Vector2.new(pos.X,pos.Y-sz/2-18);e.t.Color=col;e.t.Visible=true
+          end
+        end
+      end
+      for p in pairs(boxes)do if not p or not p.Character or not p.Character:FindFirstChild('Head')then rm(p)end end
+    end)
+  else for p in pairs(boxes)do rm(p)end end
 end
 
-local function CreateSlider(parent, name, configKey, min, max, default, callback)
-	local frame = make('Frame',{Name=name..'Slider',Size=UDim2.new(1,0,0,48),BackgroundTransparency=1},parent)
-	local bg = make('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},frame)
-	make('UICorner',{CornerRadius=UDim.new(0,8)},bg)
-	local lbl = make('TextLabel',{Size=UDim2.new(1,-12,0,20),Position=UDim2.new(0,12,0,6),BackgroundTransparency=1,Text=name..': '..(config[configKey] or default),TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
-	local bar = make('Frame',{Size=UDim2.new(1,-24,0,6),Position=UDim2.new(0,12,1,-14),BackgroundColor3=Color3.fromRGB(55,55,65),BorderSizePixel=0},bg)
-	make('UICorner',{CornerRadius=UDim.new(0,3)},bar)
-	local fill = make('Frame',{Size=UDim2.new(0,0,1,0),BackgroundColor3=Color3.fromRGB(0,170,255),BorderSizePixel=0},bar)
-	make('UICorner',{CornerRadius=UDim.new(0,3)},fill)
-	local knob = make('Frame',{Size=UDim2.new(0,14,0,14),Position=UDim2.new(0,-7,0.5,-7),BackgroundColor3=Color3.fromRGB(235,235,245),BorderSizePixel=0},bar)
-	make('UICorner',{CornerRadius=UDim.new(1,0)},knob)
-	local dragging = false
-	local function apply(value)
-		local step = 0.01
-		local val = math.floor((value/step)+0.5) * step
-		val = math.clamp(val, min, max)
-		local pct = (val - min) / (max - min)
-		fill.Size = UDim2.new(pct,0,1,0)
-		knob.Position = UDim2.new(pct,-7,0.5,-7)
-		lbl.Text = name..': '..string.format('%.2f', val)
-		config[configKey] = val
-		if callback then callback(val) end
-		saveConfig()
-	end
-	apply(config[configKey] or default)
-	bar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true end end)
-	UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
-	UIS.InputChanged:Connect(function(i)
-		if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then
-			local m = UIS:GetMouseLocation(); local p = bar.AbsolutePosition; local s = bar.AbsoluteSize
-			local pct = math.clamp((m.X - p.X)/s.X, 0, 1); apply(min + (max-min)*pct)
-		end
-	end)
-	return frame
+local function RemoveClutter()
+  for _,o in ipairs(L:GetChildren())do local c=o.ClassName
+    if c=='BloomEffect'or c=='DepthOfFieldEffect'or c=='ColorCorrectionEffect'or c=='SunRaysEffect'or c=='BlurEffect'then pcall(function()o.Enabled=false end)
+    elseif c=='Atmosphere'or o.Name=='Atmosphere'or o.Name=='SunRays'then pcall(function()o:Destroy()end)end
+  end
+  local function nuke(n)local f=workspace:FindFirstChild(n);if f then for _,ch in ipairs(f:GetChildren())do pcall(function()ch:Destroy()end)end end end
+  for _,n in ipairs({'Trees','CityProps','Props','Decoration','Grass','VFX','Clouds'})do nuke(n)end
+  for _,v in ipairs(workspace:GetDescendants())do pcall(function()
+    if v:IsA('ParticleEmitter')or v:IsA('Trail')or v:IsA('Beam')or v:IsA('Smoke')or v:IsA('Fire')or v:IsA('Sparkles')then v.Enabled=false
+    elseif v:IsA('Decal')or v:IsA('Texture')then v.Transparency=1
+    elseif v:IsA('PointLight')or v:IsA('SpotLight')or v:IsA('SurfaceLight')then if v.Enabled~=nil then v.Enabled=false else v.Brightness=0 end
+    elseif v:IsA('MeshPart')then v.RenderFidelity=Enum.RenderFidelity.Performance end
+  end)end
 end
 
-local function CreateButton(parent, name, onClick)
-	local b = make('TextButton',{Name=name..'Button',Size=UDim2.new(0,260,0,32),BackgroundColor3=Color3.fromRGB(36,36,48),BorderSizePixel=0,Text=name,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.Gotham},parent)
-	make('UICorner',{CornerRadius=UDim.new(0,8)},b)
-	b.MouseButton1Click:Connect(function() if onClick then pcall(onClick) end end)
-	return b
+local function fireAt(v3)local a=ev('Events','Other','Ability');pcall(function()a:InvokeServer('Fireball',v3)end)end
+local function UFA(on)
+  getgenv().UniversalFireBallAimbot=on;if not on then return end
+  task.spawn(function()
+    while getgenv().UniversalFireBallAimbot do
+      pcall(function()
+        local e=workspace:FindFirstChild('Enemies');if not e then return end
+        local _,_,hrp=charHum();if not hrp then return end
+        local mp,bestD,best=hrp.Position,math.huge,nil
+        for _,b in ipairs(e:GetChildren())do
+          for _,m in ipairs(b:GetChildren())do
+            local p=m:FindFirstChild('HumanoidRootPart');local dtag=m:FindFirstChild('Dead')
+            if p and (not dtag or dtag.Value~=true)then local d=(mp-p.Position).Magnitude;if d<bestD then bestD=d;best=p end end
+          end
+        end
+        if best then fireAt(best.Position)end
+      end)
+      task.wait(math.max(0.01,tonumber(cfg.universalFireballInterval)or 1.0))
+    end
+  end)
 end
 
--- Tabs
-local CombatTab = CreateTab('Combat','⚔️')
-local MovementTab = CreateTab('Movement','🏃')
-local UtilityTab = CreateTab('Utility','🔧')
-local VisualTab = CreateTab('Visual','👁️')
-local QuestsTab = CreateTab('Quests','📋')
-local ShopsTab = CreateTab('Shops','🛒')
-local TeleportTab = CreateTab('Teleport','🧭')
-local HealthTab = CreateTab('Health','❤️')
-local ConfigTab = CreateTab('Config','⚙️')
+local function CatAimbot(on)
+  getgenv().FireBallAimbot=on;if not on then return end
+  local order={15,14,12,17,13,10,4};local idx=1;local last=0
+  task.spawn(function()
+    while getgenv().FireBallAimbot do
+      local pl=P.LocalPlayer;if pl and pl.Character and pl.Character:FindFirstChild('HumanoidRootPart')then
+        local hum=pl.Character:FindFirstChild('Humanoid');if hum and hum.Health<=0 then getgenv().FireBallAimbot=false;cfg.FireBallAimbot=false;save();break end
+        local now=tick();if(now-last)>=(cfg.cityFireballCooldown or 0.2)then
+          local e=workspace:FindFirstChild('Enemies');if e then
+            local folder=e:FindFirstChild(tostring(order[idx]))
+            if folder and folder:IsA('Folder')then
+              local pos=Vector3.new(order[idx]*20,5,order[idx]*10)
+              for _,ch in pairs(folder:GetChildren())do if ch:IsA('Model')and ch:FindFirstChild('HumanoidRootPart')then pos=ch.HumanoidRootPart.Position;break elseif ch:IsA('BasePart')then pos=ch.Position;break end end
+              local ok=pcall(function()fireAt(pos)end);last=now;idx=idx%#order+1;task.wait(ok and 0.3 or 0.1)
+            else idx=idx%#order+1;task.wait(0.1)end
+          else task.wait(0.5)end
+        else task.wait(0.05)end
+      else task.wait(0.1)end
+    end
+  end)
+end
 
--- Scrollable containers for Combat and Utility
-local CombatScroll = make('ScrollingFrame',{Name='CombatScroll',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},CombatTab)
-local CombatLayout = make('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CombatScroll)
-CombatLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-	CombatScroll.CanvasSize = UDim2.new(0,0,0,CombatLayout.AbsoluteContentSize.Y+12)
+local function CityAimbot(on)
+  getgenv().FireBallAimbotCity=on;if not on then return end
+  local o={5,9,8,6,3};local idx,last=1,0
+  task.spawn(function()
+    while getgenv().FireBallAimbotCity do
+      local c,h,hrp=charHum()
+      if not hrp then task.wait(0.1) else
+        if h and h.Health<=0 then getgenv().FireBallAimbotCity=false;cfg.FireBallAimbotCity=false;save();break end
+        local now=tick();if(now-last)>=(cfg.cityFireballCooldown or 0.5)then
+          local e=workspace:FindFirstChild('Enemies');if e then
+            local folder=e:FindFirstChild(tostring(o[idx]))
+            if folder and folder:IsA('Folder')then
+              local pos=Vector3.new(o[idx]*20,5,o[idx]*10)
+              for _,ch in ipairs(folder:GetChildren())do local p=ch:IsA('Model')and ch:FindFirstChild('HumanoidRootPart')or(ch:IsA('BasePart')and ch);if p then pos=p.Position;break end end
+              fireAt(pos);last=now;idx=idx%#o+1;task.wait(0.3)
+            else idx=idx%#o+1;task.wait(0.1)end
+          else task.wait(0.5)end
+        else task.wait(0.05)end
+      end
+    end
+  end)
+end
+
+local function sideLoop(gk,ck,id)
+  getgenv()[gk]=true
+  task.spawn(function()
+    while getgenv()[gk] do
+      pcall(function()
+        local _,h=charHum();if h and h.Health<=0 then getgenv()[gk]=false;cfg[ck]=false;save();return end
+        local o=ev('Events','Other');o:WaitForChild('StartSideTask',9e9):FireServer(id);if id==1 then pcall(function()o:WaitForChild('CleanDishes',9e9):FireServer()end)end
+        o:WaitForChild('ClaimSideTask',9e9):FireServer(id)
+      end)
+      task.wait(math.random(50,70))
+    end
+  end)
+end
+local function TWash(on)getgenv().AutoWashDishes=on;if on then sideLoop('AutoWashDishes','AutoWashDishes',1)end end
+local function TNinja(on)cfg.AutoNinjaSideTask=on;save();if on then sideLoop('AutoNinjaSideTask','AutoNinjaSideTask',9)else getgenv().AutoNinjaSideTask=false end end
+local function TAnim(on)cfg.AutoAnimatronicsSideTask=on;save();if on then sideLoop('AutoAnimatronicsSideTask','AutoAnimatronicsSideTask',10)else getgenv().AutoAnimatronicsSideTask=false end end
+local function TMut(on)cfg.AutoMutantsSideTask=on;save();if on then sideLoop('AutoMutantsSideTask','AutoMutantsSideTask',7)else getgenv().AutoMutantsSideTask=false end end
+
+local function TDualExotic(on)
+  cfg.DualExoticShop=on;save();getgenv().DualExoticShop=on;if not on then return end
+  task.spawn(function()
+    local function base(p)if not p then return nil end;if p:IsA('BasePart')then return p end;if p:IsA('Model')then return p:FindFirstChildWhichIsA('BasePart')end end
+    task.wait(10)
+    while getgenv().DualExoticShop do
+      pcall(function()
+        local _,h,hrp=charHum();if not hrp or(h and h.Health<=0)then return end
+        local sp=RS:WaitForChild('Events'):WaitForChild('Spent');local r1=sp:WaitForChild('BuyExotic');local r2=sp:WaitForChild('BuyExotic2')
+        local fr=LP.PlayerGui:WaitForChild('Frames');local g1=fr:WaitForChild('ExoticStore');local g2=fr:WaitForChild('ExoticStore2')
+        local p1=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore'):WaitForChild('1'))
+        local p2=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore2'):WaitForChild('1'))
+        local function buy(ui,rm)local list=ui and ui:FindFirstChild('Content')and ui.Content:FindFirstChild('ExoticList');if not list then return end
+          for _,v in pairs(list:GetChildren())do local i=v:FindFirstChild('Info');local i2=i and i:FindFirstChild('Info')
+            if i2 and i2.Text=='POTION'then local n=tonumber(v.Name:match('%d+'));if n then pcall(function()rm:FireServer(n)end)end end
+          end
+        end
+        local orig=hrp.CFrame
+        if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(1);buy(g1,r1);hrp.CFrame=orig;task.wait(1)end
+        if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(1);buy(g2,r2);hrp.CFrame=orig;task.wait(1)end
+      end)
+      for i=1,600 do if not getgenv().DualExoticShop then break end;task.wait(1)end
+    end
+  end)
+end
+
+local function TVend(on)getgenv().VendingPotionAutoBuy=on;if on then task.spawn(function()local b=ev('Events','VendingMachine','BuyPotion');local a={{2,5000},{3,15000},{1,1500},{4,150000},{5,1500000}}
+  while getgenv().VendingPotionAutoBuy do for _,x in ipairs(a)do if not getgenv().VendingPotionAutoBuy then break end pcall(function()b:FireServer(unpack(x))end)for i=1,60 do if not getgenv().VendingPotionAutoBuy then break end task.wait(1)end end end
+end)end end
+
+local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=on;if not on then return end
+  task.spawn(function()
+    local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
+    local op,od,oh,om,oy=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value
+    local function fmt(n)n=tonumber(n)or 0;if n>=1e15 then return string.format('%.1f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.1f',n/1e12)..'t' end
+      if n>=1e9 then return string.format('%.1f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.1f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.1f',n/1e3)..'k'end return tostring(n)end
+    while getgenv().StatWebhook15m do for i=1,900 do if not getgenv().StatWebhook15m then break end task.wait(1)end;if not getgenv().StatWebhook15m then break end
+      local np,nd,nh,nm,ny=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value
+      if np>op or nd>od or nh>oh or nm>om or ny>oy then
+        local t=LP.Name..' Stats Gained Last 15 Minutes'
+        local d='**Power:** '..fmt(np-op)..'\n**Defense:** '..fmt(nd-od)..'\n**Health:** '..fmt(nh-oh)..'\n**Magic:** '..fmt(nm-om)..'\n**Psychics:** '..fmt(ny-oy)
+        webhook('Stat Bot',t,d,nil);op,od,oh,om,oy=np,nd,nh,nm,ny
+      end
+    end
+  end)
+end
+
+local KA
+local function TKA(on)cfg.KillAura=on;save();getgenv().KillAura=on;if KA then KA:Disconnect();KA=nil end;if not on then return end
+  KA=R.Heartbeat:Connect(function()
+    local _,_,hrp=charHum();if not hrp then return end
+    local E=workspace:FindFirstChild('Enemies');if not E then return end
+    for _,f in ipairs(E:GetChildren())do for _,e in ipairs(f:GetChildren())do if e:IsA('Model')then local p=e:FindFirstChild('HumanoidRootPart');local d=e:FindFirstChild('Dead')
+      if p and(not d or d.Value~=true)then local dist=(hrp.Position-p.Position).Magnitude;if dist<=500 then pcall(function()RS.Events.Other.Ability:InvokeServer('Weapon')end)end end end end end
+  end)
+end
+
+local SG={gui=nil,run=false}
+local function TStatGui(on)cfg.StatGui=on;save();getgenv().StatGui=on;if not on then SG.run=false;if SG.gui then pcall(function()SG.gui:Destroy()end)SG.gui=nil end return end
+  task.spawn(function()
+    local function fmt(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.3f',n/1e18)..'Qn'end;if n>=1e15 then return string.format('%.3f',n/1e15)..'Qd'end
+      if n>=1e12 then return string.format('%.3f',n/1e12)..'T'end;if n>=1e9 then return string.format('%.3f',n/1e9)..'B'end
+      if n>=1e6 then return string.format('%.3f',n/1e6)..'M'end;if n>=1e3 then return string.format('%.3f',n/1e3)..'K'end return tostring(n)end
+    local function dark(c,a)return Color3.fromRGB(math.clamp(c.R*255-a,0,255),math.clamp(c.G*255-a,0,255),math.clamp(c.B*255-a,0,255))end
+    local col={Power=Color3.fromRGB(220,60,60),Health=Color3.fromRGB(100,220,100),Defense=Color3.fromRGB(100,150,220),Psychic=Color3.fromRGB(140,50,180),Magic=Color3.fromRGB(210,140,255),Mobility=Color3.fromRGB(240,240,80)}
+    local gui=Instance.new('ScreenGui');gui.Name='StatsGUI';gui.Parent=LP:WaitForChild('PlayerGui');SG.gui=gui
+    local fr=Instance.new('Frame');fr.BackgroundColor3=Color3.fromRGB(20,20,20);fr.BorderSizePixel=1;fr.BorderColor3=Color3.fromRGB(50,50,50);fr.Position=UDim2.new(0.5,0,0.5,0);fr.Size=UDim2.new(0,500,0,350);fr.Parent=gui;fr.Active=true;fr.Draggable=true
+    local st=Instance.new('UIStroke');st.Parent=fr;st.Thickness=2;st.Color=Color3.fromRGB(70,70,70);local c=Instance.new('UICorner');c.CornerRadius=UDim.new(0,12);c.Parent=fr
+    local lay=Instance.new('UIListLayout');lay.Parent=fr;lay.SortOrder=Enum.SortOrder.LayoutOrder;lay.Padding=UDim.new(0,4);lay.HorizontalAlignment=Enum.HorizontalAlignment.Center;lay.FillDirection=Enum.FillDirection.Vertical;lay.VerticalAlignment=Enum.VerticalAlignment.Top
+    local pad=Instance.new('UIPadding');pad.PaddingTop=UDim.new(0,10);pad.PaddingBottom=UDim.new(0,10);pad.PaddingLeft=UDim.new(0,10);pad.PaddingRight=UDim.new(0,10);pad.Parent=fr
+    local cw,pw,bh,rp=280,160,55,5
+    local function row(n,cl)
+      local r=Instance.new('Frame');r.Size=UDim2.new(0,cw+pw+rp,0,bh);r.BackgroundTransparency=1;r.Parent=fr
+      local rl=Instance.new('UIListLayout');rl.FillDirection=Enum.FillDirection.Horizontal;rl.HorizontalAlignment=Enum.HorizontalAlignment.Center;rl.SortOrder=Enum.SortOrder.LayoutOrder;rl.Padding=UDim.new(0,rp);rl.Parent=r
+      local function box(w,cur)
+        local b=Instance.new('Frame');b.Size=UDim2.new(0,w,1,0);b.BackgroundColor3=dark(cl,80)
+        local ic=Instance.new('UICorner');ic.CornerRadius=UDim.new(0,8);ic.Parent=b
+        local is=Instance.new('UIStroke');is.Parent=b;is.Color=Color3.fromRGB(60,60,60);is.Thickness=1
+        local l=Instance.new('TextLabel');l.Size=UDim2.new(1,-12,1,0);l.Position=UDim2.new(0,6,0,0);l.BackgroundTransparency=1;l.TextColor3=cl;l.Font=Enum.Font.GothamBold;l.TextSize=28;l.Text=cur and(n..': 0')or'0/h';l.TextXAlignment=Enum.TextXAlignment.Left;l.TextYAlignment=Enum.TextYAlignment.Center;l.Parent=b
+        b.Parent=r;return l
+      end
+      return box(cw,true),box(pw,false)
+    end
+    local pl,plh=row('Power',col.Power);local hl,hlh=row('Health',col.Health);local dl,dlh=row('Defense',col.Defense);local yl,ylh=row('Psychic',col.Psychic);local ml,mlh=row('Magic',col.Magic);local bl,blh=row('Mobility',col.Mobility)
+    lay:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()local w=cw+pw+rp+20;local h=lay.AbsoluteContentSize.Y+20;fr.Size=UDim2.new(0,w,0,h);fr.Position=UDim2.new(0.5,-w/2,0.5,-h/2)end)
+    local function stats()local s=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats');return{Power=s.Power and s.Power.Value or 0,Health=s.Health and s.Health.Value or 0,Defense=s.Defense and s.Defense.Value or 0,Psychic=s.Psychics and s.Psychics.Value or 0,Magic=s.Magic and s.Magic.Value or 0,Mobility=s.Mobility and s.Mobility.Value or 0}end
+    local hist,dur={},600;SG.run=true
+    while SG.run and getgenv().StatGui and SG.gui do
+      local now=os.clock();local s=stats();table.insert(hist,{time=now,stats=s});while #hist>0 and(now-hist[1].time>dur)do table.remove(hist,1)end
+      local ph={};if #hist>1 then local first=hist[1];local el=now-first.time;for k,v in pairs(s)do local g=v-(first.stats[k]or 0);ph[k]=g*(3600/math.max(el,1))end end
+      pl.Text='Power: '..fmt(s.Power);plh.Text=fmt(ph.Power or 0)..'/h';hl.Text='Health: '..fmt(s.Health);hlh.Text=fmt(ph.Health or 0)..'/h'
+      dl.Text='Defense: '..fmt(s.Defense);dlh.Text=fmt(ph.Defense or 0)..'/h';yl.Text='Psychic: '..fmt(s.Psychic);ylh.Text=fmt(ph.Psychic or 0)..'/h'
+      ml.Text='Magic: '..fmt(s.Magic);mlh.Text=fmt(ph.Magic or 0)..'/h';bl.Text='Mobility: '..fmt(s.Mobility);blh.Text=fmt(ph.Mobility or 0)..'/h'
+      task.wait(0.5)
+    end
+    if SG.gui then pcall(function()SG.gui:Destroy()end)end;SG.gui=nil
+  end)
+end
+
+local AA={inv=nil,res=nil,fly=nil}
+local function TInv(on)cfg.AutoInvisible=on;save();getgenv().AutoInvisible=on;if AA.inv then AA.inv:Disconnect()AA.inv=nil end;if not on then return end
+  local a=ev('Events','Other','Ability');local last=0
+  AA.inv=R.Heartbeat:Connect(function()local n=os.clock();if n-last<0.5 then return end;last=n;local tv=LP:FindFirstChild('TempValues');local f=tv and tv:FindFirstChild('IsInvisible');if not(f and f.Value==true)then pcall(function()a:InvokeServer('Invisibility',Vector3.new(1936.171142578125,56.015625,-1960.4375))end)end end)
+end
+local function TResize(on)cfg.AutoResize=on;save();getgenv().AutoResize=on;if AA.res then AA.res:Disconnect()AA.res=nil end;if not on then return end
+  local a=ev('Events','Other','Ability');local last=0
+  AA.res=R.Heartbeat:Connect(function()local n=os.clock();if n-last<0.5 then return end;last=n;local tv=LP:FindFirstChild('TempValues');local f=tv and tv:FindFirstChild('IsResized');if not(f and f.Value==true)then pcall(function()a:InvokeServer('Resize',Vector3.new(1936.959228515625,56.015625,-1974.80908203125))end)end end)
+end
+local function TFly(on)cfg.AutoFly=on;save();getgenv().AutoFly=on;if AA.fly then AA.fly:Disconnect()AA.fly=nil end;if not on then return end
+  local a=ev('Events','Other','Ability');local last=0
+  AA.fly=R.Heartbeat:Connect(function()local n=os.clock();if n-last<0.5 then return end;last=n;local tv=LP:FindFirstChild('TempValues');local f=tv and tv:FindFirstChild('IsFlying');if not(f and f.Value==true)then pcall(function()a:InvokeServer('Fly',Vector3.new(1932.461181640625,56.015625,-1965.3206787109375))end)end end)
+end
+
+local HExp
+local function resolvePart(which)
+  local city=workspace:FindFirstChild('CatacombsCity');if not city then return nil end
+  local kids=city:GetChildren()
+  local path=which=='low'and(getgenv and getgenv().HealthPart15Path)or(getgenv and getgenv().HealthPart95Path)
+  local idx=tonumber(type(path)=='string'and path:match('%[(%d+)%]')or nil);if not idx then idx=(which=='low')and 2145 or 2389 end
+  return kids[idx]
+end
+local function THealthExploit(on)cfg.HealthExploit=on;save();getgenv().HealthExploit=on;if HExp then HExp:Disconnect()HExp=nil end;if not on then return end
+  local last=0
+  HExp=R.Heartbeat:Connect(function()local n=os.clock();if n-last<0.5 then return end;last=n;local c,h=charHum();if not(c and h and h.MaxHealth and h.MaxHealth>0 and h.Health>0)then return end
+    local r=h.Health/h.MaxHealth;if r<=0.15 then local p=resolvePart('low');if p and p.CFrame then pcall(function()c:PivotTo(p.CFrame+Vector3.new(0,3,0))end)end
+    elseif r>=0.95 then local p=resolvePart('high');if p and p.CFrame then pcall(function()c:PivotTo(p.CFrame+Vector3.new(0,3,0))end)end end
+  end)
+end
+
+local C1=Section(CScroll,'FireBall Aimbot')
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='FireBall Aimbot',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
+Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
+Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
+Toggle(C1,'FireBall Aimbot City Preset','FireBallAimbotCity',CityAimbot);Slider(C1,'City Fireball Cooldown','cityFireballCooldown',0.05,1.0,0.5,function()end)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Panic',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
+Toggle(C1,'Smart Panic','SmartPanic',function(on)cfg.SmartPanic=on;getgenv().SmartPanic=on;save()end)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Pvp',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
+Toggle(C1,'Kill Aura','KillAura',TKA)
+
+local M1=Section(Move,'Movement Features')
+Toggle(M1,'No Clip','NoClip',TNoClip)
+
+local U1=Section(UScroll,'Utility Features')
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Optimizations',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
+Toggle(U1,'Ultimate AFK Optimization','UltimateAFKOptimization',TUltimate)
+Toggle(U1,'AFK Optimization','GraphicsOptimization',TAFK)
+Toggle(U1,'Graphics Optimization','GraphicsOptimizationAdvanced',TGfxAdv)
+Toggle(U1,'Remove Map Clutter','RemoveMapClutter',function(on)if on then RemoveClutter()end end)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Webhooks',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
+Toggle(U1,'Death Webhook','DeathWebhook',function(on)cfg.DeathWebhook=on;save()end)
+Toggle(U1,'Panic Webhook','PanicWebhook',function(on)cfg.PanicWebhook=on;save()end)
+Toggle(U1,'Stat Webhook (15m)','StatWebhook15m',TStatWH)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Server Hop',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
+Btn(U1,'Find Low Server',function()
+  local TS=game:GetService('TeleportService');local function find()
+    local place=game.PlaceId;local job=game.JobId;local best,c=nil,nil
+    while true do
+      local url=string.format('https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s',place,c and('&cursor='..c)or'')
+      local ok,body=pcall(function()return game:HttpGet(url)end);if not ok then break end
+      local d=H:JSONDecode(body);if not d or not d.data then break end
+      for _,s in ipairs(d.data)do if s.id~=job and s.playing<s.maxPlayers then if(not best)or s.playing<best.playing then best=s;if best.playing<=1 then return best end end end end
+      c=d.nextPageCursor;if not c then break end;task.wait(0.1)
+    end;return best
+  end
+  local t=find();if t then TS:TeleportToPlaceInstance(game.PlaceId,t.id,LP) else warn('No suitable server found') end
 end)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Auto Ability',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
+Toggle(U1,'Auto Invisible','AutoInvisible',TInv);Toggle(U1,'Auto Resize','AutoResize',TResize);Toggle(U1,'Auto Fly','AutoFly',TFly)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Stat Gui',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
+Toggle(U1,'Stat Gui','StatGui',TStatGui)
 
-local UtilityScroll = make('ScrollingFrame',{Name='UtilityScroll',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},UtilityTab)
-local UtilityLayout = make('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UtilityScroll)
-UtilityLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-	UtilityScroll.CanvasSize = UDim2.new(0,0,0,UtilityLayout.AbsoluteContentSize.Y+12)
+local V1=Section(Visual,'Visual Features')
+Toggle(V1,'Player ESP','PlayerESP',TPlayerESP)
+Toggle(V1,'Mob ESP','MobESP',function()end)
+
+local Q1=Section(Quests,'Quest Automation')
+Toggle(Q1,'Dishes Side Task','AutoWashDishes',TWash)
+Toggle(Q1,'Ninja Side Task','AutoNinjaSideTask',TNinja)
+Toggle(Q1,'Animatronics Side Task','AutoAnimatronicsSideTask',TAnim)
+Toggle(Q1,'Mutants Side Task','AutoMutantsSideTask',TMut)
+
+local S1=Section(Shops,'Shop Automation')
+Toggle(S1,'Dual Exotic Shop','DualExoticShop',TDualExotic)
+Toggle(S1,'Vending Machine','VendingPotionAutoBuy',TVend)
+
+local H1=Section(HealthT,'Health Exploit')
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Health Exploit',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},H1)
+Toggle(H1,'Health Exploit','HealthExploit',THealthExploit)
+
+local Cfg=Section(Conf,'Configuration')
+local SB=Btn(Cfg,'Save Config',function()save()end)
+local LB=Btn(Cfg,'Load Config',function()
+  if load()~=nil then
+    local function ap(flag,get,tgl)if get()~=flag then tgl(flag)end end
+    ap(cfg.NoClip,function()return getgenv().NoClip or false end,TNoClip)
+    ap(cfg.GraphicsOptimization,function()return getgenv().GraphicsOptimization or false end,TAFK)
+    ap(cfg.GraphicsOptimizationAdvanced,function()return getgenv().GraphicsOptimizationAdvanced or false end,TGfxAdv)
+    ap(cfg.UltimateAFKOptimization,function()return cfg.UltimateAFKOptimization end,TUltimate)
+    ap(cfg.PlayerESP,function()return getgenv().PlayerESP or false end,TPlayerESP)
+    ap(cfg.UniversalFireBallAimbot,function()return getgenv().UniversalFireBallAimbot or false end,UFA)
+    ap(cfg.FireBallAimbot,function()return getgenv().FireBallAimbot or false end,CatAimbot)
+    ap(cfg.FireBallAimbotCity,function()return getgenv().FireBallAimbotCity or false end,CityAimbot)
+    ap(cfg.AutoWashDishes,function()return getgenv().AutoWashDishes or false end,TWash)
+    ap(cfg.AutoNinjaSideTask,function()return getgenv().AutoNinjaSideTask or false end,TNinja)
+    ap(cfg.AutoAnimatronicsSideTask,function()return getgenv().AutoAnimatronicsSideTask or false end,TAnim)
+    ap(cfg.AutoMutantsSideTask,function()return getgenv().AutoMutantsSideTask or false end,TMut)
+    ap(cfg.DualExoticShop,function()return getgenv().DualExoticShop or false end,TDualExotic)
+    ap(cfg.VendingPotionAutoBuy,function()return getgenv().VendingPotionAutoBuy or false end,TVend)
+    ap(cfg.StatWebhook15m,function()return getgenv().StatWebhook15m or false end,TStatWH)
+    ap(cfg.KillAura,function()return getgenv().KillAura or false end,TKA)
+    ap(cfg.StatGui,function()return getgenv().StatGui or false end,TStatGui)
+    ap(cfg.AutoInvisible,function()return getgenv().AutoInvisible or false end,TInv)
+    ap(cfg.AutoResize,function()return getgenv().AutoResize or false end,TResize)
+    ap(cfg.AutoFly,function()return getgenv().AutoFly or false end,TFly)
+    ap(cfg.HealthExploit,function()return getgenv().HealthExploit or false end,THealthExploit)
+    getgenv().SmartPanic=cfg.SmartPanic and true or false
+  end
 end)
-
--- Teleport two-column layout
-local TeleportRoot = make('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},TeleportTab)
-local LeftCol = make('ScrollingFrame',{Name='LeftCol',Size=UDim2.new(0.55,-8,1,0),Position=UDim2.new(0,0,0,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TeleportRoot)
-local LeftLayout = make('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},LeftCol)
-LeftLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-	LeftCol.CanvasSize = UDim2.new(0,0,0,LeftLayout.AbsoluteContentSize.Y+20)
-end)
-local RightCol = make('ScrollingFrame',{Name='RightCol',Size=UDim2.new(0.45,0,1,0),Position=UDim2.new(0.55,8,0,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TeleportRoot)
-local RightLayout = make('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},RightCol)
-RightLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-	RightCol.CanvasSize = UDim2.new(0,0,0,RightLayout.AbsoluteContentSize.Y+20)
-end)
-
-local function addTitle(parent, text)
-	make('TextLabel',{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,Text=text,TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},parent)
-end
-local function getInstanceAtPath(parts) local cur=workspace; for _,n in ipairs(parts) do if not cur or not cur.FindFirstChild then return nil end; cur=cur:FindFirstChild(n) end; return cur end
-local function teleportTo(target)
-	local char,_,hrp = getCharHumanoid(); if not (char and hrp and target) then return end
-	local cf = target:IsA('BasePart') and target.CFrame or (target:IsA('Model') and target:GetPivot() or nil); if not cf then return end
-	local dest = CFrame.new(cf.Position + (cf.LookVector*4) + Vector3.new(0,3,0), cf.Position + (cf.LookVector*5)); char:PivotTo(dest)
-end
-local function addTeleport(parent, parts, label) CreateButton(parent,label,function() local inst=getInstanceAtPath(parts); if not inst then return end; teleportTo(inst) end) end
-
--- RIGHT COLUMN: Players + Saved Position
-do
-	addTitle(RightCol,'Players')
-	local PlayersList = make('Frame',{Name='PlayersList',Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RightCol)
-	local PlayersListLayout = make('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PlayersList)
-	PlayersListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-		PlayersList.Size = UDim2.new(1,0,0,PlayersListLayout.AbsoluteContentSize.Y)
-	end)
-	local buttons = {}
-	local function makePlayerButton(plr)
-		return CreateButton(PlayersList, plr.Name, function()
-			local char = plr.Character
-			local hrp = char and char:FindFirstChild('HumanoidRootPart')
-			if hrp then
-				local cf = CFrame.new(hrp.Position + Vector3.new(0,3,0), hrp.Position + hrp.CFrame.LookVector*2)
-				local myChar = LocalPlayer.Character
-				if myChar then pcall(function() myChar:PivotTo(cf) end) end
-			end
-		end)
-	end
-	local function refresh()
-		for plr,btn in pairs(buttons) do pcall(function() btn:Destroy() end); buttons[plr]=nil end
-		for _,plr in ipairs(Players:GetPlayers()) do if plr ~= LocalPlayer then buttons[plr] = makePlayerButton(plr) end end
-	end
-	refresh()
-	Players.PlayerAdded:Connect(function(plr) if plr~=LocalPlayer then buttons[plr]=makePlayerButton(plr) end end)
-	Players.PlayerRemoving:Connect(function(plr) if buttons[plr] then pcall(function() buttons[plr]:Destroy() end); buttons[plr]=nil end end)
-
-	addTitle(RightCol,'Saved Position')
-	local row = make('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RightCol)
-	local rowList = make('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
-	CreateButton(row,'Save Place',function() local _,_,hrp=getCharHumanoid(); if hrp then _G.__SavedCFrame = hrp.CFrame end end)
-	CreateButton(row,'Teleport To Save',function() local cf=_G.__SavedCFrame; local char=LocalPlayer.Character; if cf and char then pcall(function() char:PivotTo(cf) end) end end)
-	rowList:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function() row.Size = UDim2.new(1,0,0,rowList.AbsoluteContentSize.Y) end)
-end
-
--- LEFT COLUMN: Teleports
-local function addTeleports(title, list)
-	addTitle(LeftCol, title)
-	for _, item in ipairs(list) do addTeleport(LeftCol, item[1], item[2]) end
-end
-
-addTeleports('Stores', {
-	{{'Pads','ExoticStore','1'},'Exotic Store'},
-	{{'Pads','ExoticStore2','1'},'Dark Exotic Store'},
-	{{'Pads','Store','1'},'Starter Store'},
-	{{'Pads','Store','2'},'Supermarket'},
-	{{'Pads','Store','3'},'Gym Store'},
-	{{'Pads','Store','4'},'Necklace Store'},
-	{{'Pads','Store','5'},'Melee Store'},
-	{{'Pads','Store','6'},'Premium Shop'},
-	{{'Pads','Store','7'},'Armour Shop 1'},
-	{{'Pads','Store','8'},'Armour Shop 2'},
-	{{'Pads','Store','9'},'Tower Store'},
-	{{'Pads','Store','12'},'Accessory Store'},
-	{{'Pads','Store','13'},'Combat Helmet Store'},
-	{{'Pads','Store','10'},'Luxury Hats Store'},
-	{{'Pads','Store','11'},'Basic Trails Store'},
-	{{'Pads','Store','14'},'Advanced Trail Store'},
-	{{'Pads','Store','15'},'Legendary Trail Store'},
-})
-addTeleports('Wand Stores', {
-	{{'Pads','Wands','1'},'Wand Store 1'},
-	{{'Pads','Wands','2'},'Wand Store 2'},
-})
-addTitle(LeftCol,'Weight Stores')
-for i=1,5 do addTeleport(LeftCol,{'Pads','Weight',tostring(i)},'Weight Store '..i) end
-addTeleports('Stand Stores', {
-	{{'Pads','StandIndex','1'},'Stand Store 1'},
-	{{'Pads','StandIndex','2'},'Greater Stands'},
-	{{'Pads','StandIndex','3'},'Demonic Stands'},
-})
-addTeleports('Deluxo Upgrades', {
-	{{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade'},
-})
-addTeleports('Questlines', {
-	{{'Pads','MainTasks','MainTask'},'Main Questline'},
-	{{'Pads','MainTasks','AQuest'},'Extra Questline'},
-	{{'Pads','MainTasks','LucaTask'},'Luca Questline'},
-	{{'Pads','MainTasks','ReaperTask'},'Reaper Questline'},
-	{{'Pads','MainTasks','GladiatorTask'},'Gladiator Questline'},
-	{{'Pads','MainTasks','TowerFacility'},'Tower Questline'},
-	{{'Pads','MainTasks','AncientQuests'},'Ancient Questline'},
-	{{'Pads','MainTasks','TankQuests'},'Defence Questline'},
-	{{'Pads','MainTasks','PowerQuests'},'Power Questline'},
-	{{'Pads','MainTasks','MagicQuests'},'Magic Questline'},
-	{{'Pads','MainTasks','MobilityQuests'},'Mobility Questline'},
-})
-addTeleports('Side Tasks', {
-	{{'Pads','SideTasks','1'},'Dishes Side Task'},
-	{{'Pads','SideTasks','2'},'Spawn Mob Task'},
-	{{'Pads','SideTasks','3'},'City Mob Tasks 1'},
-	{{'Pads','SideTasks','4'},'City Mob Tasks 2'},
-	{{'Pads','SideTasks','5'},'Ninja Mob Tasks'},
-	{{'Pads','SideTasks','7'},'Arena Mob Tasks'},
-})
-addTeleports('Experiments', {
-	{{'Experiment','FloorHitbox'},'Mobility Experiment'},
-	{{'Experiment','SurvivalHitbox'},'Health Experiment'},
-	{{'Pads','Telekinesis','Telekinesis'},'Psychic Experiment'},
-	{{'WallGame','WallHitbox'},'Power Experiment'},
-	{{'Experiment','Energy','15','Part'},'Magic Experiment'},
-})
-
--- Controllers
-
--- No Clip
-local __NoClip = { conn=nil, charConn=nil, descConn=nil, orig={} }
-local function ncRecord(part) if not __NoClip.orig[part] then __NoClip.orig[part] = part.CanCollide end end
-local function ncApplyOnPart(part) if part:IsA('BasePart') then ncRecord(part); part.CanCollide = false end end
-local function ncApplyAll() local char = LocalPlayer.Character; if not char then return end; for _, p in ipairs(char:GetDescendants()) do ncApplyOnPart(p) end end
-local function ncRestoreAll() for part, was in pairs(__NoClip.orig) do if part and part.Parent then pcall(function() part.CanCollide = was end) end end; table.clear(__NoClip.orig) end
-local function ToggleNoClip(on)
-	getgenv().NoClip = on
-	if on then
-		if __NoClip.conn then __NoClip.conn:Disconnect() end
-		if __NoClip.charConn then __NoClip.charConn:Disconnect() end
-		if __NoClip.descConn then __NoClip.descConn:Disconnect() end
-		ncApplyAll()
-		__NoClip.conn = RS.Stepped:Connect(function() if getgenv().NoClip then ncApplyAll() end end)
-		__NoClip.charConn = LocalPlayer.CharacterAdded:Connect(function(char)
-			if getgenv().NoClip then
-				table.clear(__NoClip.orig)
-				task.wait(0.1)
-				ncApplyAll()
-				if __NoClip.descConn then __NoClip.descConn:Disconnect() end
-				__NoClip.descConn = char.DescendantAdded:Connect(function(inst) if getgenv().NoClip then ncApplyOnPart(inst) end end)
-			end
-		end)
-		local char = LocalPlayer.Character
-		if char then
-			if __NoClip.descConn then __NoClip.descConn:Disconnect() end
-			__NoClip.descConn = char.DescendantAdded:Connect(function(inst) if getgenv().NoClip then ncApplyOnPart(inst) end end)
-		end
-	else
-		if __NoClip.conn then __NoClip.conn:Disconnect() __NoClip.conn=nil end
-		if __NoClip.charConn then __NoClip.charConn:Disconnect() __NoClip.charConn=nil end
-		if __NoClip.descConn then __NoClip.descConn:Disconnect() __NoClip.descConn=nil end
-		ncRestoreAll()
-	end
-end
-
--- Graphics Optimization (simple)
-local function ToggleAFKOpt(on)
-	getgenv().GraphicsOptimization = on
-	pcall(function()
-		settings().Rendering.QualityLevel = on and 1 or 21
-		settings().Physics.PhysicsSendRate = on and 1 or 60
-	end)
-end
-
--- Graphics Optimization Advanced
-local __AdvGfxBackup = { lighting = {}, terrain = {}, conns = {} }
-local function ToggleGraphicsOptAdvanced(on)
-	getgenv().GraphicsOptimizationAdvanced = on
-	local Terrain = workspace:FindFirstChildOfClass('Terrain')
-	local function setProp(bucket, inst, prop, val)
-		if __AdvGfxBackup[bucket][inst] == nil then __AdvGfxBackup[bucket][inst] = {} end
-		if __AdvGfxBackup[bucket][inst][prop] == nil then
-			local ok, old = pcall(function() return inst[prop] end)
-			if ok then __AdvGfxBackup[bucket][inst][prop] = old end
-		end
-		pcall(function() inst[prop] = val end)
-	end
-	local function restoreAll()
-		for t, insts in pairs(__AdvGfxBackup) do
-			if t ~= 'conns' then
-				for inst, props in pairs(insts) do
-					for prop, old in pairs(props) do pcall(function() inst[prop] = old end) end
-				end
-				__AdvGfxBackup[t] = {}
-			end
-		end
-		for _, c in ipairs(__AdvGfxBackup.conns) do pcall(function() c:Disconnect() end) end
-		__AdvGfxBackup.conns = {}
-	end
-	if not on then restoreAll(); return end
-	setProp('lighting', Lighting, 'Brightness', 2)
-	setProp('lighting', Lighting, 'ClockTime', 14)
-	setProp('lighting', Lighting, 'GlobalShadows', false)
-	setProp('lighting', Lighting, 'ShadowSoftness', 0)
-	setProp('lighting', Lighting, 'EnvironmentDiffuseScale', 0)
-	setProp('lighting', Lighting, 'EnvironmentSpecularScale', 0)
-	for _, o in ipairs(Lighting:GetChildren()) do
-		local c = o.ClassName
-		if c == 'BloomEffect' or c == 'DepthOfFieldEffect' or c == 'ColorCorrectionEffect' or c == 'SunRaysEffect' or c == 'BlurEffect' then pcall(function() o.Enabled = false end)
-		elseif c == 'Atmosphere' then setProp('lighting', o, 'Density', 0); setProp('lighting', o, 'Haze', 0); setProp('lighting', o, 'Glare', 0)
-		elseif c == 'Clouds' then setProp('lighting', o, 'Coverage', 0); setProp('lighting', o, 'Density', 0) end
-	end
-	if Terrain then
-		setProp('terrain', Terrain, 'Decoration', false)
-		setProp('terrain', Terrain, 'WaterReflectance', 0)
-		setProp('terrain', Terrain, 'WaterTransparency', 1)
-		setProp('terrain', Terrain, 'WaterWaveSize', 0)
-		setProp('terrain', Terrain, 'WaterWaveSpeed', 0)
-	end
-	local function simplify(inst)
-		local c = inst.ClassName
-		if c == 'ParticleEmitter' or c == 'Trail' or c == 'Beam' or c == 'Smoke' or c == 'Fire' or c == 'Sparkles' then pcall(function() inst.Enabled = false end)
-		elseif c == 'PointLight' or c == 'SpotLight' or c == 'SurfaceLight' then if inst.Enabled ~= nil then pcall(function() inst.Enabled = false end) else pcall(function() inst.Brightness = 0 end) end
-		elseif c == 'Decal' or c == 'Texture' then pcall(function() inst.Transparency = 1 end)
-		elseif c == 'MeshPart' then pcall(function() inst.RenderFidelity = Enum.RenderFidelity.Performance end) end
-	end
-	for _, d in ipairs(workspace:GetDescendants()) do simplify(d) end
-	table.insert(__AdvGfxBackup.conns, workspace.DescendantAdded:Connect(simplify))
-end
-
--- Ultimate AFK Optimization
-local function ToggleUltimateAFK(on)
-	config.UltimateAFKOptimization = on; saveConfig()
-	getgenv().UltimateOpt = getgenv().UltimateOpt or { applied=false, changed={}, conn=nil }
-	local S = getgenv().UltimateOpt
-	local function restoreAll()
-		for i = #S.changed, 1, -1 do
-			local r = S.changed[i]
-			if r.inst and r.inst.Parent ~= nil then pcall(function() r.inst[r.prop] = r.old end) end
-			S.changed[i] = nil
-		end
-		if S.conn then pcall(function() S.conn:Disconnect() end); S.conn=nil end
-		S.applied = false
-	end
-	if not on then
-		restoreAll()
-		pcall(function() settings().Rendering.QualityLevel = 21; settings().Physics.PhysicsSendRate = 60 end)
-		return
-	end
-	if S.applied then return end
-	local function setProp(inst, prop, val)
-		pcall(function()
-			local ok, old = pcall(function() return inst[prop] end)
-			if ok then table.insert(S.changed, {inst=inst, prop=prop, old=old}) end
-			inst[prop] = val
-		end)
-	end
-	pcall(function() settings().Rendering.QualityLevel = 1; settings().Physics.PhysicsSendRate = 1 end)
-	setProp(Lighting, 'Brightness', 2); setProp(Lighting, 'ClockTime', 14)
-	setProp(Lighting, 'GlobalShadows', false); setProp(Lighting, 'ShadowSoftness', 0)
-	setProp(Lighting, 'EnvironmentDiffuseScale', 0); setProp(Lighting, 'EnvironmentSpecularScale', 0)
-	for _,o in ipairs(Lighting:GetChildren()) do
-		local c=o.ClassName
-		if c=='BloomEffect' or c=='DepthOfFieldEffect' or c=='ColorCorrectionEffect' or c=='SunRaysEffect' or c=='BlurEffect' then setProp(o,'Enabled',false)
-		elseif c=='Atmosphere' then setProp(o,'Density',0); setProp(o,'Haze',0); setProp(o,'Glare',0)
-		elseif c=='Clouds' then setProp(o,'Coverage',0); setProp(o,'Density',0) end
-	end
-	local t = workspace:FindFirstChildOfClass('Terrain')
-	if t then setProp(t,'Decoration',false); setProp(t,'WaterReflectance',0); setProp(t,'WaterTransparency',1); setProp(t,'WaterWaveSize',0); setProp(t,'WaterWaveSpeed',0) end
-	local function simplify(inst)
-		local c = inst.ClassName
-		if c=='ParticleEmitter' or c=='Trail' or c=='Beam' or c=='Smoke' or c=='Fire' or c=='Sparkles' then if pcall(function() return inst.Enabled end) then setProp(inst,'Enabled',false) end
-		elseif c=='PointLight' or c=='SpotLight' or c=='SurfaceLight' then if pcall(function() return inst.Enabled end) then setProp(inst,'Enabled',false) else setProp(inst,'Brightness',0) end
-		elseif c=='Decal' or c=='Texture' then setProp(inst,'Transparency',1)
-		elseif c=='MeshPart' then setProp(inst,'RenderFidelity', Enum.RenderFidelity.Performance) end
-	end
-	for _,d in ipairs(workspace:GetDescendants()) do simplify(d) end
-	S.conn = workspace.DescendantAdded:Connect(simplify)
-	S.applied = true
-end
-
--- Player ESP
-local function TogglePlayerESP(enabled)
-	getgenv().PlayerESP = enabled
-	if not Drawing then return end
-	if getgenv().__PlayerESPConn then getgenv().__PlayerESPConn:Disconnect(); getgenv().__PlayerESPConn=nil end
-	local boxes = {}
-	local function mk(player)
-		local box=Drawing.new('Square'); box.Filled=false; box.Thickness=2; box.Visible=false
-		local name=Drawing.new('Text'); name.Size=24; name.Center=true; name.Outline=true; name.Visible=false
-		boxes[player]={box=box,name=name}
-	end
-	local function rm(player) local e=boxes[player]; if not e then return end; pcall(function() e.box:Remove() e.name:Remove() end); boxes[player]=nil end
-	if enabled then
-		getgenv().__PlayerESPConn = RS.RenderStepped:Connect(function()
-			if not getgenv().PlayerESP then for p,_ in pairs(boxes) do rm(p) end; return end
-			for _,p in ipairs(Players:GetPlayers()) do
-				if p~=LocalPlayer and p.Character and p.Character:FindFirstChild('Head') then
-					if not boxes[p] then mk(p) end
-					local e=boxes[p]; local head=p.Character.Head
-					local pos,vis = Camera:WorldToViewportPoint(head.Position)
-					if not vis then e.box.Visible=false e.name.Visible=false else
-						local dist=(Camera.CFrame.Position - head.Position).Magnitude
-						local size=math.clamp((100/math.max(dist,1))*100,20,80)
-						local col=Color3.fromHSV((tick()*0.2)%1,1,1)
-						e.box.Position=Vector2.new(pos.X-size/2,pos.Y-size/2); e.box.Size=Vector2.new(size,size); e.box.Color=col; e.box.Visible=true
-						e.name.Text=p.Name; e.name.Position=Vector2.new(pos.X,pos.Y-size/2-18); e.name.Color=col; e.name.Visible=true
-					end
-				end
-			end
-			for p,_ in pairs(boxes) do if not p or not p.Character or not p.Character:FindFirstChild('Head') then rm(p) end end
-		end)
-	else
-		for p,_ in pairs(boxes) do rm(p) end
-	end
-end
-
--- Mob ESP (your EnemyESP2 implementation can be kept here)
-
--- Remove Map Clutter
-local function RunRemoveMapClutter()
-	for _, o in ipairs(Lighting:GetChildren()) do
-		local c = o.ClassName
-		if c == 'BloomEffect' or c == 'DepthOfFieldEffect' or c == 'ColorCorrectionEffect' or c == 'SunRaysEffect' or c == 'BlurEffect' then
-			pcall(function() o.Enabled = false end)
-		elseif c == 'Atmosphere' or o.Name == 'Atmosphere' or o.Name=='SunRays' then
-			pcall(function() o:Destroy() end)
-		end
-	end
-	local function nukeFolder(name) local f = workspace:FindFirstChild(name); if f then for _, ch in ipairs(f:GetChildren()) do pcall(function() ch:Destroy() end) end end end
-	for _, name in ipairs({ 'Trees', 'CityProps', 'Props', 'Decoration', 'Grass', 'VFX', 'Clouds' }) do nukeFolder(name) end
-	for _, v in ipairs(workspace:GetDescendants()) do
-		pcall(function()
-			if v:IsA('ParticleEmitter') or v:IsA('Trail') or v:IsA('Beam') or v:IsA('Smoke') or v:IsA('Fire') or v:IsA('Sparkles') then v.Enabled = false
-			elseif v:IsA('Decal') or v:IsA('Texture') then v.Transparency = 1
-			elseif v:IsA('PointLight') or v:IsA('SpotLight') or v:IsA('SurfaceLight') then if v.Enabled ~= nil then v.Enabled = false else v.Brightness = 0 end
-			elseif v:IsA('MeshPart') then v.RenderFidelity = Enum.RenderFidelity.Performance end
-		end)
-	end
-end
-
--- Aimbots
-local function fireFireballAt(pos)
-	local ability = getEvent('Events','Other','Ability'); pcall(function() ability:InvokeServer('Fireball', pos) end)
-end
-
-local function ToggleUniversalAimbot(enabled)
-	getgenv().UniversalFireBallAimbot = enabled
-	if not enabled then return end
-	task.spawn(function()
-		while getgenv().UniversalFireBallAimbot do
-			pcall(function()
-				local enemies = workspace:FindFirstChild('Enemies'); if not enemies then return end
-				local _,_,hrp = getCharHumanoid(); if not hrp then return end
-				local myPos, bestDist, best = hrp.Position, math.huge, nil
-				for _,bucket in ipairs(enemies:GetChildren()) do
-					for _,m in ipairs(bucket:GetChildren()) do
-						local p = m:FindFirstChild('HumanoidRootPart')
-						local dead = m:FindFirstChild('Dead')
-						if p and (not dead or dead.Value~=true) then
-							local d=(myPos - p.Position).Magnitude
-							if d<bestDist then bestDist=d; best=p end
-						end
-					end
-				end
-				if best then fireFireballAt(best.Position) end
-			end)
-			task.wait(math.max(0.01, tonumber(config.universalFireballInterval) or 1.0))
-		end
-	end)
-end
-
-local function ToggleCatacombsAimbot(enabled)
-	getgenv().FireBallAimbot = enabled
-	if not enabled then return end
-	local targetOrder = { 15, 14, 12, 17, 13, 10, 4 }
-	local currentTargetIndex = 1
-	local lastFireballTime = 0
-	task.spawn(function()
-		while getgenv().FireBallAimbot do
-			local player = Players.LocalPlayer
-			if player and player.Character and player.Character:FindFirstChild('HumanoidRootPart') then
-				local humanoid = player.Character:FindFirstChild('Humanoid')
-				if humanoid and humanoid.Health <= 0 then
-					getgenv().FireBallAimbot = false; config.FireBallAimbot = false; saveConfig(); break
-				end
-				local currentTime = tick()
-				if (currentTime - lastFireballTime) >= (config.cityFireballCooldown or 0.2) then
-					local targetFolderNumber = targetOrder[currentTargetIndex]
-					local enemies = workspace:FindFirstChild('Enemies')
-					if enemies then
-						local targetFolder = enemies:FindFirstChild(tostring(targetFolderNumber))
-						if targetFolder and targetFolder:IsA('Folder') then
-							local targetPosition = Vector3.new(targetFolderNumber*20, 5, targetFolderNumber*10)
-							for _, child in pairs(targetFolder:GetChildren()) do
-								if child:IsA('Model') and child:FindFirstChild('HumanoidRootPart') then targetPosition = child.HumanoidRootPart.Position; break
-								elseif child:IsA('BasePart') then targetPosition = child.Position; break end
-							end
-							local success = pcall(function() fireFireballAt(targetPosition) end)
-							if success then lastFireballTime = currentTime; currentTargetIndex = currentTargetIndex % #targetOrder + 1; task.wait(0.3)
-							else currentTargetIndex = currentTargetIndex % #targetOrder + 1; task.wait(0.1) end
-						else currentTargetIndex = currentTargetIndex % #targetOrder + 1; task.wait(0.1) end
-					else task.wait(0.5) end
-				else task.wait(0.05) end
-			else task.wait(0.1) end
-		end
-	end)
-end
-
-local function ToggleCityAimbot(enabled)
-	getgenv().FireBallAimbotCity = enabled; if not enabled then return end
-	local order = {5,9,8,6,3}; local idx, last = 1, 0
-	task.spawn(function()
-		while getgenv().FireBallAimbotCity do
-			local char,hum,hrp = getCharHumanoid()
-			if not hrp then task.wait(0.1) else
-				if hum and hum.Health<=0 then getgenv().FireBallAimbotCity=false; config.FireBallAimbotCity=false; saveConfig(); break end
-				local now=tick()
-				if (now-last) >= (config.cityFireballCooldown or 0.5) then
-					local enemies = workspace:FindFirstChild('Enemies')
-					if enemies then
-						local folder = enemies:FindFirstChild(tostring(order[idx]))
-						if folder and folder:IsA('Folder') then
-							local pos = Vector3.new(order[idx]*20,5,order[idx]*10)
-							for _,ch in ipairs(folder:GetChildren()) do
-								local p = ch:IsA('Model') and ch:FindFirstChild('HumanoidRootPart') or (ch:IsA('BasePart') and ch)
-								if p then pos=p.Position; break end
-							end
-							fireFireballAt(pos); last=now; idx = idx % #order + 1; task.wait(0.3)
-						else idx = idx % #order + 1; task.wait(0.1) end
-					else task.wait(0.5) end
-				else task.wait(0.05) end
-			end
-		end
-	end)
-end
-
--- Side Tasks
-local function startSideTaskLoop(getKey, cfgKey, taskId)
-	getgenv()[getKey] = true
-	task.spawn(function()
-		while getgenv()[getKey] do
-			pcall(function()
-				local _,hum = getCharHumanoid()
-				if hum and hum.Health<=0 then getgenv()[getKey]=false; config[cfgKey]=false; saveConfig(); return end
-				local other = getEvent('Events','Other')
-				other:WaitForChild('StartSideTask',9e9):FireServer(taskId)
-				if taskId==1 then pcall(function() other:WaitForChild('CleanDishes',9e9):FireServer() end) end
-				other:WaitForChild('ClaimSideTask',9e9):FireServer(taskId)
-			end)
-			task.wait(math.random(50,70))
-		end
-	end)
-end
-
-local function ToggleAutoWashDishes(on)
-	getgenv().AutoWashDishes = on
-	if on then startSideTaskLoop('AutoWashDishes','AutoWashDishes',1) end
-end
-local function ToggleNinjaSide(on)
-	config.AutoNinjaSideTask = on; saveConfig()
-	if on then startSideTaskLoop('AutoNinjaSideTask','AutoNinjaSideTask',9) else getgenv().AutoNinjaSideTask=false end
-end
-local function ToggleAnimSide(on)
-	config.AutoAnimatronicsSideTask = on; saveConfig()
-	if on then startSideTaskLoop('AutoAnimatronicsSideTask','AutoAnimatronicsSideTask',10) else getgenv().AutoAnimatronicsSideTask=false end
-end
-local function ToggleMutantsSide(on)
-	config.AutoMutantsSideTask = on; saveConfig()
-	if on then startSideTaskLoop('AutoMutantsSideTask','AutoMutantsSideTask',7) else getgenv().AutoMutantsSideTask=false end
-end
-
--- Shops
-local function ToggleDualExoticShop(on)
-	config.DualExoticShop = on; saveConfig()
-	getgenv().DualExoticShop = on
-	if not on then return end
-	task.spawn(function()
-		local function getPadPart(padModel)
-			if not padModel then return nil end
-			if padModel:IsA("BasePart") then return padModel end
-			if padModel:IsA("Model") then return padModel:FindFirstChildWhichIsA("BasePart") end
-			return nil
-		end
-		task.wait(10)
-		while getgenv().DualExoticShop do
-			pcall(function()
-				local _, hum, hrp = getCharHumanoid(); if not hrp or (hum and hum.Health<=0) then return end
-				local spent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Spent")
-				local remote1 = spent:WaitForChild("BuyExotic")
-				local remote2 = spent:WaitForChild("BuyExotic2")
-				local frames = LocalPlayer.PlayerGui:WaitForChild("Frames")
-				local gui1 = frames:WaitForChild("ExoticStore")
-				local gui2 = frames:WaitForChild("ExoticStore2")
-				local pad1 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore"):WaitForChild("1"))
-				local pad2 = getPadPart(workspace:WaitForChild("Pads"):WaitForChild("ExoticStore2"):WaitForChild("1"))
-				local function buyPotions(shopFrame, remote)
-					local list = shopFrame and shopFrame:FindFirstChild("Content") and shopFrame.Content:FindFirstChild("ExoticList")
-					if not list then return end
-					for _, v in pairs(list:GetChildren()) do
-						local info2 = v:FindFirstChild("Info") and v.Info:FindFirstChild("Info")
-						if info2 and info2.Text == "POTION" then
-							local itemNumber = tonumber(string.match(v.Name, "%d+"))
-							if itemNumber then pcall(function() remote:FireServer(itemNumber) end) end
-						end
-					end
-				end
-				local original = hrp.CFrame
-				if pad1 then hrp.CFrame = pad1.CFrame + Vector3.new(0,3,0); task.wait(1); buyPotions(gui1, remote1); hrp.CFrame = original; task.wait(1) end
-				if pad2 then hrp.CFrame = pad2.CFrame + Vector3.new(0,3,0); task.wait(1); buyPotions(gui2, remote2); hrp.CFrame = original; task.wait(1) end
-			end)
-			for i=1,600 do if not getgenv().DualExoticShop then break end; task.wait(1) end
-		end
-	end)
-end
-
-local function ToggleVending(on)
-	getgenv().VendingPotionAutoBuy = on
-	if on then
-		task.spawn(function()
-			local buy = getEvent('Events','VendingMachine','BuyPotion')
-			local args = { {2,5000},{3,15000},{1,1500},{4,150000},{5,1500000} }
-			while getgenv().VendingPotionAutoBuy do
-				for _,a in ipairs(args) do
-					if not getgenv().VendingPotionAutoBuy then break end
-					pcall(function() buy:FireServer(unpack(a)) end)
-					for i=1,60 do if not getgenv().VendingPotionAutoBuy then break end; task.wait(1) end
-				end
-			end
-		end)
-	end
-end
-
--- Utility: 15m Stat Webhook (no ping)
-local function ToggleStatWebhook15m(on)
-	config.StatWebhook15m = on; saveConfig()
-	getgenv().StatWebhook15m = on
-	if not on then return end
-	task.spawn(function()
-		local stats = ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats")
-		local oldPower, oldDefense, oldHealth, oldMagic, oldPsy =
-			stats.Power.Value, stats.Defense.Value, stats.Health.Value, stats.Magic.Value, stats.Psychics.Value
-		local function formatNumber(n)
-			n = tonumber(n) or 0
-			if n >= 1e15 then return string.format('%.1f', n/1e15)..'qd' end
-			if n >= 1e12 then return string.format('%.1f', n/1e12)..'t' end
-			if n >= 1e9  then return string.format('%.1f', n/1e9 )..'b' end
-			if n >= 1e6  then return string.format('%.1f', n/1e6 )..'m' end
-			if n >= 1e3  then return string.format('%.1f', n/1e3 )..'k' end
-			return tostring(n)
-		end
-		while getgenv().StatWebhook15m do
-			for i=1,900 do if not getgenv().StatWebhook15m then break end; task.wait(1) end
-			if not getgenv().StatWebhook15m then break end
-			local newPower, newDefense, newHealth, newMagic, newPsy =
-				stats.Power.Value, stats.Defense.Value, stats.Health.Value, stats.Magic.Value, stats.Psychics.Value
-			if newPower > oldPower or newDefense > oldDefense or newHealth > oldHealth or newMagic > oldMagic or newPsy > oldPsy then
-				local title = LocalPlayer.Name .. " Stats Gained Last 15 Minutes"
-				local desc = "**Power:** " .. formatNumber(newPower - oldPower)
-					.. "\n**Defense:** " .. formatNumber(newDefense - oldDefense)
-					.. "\n**Health:** " .. formatNumber(newHealth - oldHealth)
-					.. "\n**Magic:** " .. formatNumber(newMagic - oldMagic)
-					.. "\n**Psychics:** " .. formatNumber(newPsy - oldPsy)
-				postWebhook('Stat Bot', title, desc, nil)
-				oldPower, oldDefense, oldHealth, oldMagic, oldPsy = newPower, newDefense, newHealth, newMagic, newPsy
-			end
-		end
-	end)
-end
-
--- Combat: Kill Aura
-local __KillAuraConn
-local function ToggleKillAura(on)
-	config.KillAura = on; saveConfig()
-	getgenv().KillAura = on
-	if __KillAuraConn then __KillAuraConn:Disconnect(); __KillAuraConn=nil end
-	if not on then return end
-	__KillAuraConn = RS.Heartbeat:Connect(function()
-		local _, _, hrp = getCharHumanoid(); if not hrp then return end
-		local enemiesFolder = workspace:FindFirstChild("Enemies"); if not enemiesFolder then return end
-		for _, sub in ipairs(enemiesFolder:GetChildren()) do
-			for _, enemy in ipairs(sub:GetChildren()) do
-				if enemy:IsA("Model") then
-					local part = enemy:FindFirstChild("HumanoidRootPart")
-					local dead = enemy:FindFirstChild("Dead")
-					if part and (not dead or dead.Value ~= true) then
-						local dist = (hrp.Position - part.Position).Magnitude
-						if dist <= 500 then
-							pcall(function()
-								ReplicatedStorage.Events.Other.Ability:InvokeServer("Weapon")
-							end)
-						end
-					end
-				end
-			end
-		end
-	end)
-end
-
--- Utility: Stat GUI
-local __StatGui = { gui=nil, running=false }
-local function ToggleStatGui(on)
-	config.StatGui = on; saveConfig()
-	getgenv().StatGui = on
-	if not on then
-		__StatGui.running=false
-		if __StatGui.gui then pcall(function() __StatGui.gui:Destroy() end); __StatGui.gui=nil end
-		return
-	end
-	task.spawn(function()
-		local LocalPlayer = Players.LocalPlayer
-		local ReplicatedStorage = game:GetService("ReplicatedStorage")
-		local function formatNumber(n)
-			n = tonumber(n) or 0
-			if n >= 1e18 then return string.format('%.3f', n/1e18).."Qn" end
-			if n >= 1e15 then return string.format('%.3f', n/1e15).."Qd" end
-			if n >= 1e12 then return string.format('%.3f', n/1e12).."T" end
-			if n >= 1e9  then return string.format('%.3f', n/1e9 ).."B" end
-			if n >= 1e6  then return string.format('%.3f', n/1e6 ).."M" end
-			if n >= 1e3  then return string.format('%.3f', n/1e3 ).."K" end
-			return tostring(n)
-		end
-		local function darkenColor(color, amount)
-			return Color3.fromRGB(
-				math.clamp(color.R * 255 - amount, 0, 255),
-				math.clamp(color.G * 255 - amount, 0, 255),
-				math.clamp(color.B * 255 - amount, 0, 255)
-			)
-		end
-		local statColors = {
-			Power = Color3.fromRGB(220, 60, 60),
-			Health = Color3.fromRGB(100, 220, 100),
-			Defense = Color3.fromRGB(100, 150, 220),
-			Psychic = Color3.fromRGB(140, 50, 180),
-			Magic = Color3.fromRGB(210, 140, 255),
-			Mobility = Color3.fromRGB(240, 240, 80),
-		}
-		local screenGui = Instance.new("ScreenGui")
-		screenGui.Name = "StatsGUI"
-		screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-		__StatGui.gui = screenGui
-		local statsFrame = Instance.new("Frame")
-		statsFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-		statsFrame.BorderSizePixel = 1
-		statsFrame.BorderColor3 = Color3.fromRGB(50, 50, 50)
-		statsFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-		statsFrame.Size = UDim2.new(0, 500, 0, 350)
-		statsFrame.Parent = screenGui
-		statsFrame.Active = true
-		statsFrame.Draggable = true
-		local stroke = Instance.new("UIStroke"); stroke.Parent = statsFrame; stroke.Thickness = 2; stroke.Color = Color3.fromRGB(70, 70, 70)
-		local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 12); corner.Parent = statsFrame
-		local layout = Instance.new("UIListLayout"); layout.Parent = statsFrame; layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Padding = UDim.new(0, 4); layout.HorizontalAlignment = Enum.HorizontalAlignment.Center; layout.FillDirection = Enum.FillDirection.Vertical; layout.VerticalAlignment = Enum.VerticalAlignment.Top
-		local paddingTop = Instance.new("UIPadding"); paddingTop.PaddingTop = UDim.new(0, 10); paddingTop.PaddingBottom = UDim.new(0, 10); paddingTop.PaddingLeft = UDim2.new(0,10).X; paddingTop.PaddingRight = UDim2.new(0,10).X; paddingTop.Parent = statsFrame
-		local currentBoxWidth, perHourBoxWidth, boxHeight, rowPadding = 280, 160, 55, 5
-		local function createStatRow(name, color)
-			local row = Instance.new("Frame"); row.Size = UDim2.new(0, currentBoxWidth + perHourBoxWidth + rowPadding, 0, boxHeight); row.BackgroundTransparency = 1; row.Parent = statsFrame
-			local rowLayout = Instance.new("UIListLayout"); rowLayout.FillDirection = Enum.FillDirection.Horizontal; rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; rowLayout.SortOrder = Enum.SortOrder.LayoutOrder; rowLayout.Padding = UDim.new(0, rowPadding); rowLayout.Parent = row
-			local function makeBox(width, isCurrent)
-				local box = Instance.new("Frame"); box.Size = UDim2.new(0, width, 1, 0); box.BackgroundColor3 = darkenColor(color, 80)
-				local boxCorner = Instance.new("UICorner"); boxCorner.CornerRadius = UDim.new(0, 8); boxCorner.Parent = box
-				local boxStroke = Instance.new("UIStroke"); boxStroke.Parent = box; boxStroke.Color = Color3.fromRGB(60, 60, 60); boxStroke.Thickness = 1
-				local label = Instance.new("TextLabel"); label.Size = UDim2.new(1, -12, 1, 0); label.Position = UDim2.new(0, 6, 0, 0); label.BackgroundTransparency = 1; label.TextColor3 = color; label.Font = Enum.Font.GothamBold; label.TextSize = 28; label.Text = isCurrent and (name .. ": 0") or "0/h"; label.TextXAlignment = Enum.TextXAlignment.Left; label.TextYAlignment = Enum.TextYAlignment.Center; label.Parent = box
-				box.Parent = row
-				return label
-			end
-			local currentLabel = makeBox(currentBoxWidth, true)
-			local perHourLabel = makeBox(perHourBoxWidth, false)
-			return currentLabel, perHourLabel
-		end
-		local powerLabel, powerPerHour = createStatRow("Power", statColors.Power)
-		local healthLabel, healthPerHour = createStatRow("Health", statColors.Health)
-		local defenseLabel, defensePerHour = createStatRow("Defense", statColors.Defense)
-		local psychicLabel, psychicPerHour = createStatRow("Psychic", statColors.Psychic)
-		local magicLabel, magicPerHour = createStatRow("Magic", statColors.Magic)
-		local mobilityLabel, mobilityPerHour = createStatRow("Mobility", statColors.Mobility)
-		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			local frameWidth = currentBoxWidth + perHourBoxWidth + rowPadding + 20
-			local frameHeight = layout.AbsoluteContentSize.Y + 20
-			statsFrame.Size = UDim2.new(0, frameWidth, 0, frameHeight)
-			statsFrame.Position = UDim2.new(0.5, -frameWidth/2, 0.5, -frameHeight/2)
-		end)
-		local function fetchStats()
-			local statsFolder = ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats")
-			return {
-				Power = statsFolder.Power and statsFolder.Power.Value or 0,
-				Health = statsFolder.Health and statsFolder.Health.Value or 0,
-				Defense = statsFolder.Defense and statsFolder.Defense.Value or 0,
-				Psychic = statsFolder.Psychics and statsFolder.Psychics.Value or 0,
-				Magic = statsFolder.Magic and statsFolder.Magic.Value or 0,
-				Mobility = statsFolder.Mobility and statsFolder.Mobility.Value or 0
-			}
-		end
-		local history, historyDuration = {}, 600
-		__StatGui.running = true
-		while __StatGui.running and getgenv().StatGui and __StatGui.gui do
-			local now = os.clock()
-			local stats = fetchStats()
-			table.insert(history, {time = now, stats = stats})
-			while #history > 0 and (now - history[1].time > historyDuration) do table.remove(history, 1) end
-			local perHour = {}
-			if #history > 1 then
-				local first = history[1]; local elapsed = now - first.time
-				for statName, value in pairs(stats) do
-					local gained = value - (first.stats[statName] or 0)
-					perHour[statName] = gained * (3600 / math.max(elapsed, 1))
-				end
-			end
-			powerLabel.Text = "Power: " .. formatNumber(stats.Power); powerPerHour.Text = formatNumber(perHour.Power or 0) .. "/h"
-			healthLabel.Text = "Health: " .. formatNumber(stats.Health); healthPerHour.Text = formatNumber(perHour.Health or 0) .. "/h"
-			defenseLabel.Text = "Defense: " .. formatNumber(stats.Defense); defensePerHour.Text = formatNumber(perHour.Defense or 0) .. "/h"
-			psychicLabel.Text = "Psychic: " .. formatNumber(stats.Psychic); psychicPerHour.Text = formatNumber(perHour.Psychic or 0) .. "/h"
-			magicLabel.Text = "Magic: " .. formatNumber(stats.Magic); magicPerHour.Text = formatNumber(perHour.Magic or 0) .. "/h"
-			mobilityLabel.Text = "Mobility: " .. formatNumber(stats.Mobility); mobilityPerHour.Text = formatNumber(perHour.Mobility or 0) .. "/h"
-			task.wait(0.5)
-		end
-		if __StatGui.gui then pcall(function() __StatGui.gui:Destroy() end) end
-		__StatGui.gui=nil
-	end)
-end
-
--- Auto Ability (checks ~0.5s)
-local __AutoAbility = { inv=nil, res=nil, fly=nil }
-local function ToggleAutoInvisible(on)
-	config.AutoInvisible = on; saveConfig()
-	getgenv().AutoInvisible = on
-	if __AutoAbility.inv then __AutoAbility.inv:Disconnect(); __AutoAbility.inv=nil end
-	if not on then return end
-	local ability = getEvent('Events','Other','Ability')
-	local last = 0
-	__AutoAbility.inv = RS.Heartbeat:Connect(function()
-		local now = os.clock(); if now - last < 0.5 then return end; last = now
-		local tv = LocalPlayer:FindFirstChild("TempValues")
-		local flag = tv and tv:FindFirstChild("IsInvisible")
-		if not (flag and flag.Value == true) then
-			pcall(function() ability:InvokeServer("Invisibility", Vector3.new(1936.171142578125, 56.015625, -1960.4375)) end)
-		end
-	end)
-end
-local function ToggleAutoResize(on)
-	config.AutoResize = on; saveConfig()
-	getgenv().AutoResize = on
-	if __AutoAbility.res then __AutoAbility.res:Disconnect(); __AutoAbility.res=nil end
-	if not on then return end
-	local ability = getEvent('Events','Other','Ability')
-	local last = 0
-	__AutoAbility.res = RS.Heartbeat:Connect(function()
-		local now = os.clock(); if now - last < 0.5 then return end; last = now
-		local tv = LocalPlayer:FindFirstChild("TempValues")
-		local flag = tv and tv:FindFirstChild("IsResized")
-		if not (flag and flag.Value == true) then
-			pcall(function() ability:InvokeServer("Resize", Vector3.new(1936.959228515625, 56.015625, -1974.80908203125)) end)
-		end
-	end)
-end
-local function ToggleAutoFly(on)
-	config.AutoFly = on; saveConfig()
-	getgenv().AutoFly = on
-	if __AutoAbility.fly then __AutoAbility.fly:Disconnect(); __AutoAbility.fly=nil end
-	if not on then return end
-	local ability = getEvent('Events','Other','Ability')
-	local last = 0
-	__AutoAbility.fly = RS.Heartbeat:Connect(function()
-		local now = os.clock(); if now - last < 0.5 then return end; last = now
-		local tv = LocalPlayer:FindFirstChild("TempValues")
-		local flag = tv and tv:FindFirstChild("IsFlying")
-		if not (flag and flag.Value == true) then
-			pcall(function() ability:InvokeServer("Fly", Vector3.new(1932.461181640625, 56.015625, -1965.3206787109375)) end)
-		end
-	end)
-end
-
--- Health Exploit (uses paths from loadstring vars)
-local __HealthExploitConn
-local function resolveHealthPart(which)
-	local city = workspace:FindFirstChild("CatacombsCity"); if not city then return nil end
-	local kids = city:GetChildren()
-	local path = which == "low" and (getgenv and getgenv().HealthPart15Path) or (getgenv and getgenv().HealthPart95Path)
-	local idx = tonumber(type(path)=="string" and path:match("%[(%d+)%]") or nil)
-	if not idx then idx = (which=="low") and 2145 or 2389 end
-	return kids[idx]
-end
-local function ToggleHealthExploit(on)
-	config.HealthExploit = on; saveConfig()
-	getgenv().HealthExploit = on
-	if __HealthExploitConn then __HealthExploitConn:Disconnect(); __HealthExploitConn=nil end
-	if not on then return end
-	local last = 0
-	__HealthExploitConn = RS.Heartbeat:Connect(function()
-		local now = os.clock(); if now - last < 0.5 then return end; last = now
-		local char, hum = getCharHumanoid()
-		if not (char and hum and hum.MaxHealth and hum.MaxHealth > 0 and hum.Health > 0) then return end
-		local ratio = hum.Health / hum.MaxHealth
-		if ratio <= 0.15 then
-			local part = resolveHealthPart("low")
-			if part and part.CFrame then pcall(function() char:PivotTo(part.CFrame + Vector3.new(0,3,0)) end) end
-		elseif ratio >= 0.95 then
-			local part = resolveHealthPart("high")
-			if part and part.CFrame then pcall(function() char:PivotTo(part.CFrame + Vector3.new(0,3,0)) end) end
-		end
-	end)
-end
-
--- Sections and toggles
-
--- Combat (scrollable)
-local CombatSection = CreateSection(CombatScroll,'FireBall Aimbot')
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='FireBall Aimbot',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
-CreateToggle(CombatSection,'Universal FireBall Aimbot','UniversalFireBallAimbot',ToggleUniversalAimbot)
-CreateSlider(CombatSection,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function() end)
-CreateToggle(CombatSection,'FireBall Aimbot Catacombs Preset','FireBallAimbot',ToggleCatacombsAimbot)
-CreateSlider(CombatSection,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function() end)
-CreateToggle(CombatSection,'FireBall Aimbot City Preset','FireBallAimbotCity',ToggleCityAimbot)
-CreateSlider(CombatSection,'City Fireball Cooldown','cityFireballCooldown',0.05,1.0,0.5,function() end)
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Panic',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
-CreateToggle(CombatSection,'Smart Panic','SmartPanic',function(on) config.SmartPanic=on; getgenv().SmartPanic=on; saveConfig() end)
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Pvp',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
-CreateToggle(CombatSection,'Kill Aura','KillAura',ToggleKillAura)
-
--- Movement
-local MovementSection = CreateSection(MovementTab,'Movement Features')
-CreateToggle(MovementSection,'No Clip','NoClip',ToggleNoClip)
-
--- Utility (scrollable)
-local UtilitySection = CreateSection(UtilityScroll,'Utility Features')
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Optimizations',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
-CreateToggle(UtilitySection,'Ultimate AFK Optimization','UltimateAFKOptimization',ToggleUltimateAFK)
-CreateToggle(UtilitySection,'AFK Optimization','GraphicsOptimization',ToggleAFKOpt)
-CreateToggle(UtilitySection,'Graphics Optimization','GraphicsOptimizationAdvanced',ToggleGraphicsOptAdvanced)
-CreateToggle(UtilitySection,'Remove Map Clutter','RemoveMapClutter',function(on) if on then RunRemoveMapClutter() end end)
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Webhooks',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
-CreateToggle(UtilitySection,'Death Webhook','DeathWebhook',function(on) config.DeathWebhook=on; saveConfig() end)
-CreateToggle(UtilitySection,'Panic Webhook','PanicWebhook',function(on) config.PanicWebhook=on; saveConfig() end)
-CreateToggle(UtilitySection,'Stat Webhook (15m)','StatWebhook15m',ToggleStatWebhook15m)
-
--- Server Hop
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Server Hop',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
-CreateButton(UtilitySection,'Find Low Server',function()
-	local HttpService = game:GetService("HttpService")
-	local TeleportService = game:GetService("TeleportService")
-	local plrs = game:GetService("Players")
-	local localPlayer = plrs.LocalPlayer
-	local function findLowestPopulationServer()
-		local placeId = game.PlaceId
-		local currentJob = game.JobId
-		local best = nil
-		local cursor = nil
-		while true do
-			local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100%s", placeId, cursor and ("&cursor=" .. cursor) or "")
-			local ok, body = pcall(function() return game:HttpGet(url) end)
-			if not ok then break end
-			local data = HttpService:JSONDecode(body)
-			if not data or not data.data then break end
-			for _, srv in ipairs(data.data) do
-				if srv.id ~= currentJob and srv.playing < srv.maxPlayers then
-					if (not best) or srv.playing < best.playing then
-						best = srv
-						if best.playing <= 1 then return best end
-					end
-				end
-			end
-			cursor = data.nextPageCursor
-			if not cursor then break end
-			task.wait(0.1)
-		end
-		return best
-	end
-	local target = findLowestPopulationServer()
-	if target then TeleportService:TeleportToPlaceInstance(game.PlaceId, target.id, localPlayer) else warn("No suitable server found to hop to.") end
-end)
-
--- Auto Ability
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Auto Ability',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
-CreateToggle(UtilitySection,'Auto Invisible','AutoInvisible',ToggleAutoInvisible)
-CreateToggle(UtilitySection,'Auto Resize','AutoResize',ToggleAutoResize)
-CreateToggle(UtilitySection,'Auto Fly','AutoFly',ToggleAutoFly)
-
--- Stat Gui
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Stat Gui',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},UtilitySection)
-CreateToggle(UtilitySection,'Stat Gui','StatGui',ToggleStatGui)
-
--- Visual
-local VisualSection = CreateSection(VisualTab,'Visual Features')
-CreateToggle(VisualSection,'Player ESP','PlayerESP',TogglePlayerESP)
-CreateToggle(VisualSection,'Mob ESP','MobESP',function(on) end) -- keep your EnemyESP2 as desired
-
--- Quests
-local QuestsSection = CreateSection(QuestsTab,'Quest Automation')
-CreateToggle(QuestsSection,'Dishes Side Task','AutoWashDishes',ToggleAutoWashDishes)
-CreateToggle(QuestsSection,'Ninja Side Task','AutoNinjaSideTask',ToggleNinjaSide)
-CreateToggle(QuestsSection,'Animatronics Side Task','AutoAnimatronicsSideTask',ToggleAnimSide)
-CreateToggle(QuestsSection,'Mutants Side Task','AutoMutantsSideTask',ToggleMutantsSide)
-
--- Shops
-local ShopsSection = CreateSection(ShopsTab,'Shop Automation')
-CreateToggle(ShopsSection,'Dual Exotic Shop','DualExoticShop',ToggleDualExoticShop)
-CreateToggle(ShopsSection,'Vending Machine','VendingPotionAutoBuy',ToggleVending)
-
--- Health tab
-local HealthSection = CreateSection(HealthTab,'Health Exploit')
-make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Health Exploit',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},HealthSection)
-CreateToggle(HealthSection,'Health Exploit','HealthExploit',ToggleHealthExploit)
-
--- Config
-local ConfigSection = CreateSection(ConfigTab,'Configuration')
-local SaveButton = CreateButton(ConfigSection,'Save Config',function() saveConfig() end)
-local LoadButton = CreateButton(ConfigSection,'Load Config',function()
-	if loadConfig()~=nil then
-		local function applyDiff(flag, getter, toggler) if getter()~=flag then toggler(flag) end end
-		applyDiff(config.NoClip,function() return getgenv().NoClip or false end,ToggleNoClip)
-		applyDiff(config.GraphicsOptimization,function() return getgenv().GraphicsOptimization or false end,ToggleAFKOpt)
-		applyDiff(config.GraphicsOptimizationAdvanced,function() return getgenv().GraphicsOptimizationAdvanced or false end,ToggleGraphicsOptAdvanced)
-		applyDiff(config.UltimateAFKOptimization,function() return config.UltimateAFKOptimization end,ToggleUltimateAFK)
-		applyDiff(config.PlayerESP,function() return getgenv().PlayerESP or false end,TogglePlayerESP)
-		applyDiff(config.UniversalFireBallAimbot,function() return getgenv().UniversalFireBallAimbot or false end,ToggleUniversalAimbot)
-		applyDiff(config.FireBallAimbot,function() return getgenv().FireBallAimbot or false end,ToggleCatacombsAimbot)
-		applyDiff(config.FireBallAimbotCity,function() return getgenv().FireBallAimbotCity or false end,ToggleCityAimbot)
-		applyDiff(config.AutoWashDishes,function() return getgenv().AutoWashDishes or false end,ToggleAutoWashDishes)
-		applyDiff(config.AutoNinjaSideTask,function() return getgenv().AutoNinjaSideTask or false end,ToggleNinjaSide)
-		applyDiff(config.AutoAnimatronicsSideTask,function() return getgenv().AutoAnimatronicsSideTask or false end,ToggleAnimSide)
-		applyDiff(config.AutoMutantsSideTask,function() return getgenv().AutoMutantsSideTask or false end,ToggleMutantsSide)
-		applyDiff(config.DualExoticShop,function() return getgenv().DualExoticShop or false end,ToggleDualExoticShop)
-		applyDiff(config.VendingPotionAutoBuy,function() return getgenv().VendingPotionAutoBuy or false end,ToggleVending)
-		applyDiff(config.StatWebhook15m,function() return getgenv().StatWebhook15m or false end,ToggleStatWebhook15m)
-		applyDiff(config.KillAura,function() return getgenv().KillAura or false end,ToggleKillAura)
-		applyDiff(config.StatGui,function() return getgenv().StatGui or false end,ToggleStatGui)
-		applyDiff(config.AutoInvisible,function() return getgenv().AutoInvisible or false end,ToggleAutoInvisible)
-		applyDiff(config.AutoResize,function() return getgenv().AutoResize or false end,ToggleAutoResize)
-		applyDiff(config.AutoFly,function() return getgenv().AutoFly or false end,ToggleAutoFly)
-		applyDiff(config.HealthExploit,function() return getgenv().HealthExploit or false end,ToggleHealthExploit)
-		getgenv().SmartPanic = config.SmartPanic and true or false
-	end
-end)
-SaveButton.Position = UDim2.new(0,0,0,0)
-LoadButton.Position = UDim2.new(0,270,0,0)
-local SetHideKeyButton = CreateButton(ConfigSection, "Set Hide Key ("..(config.HideGUIKey or 'RightControl')..")", function() awaitingHideKeyCapture=true; SetHideKeyButton.Text='Press any key...' end)
-SetHideKeyButtonRef = SetHideKeyButton
-SetHideKeyButton.Position = UDim2.new(0,540,0,0)
-
--- Dragging
-local dragging, dragInput, dragStart, startPos
-local function updateDrag(input)
-	local delta = input.Position - dragStart
-	MainFrame.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
-	Shadow.Position = UDim2.new(0, MainFrame.Position.X.Offset-10, 0, MainFrame.Position.Y.Offset-10)
-end
-TitleBar.InputBegan:Connect(function(input)
-	if input.UserInputType==Enum.UserInputType.MouseButton1 then
-		dragging=true; dragStart=input.Position; startPos=MainFrame.Position
-		input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end)
-	end
-end)
-TitleBar.InputChanged:Connect(function(input) if input.UserInputType==Enum.UserInputType.MouseMovement then dragInput=input end end)
-UIS.InputChanged:Connect(function(input) if input==dragInput and dragging then updateDrag(input) end end)
+SB.Position=UDim2.new(0,0,0,0);LB.Position=UDim2.new(0,270,0,0)
+local SHK=Btn(Cfg,"Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")",function()waitingKey=true;SHK.Text='Press any key...'end);SetHideBtn=SHK;SHK.Position=UDim2.new(0,540,0,0)
