@@ -1,3 +1,8 @@
+-- Wait for game and essentials
+if not game:IsLoaded() then game.Loaded:Wait() end
+local Players = game:GetService('Players')
+while not Players.LocalPlayer or not workspace.CurrentCamera do task.wait() end
+
 -- Services
 local UIS = game:GetService('UserInputService')
 local RS = game:GetService('RunService')
@@ -23,10 +28,8 @@ end
 local function postWebhook(usernameLabel, titleText, descText, mentionUserId)
 	if not WEBHOOK_URL or WEBHOOK_URL == '' then return end
 	local request = getRequestFunc()
-	if not request then
-		return
-	end
-	local contentText, allowedUsers = nil, {}
+	if not request then return end
+	local contentText, allowedUsers
 	if mentionUserId and tostring(mentionUserId) ~= '' then
 		contentText = '<@' .. tostring(mentionUserId) .. '>'
 		allowedUsers = { tostring(mentionUserId) }
@@ -34,15 +37,13 @@ local function postWebhook(usernameLabel, titleText, descText, mentionUserId)
 	local payload = {
 		username = usernameLabel,
 		content = contentText,
-		embeds = {
-			{
-				title = titleText,
-				description = descText,
-				color = 16711680,
-				footer = { text = 'Roblox • ' .. os.date('%H:%M') },
-			},
-		},
-		allowed_mentions = { parse = {}, users = allowedUsers },
+		embeds = {{
+			title = titleText,
+			description = descText,
+			color = 16711680,
+			footer = { text = 'Roblox • ' .. os.date('%H:%M') },
+		}},
+		allowed_mentions = { parse = {}, users = allowedUsers or {} },
 	}
 	pcall(function()
 		request({
@@ -95,7 +96,7 @@ local function saveConfig()
 	end)
 end
 local function loadConfig()
-	local ok, _ = pcall(function()
+	local ok = pcall(function()
 		if isfile('SuperPowerLeague_Config.json') then
 			local loaded = HttpService:JSONDecode(readfile('SuperPowerLeague_Config.json'))
 			for k,v in pairs(loaded) do config[k] = v end
@@ -184,11 +185,11 @@ initializeDeathAndPanicWatchers()
 getgenv().SmartPanic = config.SmartPanic and true or false
 local TARGET_PLACE_ID = 79106917651793
 local function findDescendantByName(root, name) for _, d in ipairs(root:GetDescendants()) do if d.Name == name then return d end end end
-local function fallbackCFrame(char)
+local function fallbackCFrame()
 	for _, d in ipairs(workspace:GetDescendants()) do if d:IsA('SpawnLocation') then return d.CFrame end end
 	local _,_,hrp = getCharHumanoid(); return hrp and (hrp.CFrame + Vector3.new(0,35,0)) or nil
 end
-local function getPanicCFrame(char)
+local function getPanicCFrame()
 	if game.PlaceId == TARGET_PLACE_ID then
 		local lobby = workspace:FindFirstChild('Lobby'); local extras = lobby and lobby:FindFirstChild('Extras'); local pvpsign = extras and extras:FindFirstChild('PvPSign') or findDescendantByName(workspace,'PvPSign')
 		if pvpsign then return pvpsign:IsA('Model') and pvpsign:GetPivot() or pvpsign.CFrame end
@@ -196,18 +197,18 @@ local function getPanicCFrame(char)
 		local ts8 = workspace:FindFirstChild('TopStat8'); local design = ts8 and ts8:FindFirstChild('Design')
 		if design then local node = design:GetChildren()[30]; if node then return node:IsA('Model') and node:GetPivot() or (node.CFrame or nil) end end
 	end
-	return fallbackCFrame(char)
+	return fallbackCFrame()
 end
 task.spawn(function()
 	local lastTp, armed = 0, true
 	while true do
 		if getgenv().SmartPanic then
-			local char, hum = getCharHumanoid()
+			local _, hum = getCharHumanoid()
 			if hum then
 				local max = (hum.MaxHealth and hum.MaxHealth > 0) and hum.MaxHealth or 100
 				local now = os.clock()
 				if armed and hum.Health > 0 and hum.Health <= (0.90 * max) and (now - lastTp) >= 1.5 then
-					local cf = getPanicCFrame(char); if cf then pcall(function() char:PivotTo(cf) end) end
+					local cf = getPanicCFrame(); if cf and LocalPlayer.Character then pcall(function() LocalPlayer.Character:PivotTo(cf) end) end
 					lastTp = now; armed = false
 				elseif not armed and hum.Health >= (REARM_AT_PERCENT * max) then
 					armed = true
@@ -223,7 +224,14 @@ local ScreenGui = Instance.new('ScreenGui')
 ScreenGui.Name = 'SuperPowerLeagueGUI'
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent = game.CoreGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Enabled = true
+local function safeParent(gui)
+	local parent = (gethui and gethui()) or game:FindFirstChildOfClass('CoreGui') or Players.LocalPlayer:WaitForChild('PlayerGui')
+	if syn and syn.protect_gui and parent == game:GetService('CoreGui') then pcall(syn.protect_gui, gui) end
+	gui.Parent = parent
+end
+safeParent(ScreenGui)
 
 local function make(uiclass, props, parent) local i=Instance.new(uiclass); for k,v in pairs(props or {}) do i[k]=v end; if parent then i.Parent=parent end; return i end
 
@@ -297,7 +305,12 @@ local function CreateTab(name, icon)
 	make('UIPadding',{PaddingLeft=UDim.new(0,4),PaddingRight=UDim.new(0,4)},TabContent)
 	btn.MouseButton1Click:Connect(function()
 		for _, child in ipairs(ContentScroll:GetChildren()) do if child:IsA('Frame') and child.Name:find('Content') then child.Visible=false end end
-		for _, b in ipairs(TabContainer:GetChildren()) do if b:IsA('TextButton') then b.BackgroundColor3=Color3.fromRGB(30,30,40); b.TextColor3=Color3.fromRGB(210,210,220); local a=b:FindFirstChildOfClass('Frame'); if a then a.Visible=false end end end
+		for _, b in ipairs(TabContainer:GetChildren()) do
+			if b:IsA('TextButton') then
+				b.BackgroundColor3=Color3.fromRGB(30,30,40); b.TextColor3=Color3.fromRGB(210,210,220)
+				local a=b:FindFirstChildOfClass('Frame'); if a then a.Visible=false end
+			end
+		end
 		TabContent.Visible=true; btn.BackgroundColor3=Color3.fromRGB(45,45,60); btn.TextColor3=Color3.fromRGB(240,240,250); accent.Visible=true
 	end)
 	return TabContent
@@ -413,20 +426,17 @@ local function teleportTo(target)
 end
 local function addTeleport(parent, parts, label) CreateButton(parent,label,function() local inst=getInstanceAtPath(parts); if not inst then return end; teleportTo(inst) end) end
 
--- RIGHT COLUMN: Players list + Saved Position below it
+-- RIGHT COLUMN: Players + Saved Position
 do
 	addTitle(RightCol,'Players')
-
-	-- container so Saved Position can appear under all player buttons
 	local PlayersList = make('Frame',{Name='PlayersList',Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RightCol)
 	local PlayersListLayout = make('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PlayersList)
 	PlayersListLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
 		PlayersList.Size = UDim2.new(1,0,0,PlayersListLayout.AbsoluteContentSize.Y)
 	end)
-
 	local buttons = {}
 	local function makePlayerButton(plr)
-		local b = CreateButton(PlayersList, plr.Name, function()
+		return CreateButton(PlayersList, plr.Name, function()
 			local char = plr.Character
 			local hrp = char and char:FindFirstChild('HumanoidRootPart')
 			if hrp then
@@ -435,143 +445,122 @@ do
 				if myChar then pcall(function() myChar:PivotTo(cf) end) end
 			end
 		end)
-		return b
 	end
 	local function refresh()
 		for plr,btn in pairs(buttons) do pcall(function() btn:Destroy() end); buttons[plr]=nil end
-		for _,plr in ipairs(Players:GetPlayers()) do
-			if plr ~= LocalPlayer then buttons[plr] = makePlayerButton(plr) end
-		end
+		for _,plr in ipairs(Players:GetPlayers()) do if plr ~= LocalPlayer then buttons[plr] = makePlayerButton(plr) end end
 	end
 	refresh()
 	Players.PlayerAdded:Connect(function(plr) if plr~=LocalPlayer then buttons[plr]=makePlayerButton(plr) end end)
 	Players.PlayerRemoving:Connect(function(plr) if buttons[plr] then pcall(function() buttons[plr]:Destroy() end); buttons[plr]=nil end end)
 
-	-- Saved Position under the player buttons
 	addTitle(RightCol,'Saved Position')
 	local row = make('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RightCol)
 	local rowList = make('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
-
-	CreateButton(row,'Save Place',function()
-		local _,_,hrp=getCharHumanoid()
-		if hrp then _G.__SavedCFrame = hrp.CFrame end
-	end)
-
-	CreateButton(row,'Teleport To Save',function()
-		local cf=_G.__SavedCFrame; local char=LocalPlayer.Character
-		if cf and char then pcall(function() char:PivotTo(cf) end) end
-	end)
-	rowList:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
-		row.Size = UDim2.new(1,0,0,rowList.AbsoluteContentSize.Y)
-	end)
+	CreateButton(row,'Save Place',function() local _,_,hrp=getCharHumanoid(); if hrp then _G.__SavedCFrame = hrp.CFrame end end)
+	CreateButton(row,'Teleport To Save',function() local cf=_G.__SavedCFrame; local char=LocalPlayer.Character; if cf and char then pcall(function() char:PivotTo(cf) end) end end)
+	rowList:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function() row.Size = UDim2.new(1,0,0,rowList.AbsoluteContentSize.Y) end)
 end
 
--- LEFT COLUMN: Teleports
-addTitle(LeftCol,'Stores')
-addTeleport(LeftCol,{'Pads','ExoticStore','1'},'Exotic Store'); addTeleport(LeftCol,{'Pads','ExoticStore2','1'},'Dark Exotic Store')
-addTeleport(LeftCol,{'Pads','Store','1'},'Starter Store'); addTeleport(LeftCol,{'Pads','Store','2'},'Supermarket'); addTeleport(LeftCol,{'Pads','Store','3'},'Gym Store')
-addTeleport(LeftCol,{'Pads','Store','4'},'Necklace Store'); addTeleport(LeftCol,{'Pads','Store','5'},'Melee Store'); addTeleport(LeftCol,{'Pads','Store','6'},'Premium Shop')
-addTeleport(LeftCol,{'Pads','Store','7'},'Armour Shop 1'); addTeleport(LeftCol,{'Pads','Store','8'},'Armour Shop 2'); addTeleport(LeftCol,{'Pads','Store','9'},'Tower Store')
+-- LEFT COLUMN: Teleports (compact lists)
+local function addTeleports(title, list)
+	addTitle(LeftCol, title)
+	for _, item in ipairs(list) do addTeleport(LeftCol, item[1], item[2]) end
+end
 
-addTitle(LeftCol,'Wand Stores')
-addTeleport(LeftCol,{'Pads','Wands','1'},'Wand Store 1'); addTeleport(LeftCol,{'Pads','Wands','2'},'Wand Store 2')
-
+addTeleports('Stores', {
+	{{'Pads','ExoticStore','1'},'Exotic Store'},
+	{{'Pads','ExoticStore2','1'},'Dark Exotic Store'},
+	{{'Pads','Store','1'},'Starter Store'},
+	{{'Pads','Store','2'},'Supermarket'},
+	{{'Pads','Store','3'},'Gym Store'},
+	{{'Pads','Store','4'},'Necklace Store'},
+	{{'Pads','Store','5'},'Melee Store'},
+	{{'Pads','Store','6'},'Premium Shop'},
+	{{'Pads','Store','7'},'Armour Shop 1'},
+	{{'Pads','Store','8'},'Armour Shop 2'},
+	{{'Pads','Store','9'},'Tower Store'},
+	{{'Pads','Store','12'},'Accessory Store'},
+	{{'Pads','Store','13'},'Combat Helmet Store'},
+	{{'Pads','Store','10'},'Luxury Hats Store'},
+	{{'Pads','Store','11'},'Basic Trails Store'},
+	{{'Pads','Store','14'},'Advanced Trail Store'},
+	{{'Pads','Store','15'},'Legendary Trail Store'},
+})
+addTeleports('Wand Stores', {
+	{{'Pads','Wands','1'},'Wand Store 1'},
+	{{'Pads','Wands','2'},'Wand Store 2'},
+})
 addTitle(LeftCol,'Weight Stores')
 for i=1,5 do addTeleport(LeftCol,{'Pads','Weight',tostring(i)},'Weight Store '..i) end
-
-addTitle(LeftCol,'Stand Stores')
-addTeleport(LeftCol,{'Pads','StandIndex','1'},'Stand Store 1'); addTeleport(LeftCol,{'Pads','StandIndex','2'},'Greater Stands'); addTeleport(LeftCol,{'Pads','StandIndex','3'},'Demonic Stands')
-addTeleport(LeftCol,{'Pads','StandIndex','4'},'Anime Stands'); addTeleport(LeftCol,{'Pads','StandIndex','5'},'Premium Anime Stands')
-
-addTitle(LeftCol,'Accessory Stores')
-addTeleport(LeftCol,{'Pads','Store','12'},'Accessory Store'); addTeleport(LeftCol,{'Pads','Store','13'},'Combat Helmet Store'); addTeleport(LeftCol,{'Pads','Store','10'},'Luxury Hats Store')
-
-addTitle(LeftCol,'Trail Stores')
-addTeleport(LeftCol,{'Pads','Store','11'},'Basic Trails Store'); addTeleport(LeftCol,{'Pads','Store','14'},'Advanced Trail Store'); addTeleport(LeftCol,{'Pads','Store','15'},'Legendary Trail Store')
-
-addTitle(LeftCol,'Deluxo Upgrades')
-addTeleport(LeftCol,{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade')
-
-addTitle(LeftCol,'Questlines')
-addTeleport(LeftCol,{'Pads','MainTasks','MainTask'},'Main Questline'); addTeleport(LeftCol,{'Pads','MainTasks','AQuest'},'Extra Questline')
-addTeleport(LeftCol,{'Pads','MainTasks','LucaTask'},'Luca Questline'); addTeleport(LeftCol,{'Pads','MainTasks','ReaperTask'},'Reaper Questline')
-addTeleport(LeftCol,{'Pads','MainTasks','GladiatorTask'},'Gladiator Questline'); addTeleport(LeftCol,{'Pads','MainTasks','GUKUQuests'},'Guku Questline')
-addTeleport(LeftCol,{'Pads','MainTasks','TowerFacility'},'Tower Questline'); addTeleport(LeftCol,{'Pads','MainTasks','AncientQuests'},'Ancient Questline')
-addTeleport(LeftCol,{'Pads','MainTasks','MainTask'},'Defence Questline'); addTeleport(LeftCol,{'Pads','MainTasks','PowerQuests'},'Power Questline')
-addTeleport(LeftCol,{'Pads','MainTasks','MagicQuests'},'Magic Questline'); addTeleport(LeftCol,{'Pads','MainTasks','MobilityQuests'},'Mobility Questline')
-
-addTitle(LeftCol,'Side Tasks')
-addTeleport(LeftCol,{'Pads','SideTasks','1'},'Dishes Side Task'); addTeleport(LeftCol,{'Pads','SideTasks','2'},'Spawn Mob Task')
-addTeleport(LeftCol,{'Pads','SideTasks','3'},'City Mob Tasks 1'); addTeleport(LeftCol,{'Pads','SideTasks','4'},'City Mob Tasks 2')
-addTeleport(LeftCol,{'Pads','SideTasks','5'},'Ninja Mob Tasks'); addTeleport(LeftCol,{'Pads','SideTasks','7'},'Arena Mob Tasks')
-
-addTitle(LeftCol,'Experiments')
-addTeleport(LeftCol,{'Experiment','FloorHitbox'},'Mobility Experiment'); addTeleport(LeftCol,{'Experiment','SurvivalHitbox'},'Health Experiment')
-addTeleport(LeftCol,{'Pads','Telekinesis','Telekinesis'},'Psychic Experiment'); addTeleport(LeftCol,{'WallGame','WallHitbox'},'Power Experiment')
+addTeleports('Stand Stores', {
+	{{'Pads','StandIndex','1'},'Stand Store 1'},
+	{{'Pads','StandIndex','2'},'Greater Stands'},
+	{{'Pads','StandIndex','3'},'Demonic Stands'},
+	{{'Pads','StandIndex','4'},'Anime Stands'},
+	{{'Pads','StandIndex','5'},'Premium Anime Stands'},
+})
+addTeleports('Deluxo Upgrades', {
+	{{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade'},
+})
+addTeleports('Questlines', {
+	{{'Pads','MainTasks','MainTask'},'Main Questline'},
+	{{'Pads','MainTasks','AQuest'},'Extra Questline'},
+	{{'Pads','MainTasks','LucaTask'},'Luca Questline'},
+	{{'Pads','MainTasks','ReaperTask'},'Reaper Questline'},
+	{{'Pads','MainTasks','GladiatorTask'},'Gladiator Questline'},
+	{{'Pads','MainTasks','GUKUQuests'},'Guku Questline'},
+	{{'Pads','MainTasks','TowerFacility'},'Tower Questline'},
+	{{'Pads','MainTasks','AncientQuests'},'Ancient Questline'},
+	{{'Pads','MainTasks','MainTask'},'Defence Questline'},
+	{{'Pads','MainTasks','PowerQuests'},'Power Questline'},
+	{{'Pads','MainTasks','MagicQuests'},'Magic Questline'},
+	{{'Pads','MainTasks','MobilityQuests'},'Mobility Questline'},
+})
+addTeleports('Side Tasks', {
+	{{'Pads','SideTasks','1'},'Dishes Side Task'},
+	{{'Pads','SideTasks','2'},'Spawn Mob Task'},
+	{{'Pads','SideTasks','3'},'City Mob Tasks 1'},
+	{{'Pads','SideTasks','4'},'City Mob Tasks 2'},
+	{{'Pads','SideTasks','5'},'Ninja Mob Tasks'},
+	{{'Pads','SideTasks','7'},'Arena Mob Tasks'},
+})
+addTeleports('Experiments', {
+	{{'Experiment','FloorHitbox'},'Mobility Experiment'},
+	{{'Experiment','SurvivalHitbox'},'Health Experiment'},
+	{{'Pads','Telekinesis','Telekinesis'},'Psychic Experiment'},
+	{{'WallGame','WallHitbox'},'Power Experiment'},
+})
 
 -- Controllers
 
 -- No Clip (stable, restores original collisions)
 local __NoClip = { conn=nil, charConn=nil, descConn=nil, orig={} }
-
-local function ncRecord(part)
-	if not __NoClip.orig[part] then
-		__NoClip.orig[part] = part.CanCollide
-	end
-end
-
-local function ncApplyOnPart(part)
-	if part:IsA('BasePart') then
-		ncRecord(part)
-		part.CanCollide = false
-	end
-end
-
-local function ncApplyAll()
-	local char = LocalPlayer.Character
-	if not char then return end
-	for _, p in ipairs(char:GetDescendants()) do
-		ncApplyOnPart(p)
-	end
-end
-
-local function ncRestoreAll()
-	for part, was in pairs(__NoClip.orig) do
-		if part and part.Parent then
-			pcall(function() part.CanCollide = was end)
-		end
-	end
-	table.clear(__NoClip.orig)
-end
-
+local function ncRecord(part) if not __NoClip.orig[part] then __NoClip.orig[part] = part.CanCollide end end
+local function ncApplyOnPart(part) if part:IsA('BasePart') then ncRecord(part); part.CanCollide = false end end
+local function ncApplyAll() local char = LocalPlayer.Character; if not char then return end; for _, p in ipairs(char:GetDescendants()) do ncApplyOnPart(p) end end
+local function ncRestoreAll() for part, was in pairs(__NoClip.orig) do if part and part.Parent then pcall(function() part.CanCollide = was end) end end; table.clear(__NoClip.orig) end
 local function ToggleNoClip(on)
 	getgenv().NoClip = on
 	if on then
 		if __NoClip.conn then __NoClip.conn:Disconnect() end
 		if __NoClip.charConn then __NoClip.charConn:Disconnect() end
 		if __NoClip.descConn then __NoClip.descConn:Disconnect() end
-
 		ncApplyAll()
-		__NoClip.conn = RS.Stepped:Connect(function()
-			if getgenv().NoClip then ncApplyAll() end
-		end)
+		__NoClip.conn = RS.Stepped:Connect(function() if getgenv().NoClip then ncApplyAll() end end)
 		__NoClip.charConn = LocalPlayer.CharacterAdded:Connect(function(char)
 			if getgenv().NoClip then
 				table.clear(__NoClip.orig)
 				task.wait(0.1)
 				ncApplyAll()
 				if __NoClip.descConn then __NoClip.descConn:Disconnect() end
-				__NoClip.descConn = char.DescendantAdded:Connect(function(inst)
-					if getgenv().NoClip then ncApplyOnPart(inst) end
-				end)
+				__NoClip.descConn = char.DescendantAdded:Connect(function(inst) if getgenv().NoClip then ncApplyOnPart(inst) end end)
 			end
 		end)
 		local char = LocalPlayer.Character
 		if char then
 			if __NoClip.descConn then __NoClip.descConn:Disconnect() end
-			__NoClip.descConn = char.DescendantAdded:Connect(function(inst)
-				if getgenv().NoClip then ncApplyOnPart(inst) end
-			end)
+			__NoClip.descConn = char.DescendantAdded:Connect(function(inst) if getgenv().NoClip then ncApplyOnPart(inst) end end)
 		end
 	else
 		if __NoClip.conn then __NoClip.conn:Disconnect() __NoClip.conn=nil end
@@ -595,7 +584,6 @@ local __AdvGfxBackup = { lighting = {}, terrain = {}, conns = {} }
 local function ToggleGraphicsOptAdvanced(on)
 	getgenv().GraphicsOptimizationAdvanced = on
 	local Terrain = workspace:FindFirstChildOfClass('Terrain')
-
 	local function setProp(bucket, inst, prop, val)
 		if __AdvGfxBackup[bucket][inst] == nil then __AdvGfxBackup[bucket][inst] = {} end
 		if __AdvGfxBackup[bucket][inst][prop] == nil then
@@ -608,9 +596,7 @@ local function ToggleGraphicsOptAdvanced(on)
 		for t, insts in pairs(__AdvGfxBackup) do
 			if t ~= 'conns' then
 				for inst, props in pairs(insts) do
-					for prop, old in pairs(props) do
-						pcall(function() inst[prop] = old end)
-					end
+					for prop, old in pairs(props) do pcall(function() inst[prop] = old end) end
 				end
 				__AdvGfxBackup[t] = {}
 			end
@@ -618,12 +604,7 @@ local function ToggleGraphicsOptAdvanced(on)
 		for _, c in ipairs(__AdvGfxBackup.conns) do pcall(function() c:Disconnect() end) end
 		__AdvGfxBackup.conns = {}
 	end
-
-	if not on then
-		restoreAll()
-		return
-	end
-
+	if not on then restoreAll(); return end
 	setProp('lighting', Lighting, 'Brightness', 2)
 	setProp('lighting', Lighting, 'ClockTime', 14)
 	setProp('lighting', Lighting, 'GlobalShadows', false)
@@ -635,12 +616,9 @@ local function ToggleGraphicsOptAdvanced(on)
 		if c == 'BloomEffect' or c == 'DepthOfFieldEffect' or c == 'ColorCorrectionEffect' or c == 'SunRaysEffect' or c == 'BlurEffect' then
 			setProp('lighting', o, 'Enabled', false)
 		elseif c == 'Atmosphere' then
-			setProp('lighting', o, 'Density', 0)
-			setProp('lighting', o, 'Haze', 0)
-			setProp('lighting', o, 'Glare', 0)
+			setProp('lighting', o, 'Density', 0); setProp('lighting', o, 'Haze', 0); setProp('lighting', o, 'Glare', 0)
 		elseif c == 'Clouds' then
-			setProp('lighting', o, 'Coverage', 0)
-			setProp('lighting', o, 'Density', 0)
+			setProp('lighting', o, 'Coverage', 0); setProp('lighting', o, 'Density', 0)
 		end
 	end
 	if Terrain then
@@ -650,18 +628,12 @@ local function ToggleGraphicsOptAdvanced(on)
 		setProp('terrain', Terrain, 'WaterWaveSize', 0)
 		setProp('terrain', Terrain, 'WaterWaveSpeed', 0)
 	end
-
 	local function simplify(inst)
 		local c = inst.ClassName
-		if c == 'ParticleEmitter' or c == 'Trail' or c == 'Beam' or c == 'Smoke' or c == 'Fire' or c == 'Sparkles' then
-			pcall(function() inst.Enabled = false end)
-		elseif c == 'PointLight' or c == 'SpotLight' or c == 'SurfaceLight' then
-			if inst.Enabled ~= nil then pcall(function() inst.Enabled = false end) else pcall(function() inst.Brightness = 0 end) end
-		elseif c == 'Decal' or c == 'Texture' then
-			pcall(function() inst.Transparency = 1 end)
-		elseif c == 'MeshPart' then
-			pcall(function() inst.RenderFidelity = Enum.RenderFidelity.Performance end)
-		end
+		if c == 'ParticleEmitter' or c == 'Trail' or c == 'Beam' or c == 'Smoke' or c == 'Fire' or c == 'Sparkles' then pcall(function() inst.Enabled = false end)
+		elseif c == 'PointLight' or c == 'SpotLight' or c == 'SurfaceLight' then if inst.Enabled ~= nil then pcall(function() inst.Enabled = false end) else pcall(function() inst.Brightness = 0 end) end
+		elseif c == 'Decal' or c == 'Texture' then pcall(function() inst.Transparency = 1 end)
+		elseif c == 'MeshPart' then pcall(function() inst.RenderFidelity = Enum.RenderFidelity.Performance end) end
 	end
 	for _, d in ipairs(workspace:GetDescendants()) do simplify(d) end
 	table.insert(__AdvGfxBackup.conns, workspace.DescendantAdded:Connect(simplify))
@@ -761,14 +733,7 @@ local function ToggleMobESP(enabled)
 	if M and M.Disable then M.Disable() end
 	if not enabled then return end
 
-	if M and M.Enable then
-		M.Enable()
-		return
-	end
-
-	local Players = game:GetService("Players")
-	local RunService = game:GetService("RunService")
-	local LocalPlayer = Players.LocalPlayer
+	if M and M.Enable then M.Enable(); return end
 
 	local BUCKET_NAME = {
 		["1"]="Goblin", ["2"]="Thug", ["3"]="Gym Rat", ["4"]="Veteran", ["5"]="Yakuza",
@@ -813,16 +778,11 @@ local function ToggleMobESP(enabled)
 	local WEAPON_HINTS = {"weapon","sword","blade","gun","bow","staff","club","knife","axe","mace","spear"}
 	local function looksLikeWeapon(name)
 		name = string.lower(tostring(name or ""))
-		for _, w in ipairs(WEAPON_HINTS) do
-			if string.find(name, w, 1, true) then return true end
-		end
+		for _, w in ipairs(WEAPON_HINTS) do if string.find(name, w, 1, true) then return true end end
 		return false
 	end
 	local function isAccessoryPart(p)
-		while p and p.Parent do
-			if p:IsA("Accessory") then return true end
-			p = p.Parent
-		end
+		while p and p.Parent do if p:IsA("Accessory") then return true end; p = p.Parent end
 		return false
 	end
 
@@ -848,9 +808,7 @@ local function ToggleMobESP(enabled)
 	local function getDisplayName(model)
 		local b = bucketOf(model)
 		local id = b and b.Name or nil
-		if id and BUCKET_NAME[id] and BUCKET_NAME[id] ~= "" then
-			return BUCKET_NAME[id]
-		end
+		if id and BUCKET_NAME[id] and BUCKET_NAME[id] ~= "" then return BUCKET_NAME[id] end
 		local hum = model:FindFirstChildOfClass("Humanoid")
 		if hum and hum.DisplayName and hum.DisplayName ~= "" then return hum.DisplayName end
 		for _, a in ipairs({"EnemyName","DisplayName","NameOverride","MobType","Type"}) do
@@ -923,7 +881,6 @@ local function ToggleMobESP(enabled)
 		table.insert(rec.conns, part:GetPropertyChangedSignal("Size"):Connect(function()
 			if rec.box then rec.box.Size = part.Size + Vector3.new(0.2,0.2,0.2) end
 		end))
-
 		table.insert(rec.conns, model.DescendantAdded:Connect(function(inst)
 			if inst:IsA("BasePart") then
 				local better = pickBodyPart(model)
@@ -939,25 +896,18 @@ local function ToggleMobESP(enabled)
 			if rec.billLabel then rec.billLabel.Text = getDisplayName(model) end
 		end
 		local hum = model:FindFirstChildOfClass("Humanoid")
-		if hum then
-			table.insert(rec.conns, hum:GetPropertyChangedSignal("DisplayName"):Connect(refreshName))
-		end
+		if hum then table.insert(rec.conns, hum:GetPropertyChangedSignal("DisplayName"):Connect(refreshName)) end
 		for _, a in ipairs({"EnemyName","DisplayName","NameOverride","MobType","Type"}) do
 			table.insert(rec.conns, model:GetAttributeChangedSignal(a):Connect(refreshName))
 		end
-
-		table.insert(rec.conns, model.AncestryChanged:Connect(function(_, parent)
-			if parent == nil then clearRecord(model) end
-		end))
+		table.insert(rec.conns, model.AncestryChanged:Connect(function(_, parent) if parent == nil then clearRecord(model) end end))
 	end
 
 	local function tryAttach(inst)
 		local root = enemiesRoot(); if not root then return end
 		local node = inst
 		while node and node ~= root do
-			if node:IsA("Model") and bucketOf(node) then
-				attachToModel(node); return
-			end
+			if node:IsA("Model") and bucketOf(node) then attachToModel(node); return end
 			node = node.Parent
 		end
 	end
@@ -988,14 +938,10 @@ local function ToggleMobESP(enabled)
 		fullScan()
 		local root = enemiesRoot()
 		if root then
-			table.insert(MOD._conns, root.DescendantAdded:Connect(function(inst)
-				task.defer(function() tryAttach(inst) end)
-			end))
-			table.insert(MOD._conns, root.DescendantRemoving:Connect(function(inst)
-				if inst:IsA("Model") then clearRecord(inst) end
-			end))
+			table.insert(MOD._conns, root.DescendantAdded:Connect(function(inst) task.defer(function() tryAttach(inst) end) end))
+			table.insert(MOD._conns, root.DescendantRemoving:Connect(function(inst) if inst:IsA("Model") then clearRecord(inst) end end))
 		end
-		table.insert(MOD._conns, RunService.Heartbeat:Connect(function() fullScan() end))
+		table.insert(MOD._conns, RS.Heartbeat:Connect(function() fullScan() end))
 	end
 
 	MOD.Enable()
@@ -1007,32 +953,18 @@ local function RunRemoveMapClutter()
 		local c = o.ClassName
 		if c == 'BloomEffect' or c == 'DepthOfFieldEffect' or c == 'ColorCorrectionEffect' or c == 'SunRaysEffect' or c == 'BlurEffect' then
 			pcall(function() o.Enabled = false end)
-		elseif c == 'Atmosphere' or o.Name == 'Atmosphere' then
-			pcall(function() o:Destroy() end)
-		elseif c == 'SunRays' or o.Name == 'SunRays' then
+		elseif c == 'Atmosphere' or o.Name == 'Atmosphere' or o.Name=='SunRays' then
 			pcall(function() o:Destroy() end)
 		end
 	end
-
-	local function nukeFolder(name)
-		local f = workspace:FindFirstChild(name)
-		if f then for _, ch in ipairs(f:GetChildren()) do pcall(function() ch:Destroy() end) end end
-	end
-	for _, name in ipairs({ 'Trees', 'CityProps', 'Props', 'Decoration', 'Grass', 'VFX', 'Clouds' }) do
-		nukeFolder(name)
-	end
-
+	local function nukeFolder(name) local f = workspace:FindFirstChild(name); if f then for _, ch in ipairs(f:GetChildren()) do pcall(function() ch:Destroy() end) end end end
+	for _, name in ipairs({ 'Trees', 'CityProps', 'Props', 'Decoration', 'Grass', 'VFX', 'Clouds' }) do nukeFolder(name) end
 	for _, v in ipairs(workspace:GetDescendants()) do
 		pcall(function()
-			if v:IsA('ParticleEmitter') or v:IsA('Trail') or v:IsA('Beam') or v:IsA('Smoke') or v:IsA('Fire') or v:IsA('Sparkles') then
-				v.Enabled = false
-			elseif v:IsA('Decal') or v:IsA('Texture') then
-				v.Transparency = 1
-			elseif v:IsA('PointLight') or v:IsA('SpotLight') or v:IsA('SurfaceLight') then
-				if v.Enabled ~= nil then v.Enabled = false else v.Brightness = 0 end
-			elseif v:IsA('MeshPart') then
-				v.RenderFidelity = Enum.RenderFidelity.Performance
-			end
+			if v:IsA('ParticleEmitter') or v:IsA('Trail') or v:IsA('Beam') or v:IsA('Smoke') or v:IsA('Fire') or v:IsA('Sparkles') then v.Enabled = false
+			elseif v:IsA('Decal') or v:IsA('Texture') then v.Transparency = 1
+			elseif v:IsA('PointLight') or v:IsA('SpotLight') or v:IsA('SurfaceLight') then if v.Enabled ~= nil then v.Enabled = false else v.Brightness = 0 end
+			elseif v:IsA('MeshPart') then v.RenderFidelity = Enum.RenderFidelity.Performance end
 		end)
 	end
 end
@@ -1081,10 +1013,7 @@ local function ToggleCatacombsAimbot(enabled)
 			if player and player.Character and player.Character:FindFirstChild('HumanoidRootPart') then
 				local humanoid = player.Character:FindFirstChild('Humanoid')
 				if humanoid and humanoid.Health <= 0 then
-					getgenv().FireBallAimbot = false
-					config.FireBallAimbot = false
-					saveConfig()
-					break
+					getgenv().FireBallAimbot = false; config.FireBallAimbot = false; saveConfig(); break
 				end
 				local currentTime = tick()
 				if (currentTime - lastFireballTime) >= (config.cityFireballCooldown or 0.2) then
@@ -1095,34 +1024,16 @@ local function ToggleCatacombsAimbot(enabled)
 						if targetFolder and targetFolder:IsA('Folder') then
 							local targetPosition = Vector3.new(targetFolderNumber*20, 5, targetFolderNumber*10)
 							for _, child in pairs(targetFolder:GetChildren()) do
-								if child:IsA('Model') and child:FindFirstChild('HumanoidRootPart') then
-									targetPosition = child.HumanoidRootPart.Position; break
-								elseif child:IsA('BasePart') then
-									targetPosition = child.Position; break
-								end
+								if child:IsA('Model') and child:FindFirstChild('HumanoidRootPart') then targetPosition = child.HumanoidRootPart.Position; break
+								elseif child:IsA('BasePart') then targetPosition = child.Position; break end
 							end
 							local success = pcall(function() fireFireballAt(targetPosition) end)
-							if success then
-								lastFireballTime = currentTime
-								currentTargetIndex = currentTargetIndex + 1; if currentTargetIndex > #targetOrder then currentTargetIndex = 1 end
-								task.wait(0.3)
-							else
-								currentTargetIndex = currentTargetIndex + 1; if currentTargetIndex > #targetOrder then currentTargetIndex = 1 end
-								task.wait(0.1)
-							end
-						else
-							currentTargetIndex = currentTargetIndex + 1; if currentTargetIndex > #targetOrder then currentTargetIndex = 1 end
-							task.wait(0.1)
-						end
-					else
-						task.wait(0.5)
-					end
-				else
-					task.wait(0.05)
-				end
-			else
-				task.wait(0.1)
-			end
+							if success then lastFireballTime = currentTime; currentTargetIndex = currentTargetIndex % #targetOrder + 1; task.wait(0.3)
+							else currentTargetIndex = currentTargetIndex % #targetOrder + 1; task.wait(0.1) end
+						else currentTargetIndex = currentTargetIndex % #targetOrder + 1; task.wait(0.1) end
+					else task.wait(0.5) end
+				else task.wait(0.05) end
+			else task.wait(0.1) end
 		end
 	end)
 end
@@ -1146,8 +1057,8 @@ local function ToggleCityAimbot(enabled)
 								local p = ch:IsA('Model') and ch:FindFirstChild('HumanoidRootPart') or (ch:IsA('BasePart') and ch)
 								if p then pos=p.Position; break end
 							end
-							fireFireballAt(pos); last=now; idx+=1; if idx>#order then idx=1 end; task.wait(0.3)
-						else idx+=1; if idx>#order then idx=1 end; task.wait(0.1) end
+							fireFireballAt(pos); last=now; idx = idx % #order + 1; task.wait(0.3)
+						else idx = idx % #order + 1; task.wait(0.1) end
 					else task.wait(0.5) end
 				else task.wait(0.05) end
 			end
@@ -1243,13 +1154,10 @@ local CombatSection = CreateSection(CombatTab,'FireBall Aimbot')
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='FireBall Aimbot',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
 CreateToggle(CombatSection,'Universal FireBall Aimbot','UniversalFireBallAimbot',ToggleUniversalAimbot)
 CreateSlider(CombatSection,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function() end)
-
 CreateToggle(CombatSection,'FireBall Aimbot Catacombs Preset','FireBallAimbot',ToggleCatacombsAimbot)
 CreateSlider(CombatSection,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function() end)
-
 CreateToggle(CombatSection,'FireBall Aimbot City Preset','FireBallAimbotCity',ToggleCityAimbot)
 CreateSlider(CombatSection,'City Fireball Cooldown','cityFireballCooldown',0.05,1.0,0.5,function() end)
-
 make('TextLabel',{Size=UDim2.new(1, -12, 0, 22),BackgroundTransparency=1,Text='Panic',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},CombatSection)
 CreateToggle(CombatSection,'Smart Panic','SmartPanic',function(on) config.SmartPanic=on; getgenv().SmartPanic=on; saveConfig() end)
 
