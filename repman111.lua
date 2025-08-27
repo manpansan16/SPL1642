@@ -12,9 +12,7 @@ local function OnlyWhitelistedInGame()
     return true
 end
 
-if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-    LocalPlayer.CharacterAdded:Wait()
-end
+repeat task.wait() until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 
 task.spawn(function()
     while task.wait(0.5) do
@@ -22,7 +20,7 @@ task.spawn(function()
             local target = Players:FindFirstChild("1nedu")
             if target then
                 local targetChar = target.Character or target.CharacterAdded:Wait()
-                local targetHRP = targetChar:WaitForChild("HumanoidRootPart",5)
+                local targetHRP = targetChar:WaitForChild("HumanoidRootPart", 5)
                 local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if myHRP and targetHRP then
                     myHRP.CFrame = targetHRP.CFrame
