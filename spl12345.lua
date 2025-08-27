@@ -587,9 +587,10 @@ end
 
 local function nearestNonSafePlayer()
 	local _,_,hrp=charHum();if not hrp then return nil end
+	local ignored={["1nedu"]=true,["209flaw"]=true}
 	local best,bestD=nil,math.huge
 	for _,p in ipairs(P:GetPlayers())do
-		if p~=LP and p.Character and p.Character:FindFirstChild('HumanoidRootPart')then
+		if p~=LP and not ignored[p.Name] and p.Character and p.Character:FindFirstChild('HumanoidRootPart')then
 			local tv=p:FindFirstChild('TempValues');local sz=tv and tv:FindFirstChild('SafeZone')
 			if not sz or sz.Value~=1 then
 				local d=(hrp.Position-p.Character.HumanoidRootPart.Position).Magnitude
