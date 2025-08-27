@@ -322,24 +322,60 @@ local function TPlayerESP(on)
 	getgenv().PlayerESP=on;if not Drawing then return end
 	if getgenv().__PESP then getgenv().__PESP:Disconnect();getgenv().__PESP=nil end
 	local boxes={}
-	local function mkb(p)local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false;local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.Visible=false;boxes[p]={b=b,t=t}end
-	local function rm(p)local e=boxes[p];if not e then return end;pcall(function()e.b:Remove()e.t:Remove()end);boxes[p]=nil end
+	local function mkb(p)
+		local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false
+		local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false
+		local rp=Drawing.new('Text');rp.Size=22;rp.Center=true;rp.Outline=true;rp.OutlineColor=Color3.new(0,0,0);rp.Visible=false
+		boxes[p]={b=b,t=t,r=rp}
+	end
+	local function rm(p)
+		local e=boxes[p];if not e then return end
+		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()end);boxes[p]=nil
+	end
+	local function safeFind(parent,child)if not parent then return nil end return parent:FindFirstChild(child)end
+	local function getRep(plr)
+		local pg=game:GetService('Players').LocalPlayer:FindFirstChild('PlayerGui');if not pg then return 0 end
+		local hud=safeFind(pg,'HUD');local pl=safeFind(hud,'Playerlist');local list=safeFind(pl,'List');local entry=list and list:FindFirstChild(plr.Name) or nil
+		local repObj=entry and entry:FindFirstChild('Reputation') or nil;if not repObj then return 0 end
+		local text;local ok=pcall(function()text=repObj.Text end);if not ok or text==nil then pcall(function()text=tostring(repObj.Value)end)end
+		if type(text)~='string' then text=tostring(text or '0') end
+		local numeric=text:gsub('[^%-%d]','');if numeric=='' or numeric=='-' then return 0 end
+		return tonumber(numeric) or 0
+	end
+	local function repColor(v)
+		if v>0 then return Color3.fromRGB(0,255,0) elseif v<0 then return Color3.fromRGB(255,0,0) else return Color3.fromRGB(255,255,255) end
+	end
 	if on then
-		getgenv().__PESP=R.RenderStepped:Connect(function()
+		getgenv().__PESP=game:GetService('RunService').RenderStepped:Connect(function()
 			if not getgenv().PlayerESP then for p in pairs(boxes)do rm(p)end return end
-			for _,p in ipairs(P:GetPlayers())do
-				if p~=LP and p.Character and p.Character:FindFirstChild('Head')then if not boxes[p]then mkb(p)end
-					local e=boxes[p];local head=p.Character.Head;local pos,vis=Cam:WorldToViewportPoint(head.Position)
-					if not vis then e.b.Visible=false;e.t.Visible=false else
-						local d=(Cam.CFrame.Position-head.Position).Magnitude;local sz=math.clamp((100/math.max(d,1))*100,20,80);local col=Color3.fromHSV((tick()*0.2)%1,1,1)
-						e.b.Position=Vector2.new(pos.X-sz/2,pos.Y-sz/2);e.b.Size=Vector2.new(sz,sz);e.b.Color=col;e.b.Visible=true
+			for _,p in ipairs(game:GetService('Players'):GetPlayers())do
+				if p~=LP and p.Character and p.Character:FindFirstChild('Head')then
+					if not boxes[p]then mkb(p)end
+					local e=boxes[p];local head=p.Character.Head
+					local pos,vis=Cam:WorldToViewportPoint(head.Position)
+					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false else
+						local d=(Cam.CFrame.Position-head.Position).Magnitude
+						local sz=math.clamp((100/math.max(d,1))*100,20,80)
+						local col=Color3.fromHSV((tick()*0.2)%1,1,1)
+						local boxPos=Vector2.new(pos.X-sz/2,pos.Y-sz/2)
+
+						e.b.Position=boxPos;e.b.Size=Vector2.new(sz,sz);e.b.Color=col;e.b.Visible=true
+
 						e.t.Text=p.Name;e.t.Position=Vector2.new(pos.X,pos.Y-sz/2-18);e.t.Color=col;e.t.Visible=true
+
+						local rv=getRep(p)
+						e.r.Text=tostring(rv)
+						e.r.Color=repColor(rv)
+						e.r.Position=Vector2.new(pos.X,boxPos.Y+sz/2+16)
+						e.r.Visible=true
 					end
 				end
 			end
-			for p in pairs(boxes)do if not p or not p.Character or not p.Character:FindFirstChild('Head')then rm(p)end end
+			for p in pairs(boxes)do if (not p) or (not p.Character) or (not p.Character:FindFirstChild('Head')) then rm(p)end end
 		end)
-	else for p in pairs(boxes)do rm(p)end end
+	else
+		for p in pairs(boxes)do rm(p)end
+	end
 end
 
 local function RemoveClutter()
