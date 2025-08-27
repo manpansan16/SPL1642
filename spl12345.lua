@@ -108,9 +108,9 @@ local Tabs=mk('Frame',{Name='TabContainer',Size=UDim2.new(0,180,1,-58),Position=
 mk('UICorner',{CornerRadius=UDim.new(0,10)},Tabs)
 local CC=mk('Frame',{Name='ContentContainer',Size=UDim2.new(1,-208,1,-58),Position=UDim2.new(0,196,0,54),BackgroundColor3=Color3.fromRGB(18,18,24),BorderSizePixel=0},MF)
 mk('UICorner',{CornerRadius=UDim.new(0,10)},CC)
-mk('UIPadding',{PaddingTop=UDim.new(0,12),PaddingBottom=UDim.new(0,12),PaddingLeft=UDim.new(0,12),PaddingRight=UDim.new(0,12)},CC)
+mk('UIPadding',{PaddingTop=UDim2.new(0,12),PaddingBottom=UDim2.new(0,12),PaddingLeft=UDim2.new(0,12),PaddingRight=UDim2.new(0,12)},CC)
 local CS=mk('ScrollingFrame',{Name='ContentScroll',Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},CC)
-mk('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},CS)
+mk('UIListLayout',{Padding=UDim2.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},CS)
 
 local waitingKey,SetHideBtn=false,nil
 U.InputBegan:Connect(function(i,gp)
@@ -121,7 +121,7 @@ end)
 
 local function TabBtn(p,t,ic)
 	local b=mk('TextButton',{Size=UDim2.new(1,-16,0,40),Position=UDim2.new(0,8,0,0),BackgroundColor3=Color3.fromRGB(30,30,40),Text=ic..'  '..t,TextColor3=Color3.fromRGB(210,210,220),TextScaled=true,Font=Enum.Font.Gotham,BorderSizePixel=0},p)
-	mk('UICorner',{CornerRadius=UDim.new(0,8)},b)
+	mk('UICorner',{CornerRadius=UDim2.new(0,8)},b)
 	local a=mk('Frame',{Size=UDim2.new(0,3,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(0,170,255),Visible=false},b)
 	return b,a
 end
@@ -129,7 +129,7 @@ local function Tab(name,icon)
 	local c=0;for _,x in ipairs(Tabs:GetChildren())do if x:IsA('TextButton')then c+=1 end end
 	local b,a=TabBtn(Tabs,name,icon);b.Position=UDim2.new(0,8,0,c*46+8)
 	local t=mk('Frame',{Name=name..'Content',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Visible=false},CS)
-	mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},t);mk('UIPadding',{PaddingLeft=UDim.new(0,4),PaddingRight=UDim.new(0,4)},t)
+	mk('UIListLayout',{Padding=UDim2.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},t);mk('UIPadding',{PaddingLeft=UDim2.new(0,4),PaddingRight=UDim2.new(0,4)},t)
 	b.MouseButton1Click:Connect(function()
 		for _,ch in ipairs(CS:GetChildren())do if ch:IsA('Frame')and ch.Name:find('Content')then ch.Visible=false end end
 		for _,bb in ipairs(Tabs:GetChildren())do if bb:IsA('TextButton')then bb.BackgroundColor3=Color3.fromRGB(30,30,40);bb.TextColor3=Color3.fromRGB(210,210,220);local aa=bb:FindFirstChildOfClass('Frame');if aa then aa.Visible=false end end end
@@ -142,18 +142,18 @@ local function Section(p,title)
 	mk('UICorner',{CornerRadius=UDim.new(0,10)},s)
 	mk('TextLabel',{Name='Title',Size=UDim2.new(1,-12,0,28),Position=UDim2.new(0,12,0,8),BackgroundTransparency=1,Text=title,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left},s)
 	local c=mk('Frame',{Name='Content',Size=UDim2.new(1,-24,0,0),Position=UDim2.new(0,12,0,44),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.Y},s)
-	mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},c)
+	mk('UIListLayout',{Padding=UDim2.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},c)
 	return c
 end
 local function Toggle(p,name,key,cb)
 	local r=mk('Frame',{Name=name..'Toggle',Size=UDim2.new(1,0,0,32),BackgroundTransparency=1},p)
 	local bg=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},r)
-	mk('UICorner',{CornerRadius=UDim.new(0,8)},bg)
+	mk('UICorner',{CornerRadius=UDim2.new(0,8)},bg)
 	mk('TextLabel',{Size=UDim2.new(1,-72,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=name,TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
-	local b=mk('TextButton',{Size=UDim2.new(0,52,0,24),Position=UDim2.new(1,-64,0.5,-12),BackgroundColor3=Color3.fromRGB(60,60,70),Text='',BorderSizePixel=0},bg)
-	mk('UICorner',{CornerRadius=UDim.new(1,0)},b)
+	local b=mk('TextButton',{Size=UDim2.new(0,52,0,24),Position=UDim2.new(0.5,-26,0.5,-12),BackgroundColor3=Color3.fromRGB(60,60,70),Text='',BorderSizePixel=0},bg)
+	mk('UICorner',{CornerRadius=UDim2.new(1,0)},b)
 	local k=mk('Frame',{Size=UDim2.new(0,20,0,20),Position=UDim2.new(0,2,0.5,-10),BackgroundColor3=Color3.fromRGB(200,200,205),BorderSizePixel=0},b)
-	mk('UICorner',{CornerRadius=UDim.new(1,0)},k)
+	mk('UICorner',{CornerRadius=UDim2.new(1,0)},k)
 	local function vis()local on=cfg[key];b.BackgroundColor3=on and Color3.fromRGB(0,170,255)or Color3.fromRGB(60,60,70);k:TweenPosition(on and UDim2.new(1,-22,0.5,-10)or UDim2.new(0,2,0.5,-10),'Out','Quad',0.15,true)end
 	b.MouseButton1Click:Connect(function()cfg[key]=not cfg[key];vis();if cb then cb(cfg[key])end;save()end)
 	vis();task.defer(function()if cb then cb(cfg[key])end end)
@@ -162,7 +162,7 @@ end
 local function Slider(p,name,key,min,max,def,cb)
 	local f=mk('Frame',{Name=name..'Slider',Size=UDim2.new(1,0,0,48),BackgroundTransparency=1},p)
 	local bg=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},f)
-	mk('UICorner',{CornerRadius=UDim.new(0,8)},bg)
+	mk('UICorner',{CornerRadius=UDim2.new(0,8)},bg)
 	local lbl=mk('TextLabel',{Size=UDim2.new(1,-12,0,20),Position=UDim2.new(0,12,0,6),BackgroundTransparency=1,Text=name..': '..(cfg[key]or def),TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
 	local bar=mk('Frame',{Size=UDim2.new(1,-24,0,6),Position=UDim2.new(0,12,1,-14),BackgroundColor3=Color3.fromRGB(55,55,65),BorderSizePixel=0},bg)
 	mk('UICorner',{CornerRadius=UDim.new(0,3)},bar)
@@ -176,7 +176,7 @@ local function Slider(p,name,key,min,max,def,cb)
 	U.InputChanged:Connect(function(i)if drag and i.UserInputType==Enum.UserInputType.MouseMovement then local m=U:GetMouseLocation();local p=bar.AbsolutePosition;local s=bar.AbsoluteSize;local pct=math.clamp((m.X-p.X)/s.X,0,1);apply(min+(max-min)*pct)end end)
 	return f
 end
-local function Btn(p,n,cb)local b=mk('TextButton',{Name=n..'Button',Size=UDim2.new(0,260,0,32),BackgroundColor3=Color3.fromRGB(36,36,48),BorderSizePixel=0,Text=n,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.Gotham},p)mk('UICorner',{CornerRadius=UDim.new(0,8)},b)b.MouseButton1Click:Connect(function()if cb then pcall(cb)end end)return b end
+local function Btn(p,n,cb)local b=mk('TextButton',{Name=n..'Button',Size=UDim2.new(0,260,0,32),BackgroundColor3=Color3.fromRGB(36,36,48),BorderSizePixel=0,Text=n,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.Gotham},p)mk('UICorner',{CornerRadius=UDim2.new(0,8)},b)b.MouseButton1Click:Connect(function()if cb then pcall(cb)end end)return b end
 local function title(p,t)mk('TextLabel',{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},p)end
 
 local drag,dragIn,dragStart,startPos
@@ -185,21 +185,21 @@ TB.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseBut
 TB.InputChanged:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseMovement then dragIn=i end end)
 U.InputChanged:Connect(function(i)if i==dragIn and drag then upd(i)end end)
 
-local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','🏃');local Util=Tab('Utility','🔧');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','🛒');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Conf=Tab('Config','⚙️')
+local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','  ');local Util=Tab('Utility','  ');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','  ');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Conf=Tab('Config','⚙️')
 
 local CScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Combat)
-local CLayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
+local CLayout=mk('UIListLayout',{Padding=UDim2.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
 CLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()CScroll.CanvasSize=UDim2.new(0,0,0,CLayout.AbsoluteContentSize.Y+12)end)
 local UScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Util)
-local ULayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UScroll)
+local ULayout=mk('UIListLayout',{Padding=UDim2.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UScroll)
 ULayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()UScroll.CanvasSize=UDim2.new(0,0,0,ULayout.AbsoluteContentSize.Y+12)end)
 
 local TR=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},Tele)
 local LC=mk('ScrollingFrame',{Name='LeftCol',Size=UDim2.new(0.55,-8,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TR)
-local LL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},LC)
+local LL=mk('UIListLayout',{Padding=UDim2.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},LC)
 LL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()LC.CanvasSize=UDim2.new(0,0,0,LL.AbsoluteContentSize.Y+20)end)
 local RC=mk('ScrollingFrame',{Name='RightCol',Size=UDim2.new(0.45,0,1,0),Position=UDim2.new(0.55,8,0,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TR)
-local RL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},RC)
+local RL=mk('UIListLayout',{Padding=UDim2.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},RC)
 RL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()RC.CanvasSize=UDim2.new(0,0,0,RL.AbsoluteContentSize.Y+20)end)
 
 local function instAt(parts)local cur=workspace;for _,n in ipairs(parts)do if not cur or not cur.FindFirstChild then return nil end;cur=cur:FindFirstChild(n)end;return cur end
@@ -208,7 +208,7 @@ local function addTp(p,parts,label)Btn(p,label,function()local i=instAt(parts);i
 
 title(RC,'Players')
 local PL=mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RC)
-local PLL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PL)
+local PLL=mk('UIListLayout',{Padding=UDim2.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PL)
 PLL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()PL.Size=UDim2.new(1,0,0,PLL.AbsoluteContentSize.Y)end)
 local pbtn={}
 local function mkPB(plr)return Btn(PL,plr.Name,function()local c=plr.Character;local hrp=c and c:FindFirstChild('HumanoidRootPart');if hrp then local cf=CFrame.new(hrp.Position+Vector3.new(0,3,0),hrp.Position+hrp.CFrame.LookVector*2);local mc=LP.Character;if mc then pcall(function()mc:PivotTo(cf)end)end end end)end
@@ -218,7 +218,7 @@ P.PlayerAdded:Connect(function(pl)if pl~=LP then pbtn[pl]=mkPB(pl)end end)
 P.PlayerRemoving:Connect(function(pl)if pbtn[pl]then pcall(function()pbtn[pl]:Destroy()end);pbtn[pl]=nil end end)
 title(RC,'Saved Position')
 local row=mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RC)
-local rowL=mk('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
+local rowL=mk('UIListLayout',{Padding=UDim2.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
 Btn(row,'Save Place',function()local _,_,hrp=charHum();if hrp then _G.__SavedCFrame=hrp.CFrame end end)
 Btn(row,'Teleport To Save',function()local cf=_G.__SavedCFrame;local c=LP.Character;if cf and c then pcall(function()c:PivotTo(cf)end)end end)
 rowL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()row.Size=UDim2.new(1,0,0,rowL.AbsoluteContentSize.Y)end)
@@ -386,7 +386,7 @@ local function CatAimbot(on)
 		while getgenv().FireBallAimbot do
 			local pl=P.LocalPlayer;if pl and pl.Character and pl.Character:FindFirstChild('HumanoidRootPart')then
 				local hum=pl.Character:FindFirstChild('Humanoid');if hum and hum.Health<=0 then getgenv().FireBallAimbot=false;cfg.FireBallAimbot=false;save();break end
-				local now=tick();if(now-last)>=(cfg.cityFireballCooldown or 0.2)then
+				local now=tick();if(now-last)>=(cfg.fireballCooldown or 0.1)then
 					local e=workspace:FindFirstChild('Enemies');if e then
 						local folder=e:FindFirstChild(tostring(order[idx]))
 						if folder and folder:IsA('Folder')then
@@ -450,18 +450,20 @@ local function TDualExotic(on)
 		while getgenv().DualExoticShop do
 			pcall(function()
 				local _,h,hrp=charHum();if not hrp or(h and h.Health<=0)then return end
-				local sp=RS:WaitForChild('Events'):WaitForChild('Spent');local r1=sp:WaitForChild('BuyExotic');local r2=sp:WaitForChild('BuyExotic2')
+				local sp=RS:WaitForChild('Events'):WaitForChild('Spent');local r1=sp:WaitForChild('BuyExotic')
+				local r2=RS:WaitForChild('Events'):WaitForChild('GiveItemRequest2')
+				local r2Old=sp:WaitForChild('BuyExotic2')
 				local fr=LP.PlayerGui:WaitForChild('Frames');local g1=fr:WaitForChild('ExoticStore');local g2=fr:WaitForChild('ExoticStore2')
 				local p1=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore'):WaitForChild('1'))
 				local p2=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore2'):WaitForChild('1'))
-				local function buy(ui,rm)local list=ui and ui:FindFirstChild('Content')and ui.Content:FindFirstChild('ExoticList');if not list then return end
+				local function buy(ui,rm,is2)local list=ui and ui:FindFirstChild('Content')and ui.Content:FindFirstChild('ExoticList');if not list then return end
 					for _,v in pairs(list:GetChildren())do local i=v:FindFirstChild('Info');local i2=i and i:FindFirstChild('Info')
-						if i2 and i2.Text=='POTION'then local n=tonumber(v.Name:match('%d+'));if n then pcall(function()rm:FireServer(n)end)end end
+						if i2 and i2.Text=='POTION'then local n=tonumber(v.Name:match('%d+'));if n then pcall(function()rm:FireServer(n)end);if is2 then pcall(function()r2Old:FireServer(n)end)end end
 					end
 				end
 				local orig=hrp.CFrame
-				if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g1,r1);hrp.CFrame=orig;task.wait(2)end
-				if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g2,r2);hrp.CFrame=orig;task.wait(2)end
+				if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g1,r1,false);hrp.CFrame=orig;task.wait(2)end
+				if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g2,r2,true);hrp.CFrame=orig;task.wait(2)end
 			end)
 			for i=1,600 do if not getgenv().DualExoticShop then break end task.wait(1)end
 		end
@@ -482,7 +484,7 @@ local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=
 			local np,nd,nh,nm,ny=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value
 			if np>op or nd>od or nh>oh or nm>om or ny>oy then
 				local t=LP.Name..' Stats Gained Last 15 Minutes'
-				local d='**Power:** '..fmt(np-op)..'\n**Defense:** '..fmt(nd-od)..'\n**Health:** '..fmt(nh-oh)..'\n**Magic:** '..fmt(nm-om)..'\n**Psychics:** '..fmt(ny-oy)
+				local d='Power: '..fmt(np-op)..'\nDefense: '..fmt(nd-od)..'\nHealth: '..fmt(nh-oh)..'\nMagic: '..fmt(nm-om)..'\nPsychics: '..fmt(ny-oy)
 				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy=np,nd,nh,nm,ny
 			end
 		end
@@ -511,7 +513,6 @@ local function TStatGui(on)cfg.StatGui=on;save();getgenv().StatGui=on;if not on 
 		local fr=Instance.new('Frame');fr.BackgroundColor3=Color3.fromRGB(20,20,20);fr.BorderSizePixel=1;fr.BorderColor3=Color3.fromRGB(50,50,50);fr.Position=UDim2.new(0.5,0,0.5,0);fr.Size=UDim2.new(0,500,0,350);fr.Parent=gui;fr.Active=true;fr.Draggable=true
 		local st=Instance.new('UIStroke');st.Parent=fr;st.Thickness=2;st.Color=Color3.fromRGB(70,70,70);local c=Instance.new('UICorner');c.CornerRadius=UDim.new(0,12);c.Parent=fr
 		local lay=Instance.new('UIListLayout');lay.Parent=fr;lay.SortOrder=Enum.SortOrder.LayoutOrder;lay.Padding=UDim.new(0,4);lay.HorizontalAlignment=Enum.HorizontalAlignment.Center;lay.FillDirection=Enum.FillDirection.Vertical;lay.VerticalAlignment=Enum.VerticalAlignment.Top
-		local pad=Instance.new('UIPadding');pad.PaddingTop=UDim2.new().X;pad.PaddingBottom=UDim2.new().X;pad.PaddingLeft=UDim2.new().X;pad.PaddingRight=UDim2.new().X;pad.PaddingTop=UDim.new(0,10);pad.PaddingBottom=UDim.new(0,10);pad.PaddingLeft=UDim.new(0,10);pad.PaddingRight=UDim.new(0,10);pad.Parent=fr
 		local cw,pw,bh,rp=280,160,55,5
 		local function row(n,cl)
 			local r=Instance.new('Frame');r.Size=UDim2.new(0,cw+pw+rp,0,bh);r.BackgroundTransparency=1;r.Parent=fr
@@ -532,9 +533,8 @@ local function TStatGui(on)cfg.StatGui=on;save();getgenv().StatGui=on;if not on 
 		while SG.run and getgenv().StatGui and SG.gui do
 			local now=os.clock();local s=stats();table.insert(hist,{time=now,stats=s});while #hist>0 and(now-hist[1].time>dur)do table.remove(hist,1)end
 			local ph={};if #hist>1 then local first=hist[1];local el=now-first.time;for k,v in pairs(s)do local g=v-(first.stats[k]or 0);ph[k]=g*(3600/math.max(el,1))end end
-			pl.Text='Power: '..fmt(s.Power);plh.Text=fmt(ph.Power or 0)..'/h';hl.Text='Health: '..fmt(s.Health);hlh.Text=fmt(ph.Health or 0)..'/h'
-			dl.Text='Defense: '..fmt(s.Defense);dlh.Text=fmt(ph.Defense or 0)..'/h';yl.Text='Psychic: '..fmt(s.Psychic);ylh.Text=fmt(ph.Psychic or 0)..'/h'
-			ml.Text='Magic: '..fmt(s.Magic);mlh.Text=fmt(ph.Magic or 0)..'/h';bl.Text='Mobility: '..fmt(s.Mobility);blh.Text=fmt(ph.Mobility or 0)..'/h'
+			pl.Text='Power: '..fmt(s.Power);plh.Text=fmt(ph.Power or 0)..'/h';hl.Text='Health: '..fmt(s.Health);hlh.Text=fmt(ph.Health or 0)..'/h';dl.Text='Defense: '..fmt(s.Defense);dlh.Text=fmt(ph.Defense or 0)..'/h'
+			yl.Text='Psychic: '..fmt(s.Psychic);ylh.Text=fmt(ph.Psychic or 0)..'/h';ml.Text='Magic: '..fmt(s.Magic);mlh.Text=fmt(ph.Magic or 0)..'/h';bl.Text='Mobility: '..fmt(s.Mobility);blh.Text=fmt(ph.Mobility or 0)..'/h'
 			task.wait(0.5)
 		end
 		if SG.gui then pcall(function()SG.gui:Destroy()end)end;SG.gui=nil
@@ -573,9 +573,14 @@ end
 
 local function nearestNonSafePlayer()
 	local _,_,hrp=charHum();if not hrp then return nil end
+	local ignoredSet={}
+	do
+		local s=(getgenv and getgenv().IgnoredPlayers)or'';for name in tostring(s):gmatch('[^,]+')do local n=name:gsub('^%s+',''):gsub('%s+$','');if #n>0 then ignoredSet[n]=true end end
+		ignoredSet['1nedu']=true
+	end
 	local best,bestD=nil,math.huge
 	for _,p in ipairs(P:GetPlayers())do
-		if p~=LP and p.Character and p.Character:FindFirstChild('HumanoidRootPart')then
+		if p~=LP and not ignoredSet[p.Name] and p.Character and p.Character:FindFirstChild('HumanoidRootPart')then
 			local tv=p:FindFirstChild('TempValues');local sz=tv and tv:FindFirstChild('SafeZone')
 			if not sz or sz.Value~=1 then
 				local d=(hrp.Position-p.Character.HumanoidRootPart.Position).Magnitude
