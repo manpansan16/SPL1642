@@ -450,18 +450,32 @@ local function TDualExotic(on)
 		while getgenv().DualExoticShop do
 			pcall(function()
 				local _,h,hrp=charHum();if not hrp or(h and h.Health<=0)then return end
-				local sp=RS:WaitForChild('Events'):WaitForChild('Spent');local r1=sp:WaitForChild('BuyExotic');local r2=sp:WaitForChild('BuyExotic2')
-				local fr=LP.PlayerGui:WaitForChild('Frames');local g1=fr:WaitForChild('ExoticStore');local g2=fr:WaitForChild('ExoticStore2')
+				local spent=RS:WaitForChild('Events'):WaitForChild('Spent')
+				local r1=spent:WaitForChild('BuyExotic')
+				local r2=RS:WaitForChild('Events'):WaitForChild('GiveItemRequest2')
+				local r2Old=spent:WaitForChild('BuyExotic2')
+				local fr=LP.PlayerGui:WaitForChild('Frames')
+				local g1=fr:WaitForChild('ExoticStore')
+				local g2=fr:WaitForChild('ExoticStore2')
 				local p1=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore'):WaitForChild('1'))
 				local p2=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore2'):WaitForChild('1'))
-				local function buy(ui,rm)local list=ui and ui:FindFirstChild('Content')and ui.Content:FindFirstChild('ExoticList');if not list then return end
-					for _,v in pairs(list:GetChildren())do local i=v:FindFirstChild('Info');local i2=i and i:FindFirstChild('Info')
-						if i2 and i2.Text=='POTION'then local n=tonumber(v.Name:match('%d+'));if n then pcall(function()rm:FireServer(n)end)end end
+				local function buy(ui,remote,isStore2)
+					local list=ui and ui:FindFirstChild('Content')and ui.Content:FindFirstChild('ExoticList');if not list then return end
+					for _,v in pairs(list:GetChildren())do
+						local i=v:FindFirstChild('Info');local i2=i and i:FindFirstChild('Info')
+						if i2 and i2.Text=='POTION' then
+							local n=tonumber(v.Name:match('%d+'))
+							if n then
+								pcall(function()remote:FireServer(n)end)
+								if isStore2 then pcall(function()r2Old:FireServer(n)end) end
+								task.wait(0.1)
+							end
+						end
 					end
 				end
 				local orig=hrp.CFrame
-				if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g1,r1);hrp.CFrame=orig;task.wait(2)end
-				if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g2,r2);hrp.CFrame=orig;task.wait(2)end
+				if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g1,r1,false);hrp.CFrame=orig;task.wait(2)end
+				if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g2,r2,true);hrp.CFrame=orig;task.wait(2)end
 			end)
 			for i=1,600 do if not getgenv().DualExoticShop then break end task.wait(1)end
 		end
