@@ -366,7 +366,7 @@ local function TPlayerESP(on)
 		local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false
 		local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false
 		local rp=Drawing.new('Text');rp.Size=22;rp.Center=true;rp.Outline=true;rp.OutlineColor=Color3.new(0,0,0);rp.Visible=false
-		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(0,150,255);powerText.Visible=false
+		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(0,200,255);powerText.Visible=false
 		boxes[p]={b=b,t=t,r=rp,power=powerText}
 	end
 	local function rm(p)
@@ -412,7 +412,7 @@ local function TPlayerESP(on)
 						
 						-- Add total power display
 						local totalPower = getPlayerTotalPower(p)
-						e.power.Text = "Power: " .. formatNumber(totalPower)
+						e.power.Text = formatNumber(totalPower)
 						e.power.Position = Vector2.new(pos.X, boxPos.Y+sz/2+38)
 						e.power.Visible = true
 					end
