@@ -22,7 +22,7 @@ local cfg={
 	UltimateAFKOptimization=false,NoClip=false,PlayerESP=false,MobESP=false,AutoWashDishes=false,
 	AutoNinjaSideTask=false,AutoAnimatronicsSideTask=false,AutoMutantsSideTask=false,DualExoticShop=false,
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
-	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,
+	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
@@ -322,15 +322,56 @@ local function TPlayerESP(on)
 	getgenv().PlayerESP=on;if not Drawing then return end
 	if getgenv().__PESP then getgenv().__PESP:Disconnect();getgenv().__PESP=nil end
 	local boxes={}
+	
+	local function formatNumber(num)
+		local absNum = math.abs(num)
+		if absNum == 0 then
+			return "Concealed"
+		elseif absNum >= 1e18 then
+			return string.format("%.2fQn", num/1e18)
+		elseif absNum >= 1e15 then
+			return string.format("%.2fQd", num/1e15)
+		elseif absNum >= 1e12 then
+			return string.format("%.2fT", num/1e12)
+		elseif absNum >= 1e9 then
+			return string.format("%.2fB", num/1e9)
+		elseif absNum >= 1e6 then
+			return string.format("%.2fM", num/1e6)
+		elseif absNum >= 1e3 then
+			return string.format("%.2fK", num/1e3)
+		else
+			return tostring(num)
+		end
+	end
+	
+	local function getPlayerTotalPower(player)
+		local success, statsFolder = pcall(function()
+			return game:GetService("ReplicatedStorage").Data[player.Name].Stats
+		end)
+		
+		if success and statsFolder then
+			local total = 0
+			for _, statName in ipairs({"Power","Defense","Health","Magic","Psychics","Mobility"}) do
+				local stat = statsFolder:FindFirstChild(statName)
+				if stat then
+					total = total + stat.Value
+				end
+			end
+			return total
+		end
+		return 0
+	end
+	
 	local function mkb(p)
 		local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false
 		local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false
 		local rp=Drawing.new('Text');rp.Size=22;rp.Center=true;rp.Outline=true;rp.OutlineColor=Color3.new(0,0,0);rp.Visible=false
-		boxes[p]={b=b,t=t,r=rp}
+		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(0,150,255);powerText.Visible=false
+		boxes[p]={b=b,t=t,r=rp,power=powerText}
 	end
 	local function rm(p)
 		local e=boxes[p];if not e then return end
-		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()end);boxes[p]=nil
+		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()e.power:Remove()end);boxes[p]=nil
 	end
 	local function safeFind(parent,child)if not parent then return nil end return parent:FindFirstChild(child)end
 	local function getRep(plr)
@@ -353,7 +394,7 @@ local function TPlayerESP(on)
 					if not boxes[p]then mkb(p)end
 					local e=boxes[p];local head=p.Character.Head
 					local pos,vis=Cam:WorldToViewportPoint(head.Position)
-					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false else
+					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false;e.power.Visible=false else
 						local d=(Cam.CFrame.Position-head.Position).Magnitude
 						local sz=math.clamp((100/math.max(d,1))*100,20,80)
 						local col=Color3.fromHSV((tick()*0.2)%1,1,1)
@@ -368,6 +409,12 @@ local function TPlayerESP(on)
 						e.r.Color=repColor(rv)
 						e.r.Position=Vector2.new(pos.X,boxPos.Y+sz/2+16)
 						e.r.Visible=true
+						
+						-- Add total power display
+						local totalPower = getPlayerTotalPower(p)
+						e.power.Text = "Power: " .. formatNumber(totalPower)
+						e.power.Position = Vector2.new(pos.X, boxPos.Y+sz/2+38)
+						e.power.Visible = true
 					end
 				end
 			end
@@ -525,15 +572,15 @@ end)end end
 local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=on;if not on then return end
 	task.spawn(function()
 		local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
-		local op,od,oh,om,oy=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value
-		local function fmt(n)n=tonumber(n)or 0;if n>=1e15 then return string.format('%.1f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.1f',n/1e12)..'t' end
-			if n>=1e9 then return string.format('%.1f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.1f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.1f',n/1e3)..'k'end return tostring(n)end
+		local op,od,oh,om,oy,omob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
+		local function fmt(n)n=tonumber(n)or 0;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
+			if n>=1e9 then return string.format('%.2f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.2f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.2f',n/1e3)..'k'end return tostring(n)end
 		while getgenv().StatWebhook15m do for i=1,900 do if not getgenv().StatWebhook15m then break end task.wait(1)end;if not getgenv().StatWebhook15m then break end
-			local np,nd,nh,nm,ny=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value
-			if np>op or nd>od or nh>oh or nm>om or ny>oy then
+			local np,nd,nh,nm,ny,nmob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
+			if np>op or nd>od or nh>oh or nm>om or ny>oy or nmob>omob then
 				local t=LP.Name..' Stats Gained Last 15 Minutes'
-				local d='**Power:** '..fmt(np-op)..'\n**Defense:** '..fmt(nd-od)..'\n**Health:** '..fmt(nh-oh)..'\n**Magic:** '..fmt(nm-om)..'\n**Psychics:** '..fmt(ny-oy)
-				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy=np,nd,nh,nm,ny
+				local d='**Power:** '..fmt(np-op)..'\n**Defense:** '..fmt(nd-od)..'\n**Health:** '..fmt(nh-oh)..'\n**Magic:** '..fmt(nm-om)..'\n**Psychics:** '..fmt(ny-oy)..'\n**Mobility:** '..fmt(nmob-omob)
+				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy,omob=np,nd,nh,nm,ny,nmob
 			end
 		end
 	end)
@@ -653,6 +700,24 @@ local function TGamma(on)cfg.GammaAimbot=on;save();getgenv().GammaAimbot=on
 	end
 end
 
+-- ADD THE TInfiniteZoom FUNCTION HERE
+local function TInfiniteZoom(on)
+	cfg.InfiniteZoom=on;save();getgenv().InfiniteZoom=on
+	if on then
+		task.spawn(function()
+			while getgenv().InfiniteZoom do
+				pcall(function()
+					LP.CameraMaxZoomDistance = math.huge
+					LP.CameraMinZoomDistance = 0.5
+					Cam.CameraType = Enum.CameraType.Custom
+					pcall(function() LP.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam end)
+				end)
+				task.wait(1)
+			end
+		end)
+	end
+end
+
 local C1=Section(CScroll,'Mob FireBall Aimbot')
 Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
 Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
@@ -665,6 +730,7 @@ Toggle(C1,'Gamma Ray Aimbot (g key)','GammaAimbot',TGamma)
 
 local M1=Section(Move,'Movement Features')
 Toggle(M1,'No Clip','NoClip',TNoClip)
+Toggle(M1,'Infinite Zoom','InfiniteZoom',TInfiniteZoom)
 
 local U1=Section(UScroll,'Utility Features')
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Optimizations',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
@@ -740,6 +806,7 @@ local LB=Btn(Cfg,'Load Config',function()
 		ap(cfg.AutoFly,function()return getgenv().AutoFly or false end,TFly)
 		ap(cfg.HealthExploit,function()return getgenv().HealthExploit or false end,THealthExploit)
 		ap(cfg.GammaAimbot,function()return getgenv().GammaAimbot or false end,TGamma)
+		ap(cfg.InfiniteZoom,function()return getgenv().InfiniteZoom or false end,TInfiniteZoom)  -- ADD THIS LINE
 		getgenv().SmartPanic=cfg.SmartPanic and true or false
 	end
 end)
