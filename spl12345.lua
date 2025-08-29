@@ -22,7 +22,7 @@ local cfg={
 	UltimateAFKOptimization=false,NoClip=false,PlayerESP=false,MobESP=false,AutoWashDishes=false,
 	AutoNinjaSideTask=false,AutoAnimatronicsSideTask=false,AutoMutantsSideTask=false,DualExoticShop=false,
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
-	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
+	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
@@ -110,7 +110,7 @@ local CC=mk('Frame',{Name='ContentContainer',Size=UDim2.new(1,-208,1,-58),Positi
 mk('UICorner',{CornerRadius=UDim.new(0,10)},CC)
 mk('UIPadding',{PaddingTop=UDim.new(0,12),PaddingBottom=UDim.new(0,12),PaddingLeft=UDim.new(0,12),PaddingRight=UDim.new(0,12)},CC)
 local CS=mk('ScrollingFrame',{Name='ContentScroll',Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},CC)
-mk('UIListLayout',{Padding=UDim2.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},CS)
+mk('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},CS)
 
 local waitingKey,SetHideBtn=false,nil
 U.InputBegan:Connect(function(i,gp)
@@ -167,7 +167,7 @@ local function Slider(p,name,key,min,max,def,cb)
 	local bar=mk('Frame',{Size=UDim2.new(1,-24,0,6),Position=UDim2.new(0,12,1,-14),BackgroundColor3=Color3.fromRGB(55,55,65),BorderSizePixel=0},bg)
 	mk('UICorner',{CornerRadius=UDim.new(0,3)},bar)
 	local fill=mk('Frame',{Size=UDim2.new(0,0,1,0),BackgroundColor3=Color3.fromRGB(0,170,255),BorderSizePixel=0},bar);mk('UICorner',{CornerRadius=UDim.new(0,3)},fill)
-	local knob=mk('Frame',{Size=UDim2.new(0,14,0,14),Position=UDim2.new(0,-7,0.5,-7),BackgroundColor3=Color3.fromRGB(235,235,245),BorderSizePixel=0},bar);mk('UICorner',{CornerRadius=UDim.new(0,3)},knob)
+	local knob=mk('Frame',{Size=UDim2.new(0,14,0,14),Position=UDim2.new(0,-7,0.5,-7),BackgroundColor3=Color3.fromRGB(235,235,245),BorderSizePixel=0},bar);mk('UICorner',{CornerRadius=UDim.new(1,0)},knob)
 	local drag=false
 	local function apply(v)local s=0.01;v=math.floor((v/s)+0.5)*s;v=math.clamp(v,min,max);local pct=(v-min)/(max-min);fill.Size=UDim2.new(pct,0,1,0);knob.Position=UDim2.new(pct,-7,0.5,-7);lbl.Text=name..': '..string.format('%.2f',v);cfg[key]=v;if cb then cb(v)end;save()end
 	apply(cfg[key]or def)
@@ -185,21 +185,21 @@ TB.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseBut
 TB.InputChanged:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseMovement then dragIn=i end end)
 U.InputChanged:Connect(function(i)if i==dragIn and drag then upd(i)end end)
 
-local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','  ');local Util=Tab('Utility','  ');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','  ');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Conf=Tab('Config','⚙️')
+local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','🏃');local Util=Tab('Utility','🔧');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','🛒');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Conf=Tab('Config','⚙️')
 
 local CScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Combat)
-local CLayout=mk('UIListLayout',{Padding=UDim2.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
+local CLayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
 CLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()CScroll.CanvasSize=UDim2.new(0,0,0,CLayout.AbsoluteContentSize.Y+12)end)
 local UScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Util)
-local ULayout=mk('UIListLayout',{Padding=UDim2.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UScroll)
+local ULayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UScroll)
 ULayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()UScroll.CanvasSize=UDim2.new(0,0,0,ULayout.AbsoluteContentSize.Y+12)end)
 
 local TR=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},Tele)
 local LC=mk('ScrollingFrame',{Name='LeftCol',Size=UDim2.new(0.55,-8,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TR)
-local LL=mk('UIListLayout',{Padding=UDim2.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},LC)
+local LL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},LC)
 LL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()LC.CanvasSize=UDim2.new(0,0,0,LL.AbsoluteContentSize.Y+20)end)
 local RC=mk('ScrollingFrame',{Name='RightCol',Size=UDim2.new(0.45,0,1,0),Position=UDim2.new(0.55,8,0,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TR)
-local RL=mk('UIListLayout',{Padding=UDim2.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},RC)
+local RL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},RC)
 RL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()RC.CanvasSize=UDim2.new(0,0,0,RL.AbsoluteContentSize.Y+20)end)
 
 local function instAt(parts)local cur=workspace;for _,n in ipairs(parts)do if not cur or not cur.FindFirstChild then return nil end;cur=cur:FindFirstChild(n)end;return cur end
@@ -208,7 +208,7 @@ local function addTp(p,parts,label)Btn(p,label,function()local i=instAt(parts);i
 
 title(RC,'Players')
 local PL=mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RC)
-local PLL=mk('UIListLayout',{Padding=UDim2.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PL)
+local PLL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},PL)
 PLL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()PL.Size=UDim2.new(1,0,0,PLL.AbsoluteContentSize.Y)end)
 local pbtn={}
 local function mkPB(plr)return Btn(PL,plr.Name,function()local c=plr.Character;local hrp=c and c:FindFirstChild('HumanoidRootPart');if hrp then local cf=CFrame.new(hrp.Position+Vector3.new(0,3,0),hrp.Position+hrp.CFrame.LookVector*2);local mc=LP.Character;if mc then pcall(function()mc:PivotTo(cf)end)end end end)end
@@ -218,7 +218,7 @@ P.PlayerAdded:Connect(function(pl)if pl~=LP then pbtn[pl]=mkPB(pl)end end)
 P.PlayerRemoving:Connect(function(pl)if pbtn[pl]then pcall(function()pbtn[pl]:Destroy()end);pbtn[pl]=nil end end)
 title(RC,'Saved Position')
 local row=mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RC)
-local rowL=mk('UIListLayout',{Padding=UDim2.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
+local rowL=mk('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
 Btn(row,'Save Place',function()local _,_,hrp=charHum();if hrp then _G.__SavedCFrame=hrp.CFrame end end)
 Btn(row,'Teleport To Save',function()local cf=_G.__SavedCFrame;local c=LP.Character;if cf and c then pcall(function()c:PivotTo(cf)end)end end)
 rowL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()row.Size=UDim2.new(1,0,0,rowL.AbsoluteContentSize.Y)end)
@@ -322,56 +322,15 @@ local function TPlayerESP(on)
 	getgenv().PlayerESP=on;if not Drawing then return end
 	if getgenv().__PESP then getgenv().__PESP:Disconnect();getgenv().__PESP=nil end
 	local boxes={}
-	
-	local function formatNumber(num)
-		local absNum = math.abs(num)
-		if absNum == 0 then
-			return "Concealed"
-		elseif absNum >= 1e18 then
-			return string.format("%.2fQn", num/1e18)
-		elseif absNum >= 1e15 then
-			return string.format("%.2fQd", num/1e15)
-		elseif absNum >= 1e12 then
-			return string.format("%.2fT", num/1e12)
-		elseif absNum >= 1e9 then
-			return string.format("%.2fB", num/1e9)
-		elseif absNum >= 1e6 then
-			return string.format("%.2fM", num/1e6)
-		elseif absNum >= 1e3 then
-			return string.format("%.2fK", num/1e3)
-		else
-			return tostring(num)
-		end
-	end
-	
-	local function getPlayerTotalPower(player)
-		local success, statsFolder = pcall(function()
-			return game:GetService("ReplicatedStorage").Data[player.Name].Stats
-		end)
-		
-		if success and statsFolder then
-			local total = 0
-			for _, statName in ipairs({"Power","Defense","Health","Magic","Psychics","Mobility"}) do
-				local stat = statsFolder:FindFirstChild(statName)
-				if stat then
-					total = total + stat.Value
-				end
-			end
-			return total
-		end
-		return 0
-	end
-	
 	local function mkb(p)
 		local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false
 		local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false
 		local rp=Drawing.new('Text');rp.Size=22;rp.Center=true;rp.Outline=true;rp.OutlineColor=Color3.new(0,0,0);rp.Visible=false
-		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(0,150,255);powerText.Visible=false
-		boxes[p]={b=b,t=t,r=rp,power=powerText}
+		boxes[p]={b=b,t=t,r=rp}
 	end
 	local function rm(p)
 		local e=boxes[p];if not e then return end
-		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()e.power:Remove()end);boxes[p]=nil
+		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()end);boxes[p]=nil
 	end
 	local function safeFind(parent,child)if not parent then return nil end return parent:FindFirstChild(child)end
 	local function getRep(plr)
@@ -394,7 +353,7 @@ local function TPlayerESP(on)
 					if not boxes[p]then mkb(p)end
 					local e=boxes[p];local head=p.Character.Head
 					local pos,vis=Cam:WorldToViewportPoint(head.Position)
-					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false;e.power.Visible=false else
+					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false else
 						local d=(Cam.CFrame.Position-head.Position).Magnitude
 						local sz=math.clamp((100/math.max(d,1))*100,20,80)
 						local col=Color3.fromHSV((tick()*0.2)%1,1,1)
@@ -409,12 +368,6 @@ local function TPlayerESP(on)
 						e.r.Color=repColor(rv)
 						e.r.Position=Vector2.new(pos.X,boxPos.Y+sz/2+16)
 						e.r.Visible=true
-						
-						-- Add total power display
-						local totalPower = getPlayerTotalPower(p)
-						e.power.Text = "Power: " .. formatNumber(totalPower)
-						e.power.Position = Vector2.new(pos.X, boxPos.Y+sz/2+38)
-						e.power.Visible = true
 					end
 				end
 			end
@@ -572,15 +525,15 @@ end)end end
 local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=on;if not on then return end
 	task.spawn(function()
 		local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
-		local op,od,oh,om,oy,omob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
-		local function fmt(n)n=tonumber(n)or 0;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
-			if n>=1e9 then return string.format('%.2f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.2f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.2f',n/1e3)..'k'end return tostring(n)end
+		local op,od,oh,om,oy=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value
+		local function fmt(n)n=tonumber(n)or 0;if n>=1e15 then return string.format('%.1f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.1f',n/1e12)..'t' end
+			if n>=1e9 then return string.format('%.1f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.1f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.1f',n/1e3)..'k'end return tostring(n)end
 		while getgenv().StatWebhook15m do for i=1,900 do if not getgenv().StatWebhook15m then break end task.wait(1)end;if not getgenv().StatWebhook15m then break end
-			local np,nd,nh,nm,ny,nmob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
-			if np>op or nd>od or nh>oh or nm>om or ny>oy or nmob>omob then
+			local np,nd,nh,nm,ny=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value
+			if np>op or nd>od or nh>oh or nm>om or ny>oy then
 				local t=LP.Name..' Stats Gained Last 15 Minutes'
-				local d='**Power:** '..fmt(np-op)..'\n**Defense:** '..fmt(nd-od)..'\n**Health:** '..fmt(nh-oh)..'\n**Magic:** '..fmt(nm-om)..'\n**Psychics:** '..fmt(ny-oy)..'\n**Mobility:** '..fmt(nmob-omob)
-				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy,omob=np,nd,nh,nm,ny,nmob
+				local d='**Power:** '..fmt(np-op)..'\n**Defense:** '..fmt(nd-od)..'\n**Health:** '..fmt(nh-oh)..'\n**Magic:** '..fmt(nm-om)..'\n**Psychics:** '..fmt(ny-oy)
+				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy=np,nd,nh,nm,ny
 			end
 		end
 	end)
@@ -631,7 +584,7 @@ local function TStatGui(on)cfg.StatGui=on;save();getgenv().StatGui=on;if not on 
 			local ph={};if #hist>1 then local first=hist[1];local el=now-first.time;for k,v in pairs(s)do local g=v-(first.stats[k]or 0);ph[k]=g*(3600/math.max(el,1))end end
 			pl.Text='Power: '..fmt(s.Power);plh.Text=fmt(ph.Power or 0)..'/h';hl.Text='Health: '..fmt(s.Health);hlh.Text=fmt(ph.Health or 0)..'/h'
 			dl.Text='Defense: '..fmt(s.Defense);dlh.Text=fmt(ph.Defense or 0)..'/h';yl.Text='Psychic: '..fmt(s.Psychic);ylh.Text=fmt(ph.Psychic or 0)..'/h'
-			ml.Text='Magic: '..fmt(s.Magic);mlh.Text=fmt(ph.Magic or 0)..'/h';bl.Text='Mobility: '..fmt(ph.Mobility or 0)..'/h'
+			ml.Text='Magic: '..fmt(s.Magic);mlh.Text=fmt(ph.Magic or 0)..'/h';bl.Text='Mobility: '..fmt(s.Mobility);blh.Text=fmt(ph.Mobility or 0)..'/h'
 			task.wait(0.5)
 		end
 		if SG.gui then pcall(function()SG.gui:Destroy()end)end;SG.gui=nil
@@ -700,23 +653,6 @@ local function TGamma(on)cfg.GammaAimbot=on;save();getgenv().GammaAimbot=on
 	end
 end
 
-local function TInfiniteZoom(on)
-	cfg.InfiniteZoom=on;save();getgenv().InfiniteZoom=on
-	if on then
-		task.spawn(function()
-			while getgenv().InfiniteZoom do
-				pcall(function()
-					LP.CameraMaxZoomDistance = math.huge
-					LP.CameraMinZoomDistance = 0.5
-					Cam.CameraType = Enum.CameraType.Custom
-					pcall(function() LP.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam end)
-				end)
-				task.wait(1)
-			end
-		end)
-	end
-end
-
 local C1=Section(CScroll,'Mob FireBall Aimbot')
 Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
 Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
@@ -729,7 +665,6 @@ Toggle(C1,'Gamma Ray Aimbot (g key)','GammaAimbot',TGamma)
 
 local M1=Section(Move,'Movement Features')
 Toggle(M1,'No Clip','NoClip',TNoClip)
-Toggle(M1,'Infinite Zoom','InfiniteZoom',TInfiniteZoom)
 
 local U1=Section(UScroll,'Utility Features')
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Optimizations',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
@@ -784,6 +719,7 @@ local LB=Btn(Cfg,'Load Config',function()
 	if load()~=nil then
 		local function ap(flag,get,tgl)if get()~=flag then tgl(flag)end end
 		ap(cfg.NoClip,function()return getgenv().NoClip or false end,TNoClip)
+		ap(cfg.GraphicsOptimization,function()return getgenv().GraphicsOptimization or false end,TAFK)
 		ap(cfg.GraphicsOptimizationAdvanced,function()return getgenv().GraphicsOptimizationAdvanced or false end,TGfxAdv)
 		ap(cfg.UltimateAFKOptimization,function()return cfg.UltimateAFKOptimization end,TUltimate)
 		ap(cfg.PlayerESP,function()return getgenv().PlayerESP or false end,TPlayerESP)
@@ -804,7 +740,6 @@ local LB=Btn(Cfg,'Load Config',function()
 		ap(cfg.AutoFly,function()return getgenv().AutoFly or false end,TFly)
 		ap(cfg.HealthExploit,function()return getgenv().HealthExploit or false end,THealthExploit)
 		ap(cfg.GammaAimbot,function()return getgenv().GammaAimbot or false end,TGamma)
-		ap(cfg.InfiniteZoom,function()return getgenv().InfiniteZoom or false end,TInfiniteZoom)
 		getgenv().SmartPanic=cfg.SmartPanic and true or false
 	end
 end)
