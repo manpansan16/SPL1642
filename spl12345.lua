@@ -344,34 +344,37 @@ local function TPlayerESP(on)
 		end
 	end
 	
-	local function getPlayerTotalPower(player)
+	local function getPlayerStats(player)
 		local success, statsFolder = pcall(function()
 			return game:GetService("ReplicatedStorage").Data[player.Name].Stats
 		end)
 		
 		if success and statsFolder then
-			local total = 0
-			for _, statName in ipairs({"Power","Defense","Health","Magic","Psychics","Mobility"}) do
-				local stat = statsFolder:FindFirstChild(statName)
-				if stat then
-					total = total + stat.Value
-				end
-			end
-			return total
+			local defense = statsFolder:FindFirstChild('Defense')
+			local power = statsFolder:FindFirstChild('Power')
+			local magic = statsFolder:FindFirstChild('Magic')
+			
+			local defenseValue = defense and defense.Value or 0
+			local powerValue = power and power.Value or 0
+			local magicValue = magic and magic.Value or 0
+			
+			return defenseValue, powerValue, magicValue
 		end
-		return 0
+		return 0, 0, 0
 	end
 	
 	local function mkb(p)
 		local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false
 		local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false
 		local rp=Drawing.new('Text');rp.Size=22;rp.Center=true;rp.Outline=true;rp.OutlineColor=Color3.new(0,0,0);rp.Visible=false
-		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(0,200,255);powerText.Visible=false
-		boxes[p]={b=b,t=t,r=rp,power=powerText}
+		local defenseText=Drawing.new('Text');defenseText.Size=20;defenseText.Center=true;defenseText.Outline=true;defenseText.OutlineColor=Color3.new(0,0,0);defenseText.Color=Color3.fromRGB(0,150,255);defenseText.Visible=false
+		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(255,50,50);powerText.Visible=false
+		local magicText=Drawing.new('Text');magicText.Size=20;magicText.Center=true;magicText.Outline=true;magicText.OutlineColor=Color3.new(0,0,0);magicText.Color=Color3.fromRGB(255,100,255);magicText.Visible=false
+		boxes[p]={b=b,t=t,r=rp,defense=defenseText,power=powerText,magic=magicText}
 	end
 	local function rm(p)
 		local e=boxes[p];if not e then return end
-		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()e.power:Remove()end);boxes[p]=nil
+		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()e.defense:Remove()e.power:Remove()e.magic:Remove()end);boxes[p]=nil
 	end
 	local function safeFind(parent,child)if not parent then return nil end return parent:FindFirstChild(child)end
 	local function getRep(plr)
@@ -394,7 +397,7 @@ local function TPlayerESP(on)
 					if not boxes[p]then mkb(p)end
 					local e=boxes[p];local head=p.Character.Head
 					local pos,vis=Cam:WorldToViewportPoint(head.Position)
-					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false;e.power.Visible=false else
+					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false;e.defense.Visible=false;e.power.Visible=false;e.magic.Visible=false else
 						local d=(Cam.CFrame.Position-head.Position).Magnitude
 						local sz=math.clamp((100/math.max(d,1))*100,20,80)
 						local col=Color3.fromHSV((tick()*0.2)%1,1,1)
@@ -410,11 +413,23 @@ local function TPlayerESP(on)
 						e.r.Position=Vector2.new(pos.X,boxPos.Y+sz/2+16)
 						e.r.Visible=true
 						
-						-- Add total power display
-						local totalPower = getPlayerTotalPower(p)
-						e.power.Text = formatNumber(totalPower)
-						e.power.Position = Vector2.new(pos.X, boxPos.Y+sz/2+38)
+						-- Get player stats and display all three
+						local defenseValue, powerValue, magicValue = getPlayerStats(p)
+						
+						-- Defense - Blue
+						e.defense.Text = formatNumber(defenseValue)
+						e.defense.Position = Vector2.new(pos.X, boxPos.Y+sz/2+38)
+						e.defense.Visible = true
+						
+						-- Power - Red
+						e.power.Text = formatNumber(powerValue)
+						e.power.Position = Vector2.new(pos.X, boxPos.Y+sz/2+60)
 						e.power.Visible = true
+						
+						-- Magic - Pink
+						e.magic.Text = formatNumber(magicValue)
+						e.magic.Position = Vector2.new(pos.X, boxPos.Y+sz/2+82)
+						e.magic.Visible = true
 					end
 				end
 			end
