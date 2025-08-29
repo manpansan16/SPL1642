@@ -363,31 +363,27 @@ local function TPlayerESP(on)
 		return 0, 0, 0
 	end
 	
+	local function getPlayerHealth(player)
+		local char = player.Character
+		local humanoid = char and char:FindFirstChild("Humanoid")
+		if humanoid then
+			return humanoid.Health, humanoid.MaxHealth
+		end
+		return 0, 0
+	end
+	
 	local function mkb(p)
 		local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false
 		local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false
-		local rp=Drawing.new('Text');rp.Size=22;rp.Center=true;rp.Outline=true;rp.OutlineColor=Color3.new(0,0,0);rp.Visible=false
+		local healthText=Drawing.new('Text');healthText.Size=22;healthText.Center=true;healthText.Outline=true;healthText.OutlineColor=Color3.new(0,0,0);healthText.Color=Color3.fromRGB(100,255,100);healthText.Visible=false
 		local defenseText=Drawing.new('Text');defenseText.Size=20;defenseText.Center=true;defenseText.Outline=true;defenseText.OutlineColor=Color3.new(0,0,0);defenseText.Color=Color3.fromRGB(0,150,255);defenseText.Visible=false
 		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(255,50,50);powerText.Visible=false
 		local magicText=Drawing.new('Text');magicText.Size=20;magicText.Center=true;magicText.Outline=true;magicText.OutlineColor=Color3.new(0,0,0);magicText.Color=Color3.fromRGB(255,100,255);magicText.Visible=false
-		boxes[p]={b=b,t=t,r=rp,defense=defenseText,power=powerText,magic=magicText}
+		boxes[p]={b=b,t=t,health=healthText,defense=defenseText,power=powerText,magic=magicText}
 	end
 	local function rm(p)
 		local e=boxes[p];if not e then return end
-		pcall(function()e.b:Remove()e.t:Remove()e.r:Remove()e.defense:Remove()e.power:Remove()e.magic:Remove()end);boxes[p]=nil
-	end
-	local function safeFind(parent,child)if not parent then return nil end return parent:FindFirstChild(child)end
-	local function getRep(plr)
-		local pg=game:GetService('Players').LocalPlayer:FindFirstChild('PlayerGui');if not pg then return 0 end
-		local hud=safeFind(pg,'HUD');local pl=safeFind(hud,'Playerlist');local list=safeFind(pl,'List');local entry=list and list:FindFirstChild(plr.Name) or nil
-		local repObj=entry and entry:FindFirstChild('Reputation') or nil;if not repObj then return 0 end
-		local text;local ok=pcall(function()text=repObj.Text end);if not ok or text==nil then pcall(function()text=tostring(repObj.Value)end)end
-		if type(text)~='string' then text=tostring(text or '0') end
-		local numeric=text:gsub('[^%-%d]','');if numeric=='' or numeric=='-' then return 0 end
-		return tonumber(numeric) or 0
-	end
-	local function repColor(v)
-		if v>0 then return Color3.fromRGB(0,255,0) elseif v<0 then return Color3.fromRGB(255,0,0) else return Color3.fromRGB(255,255,255) end
+		pcall(function()e.b:Remove()e.t:Remove()e.health:Remove()e.defense:Remove()e.power:Remove()e.magic:Remove()end);boxes[p]=nil
 	end
 	if on then
 		getgenv().__PESP=game:GetService('RunService').RenderStepped:Connect(function()
@@ -397,7 +393,7 @@ local function TPlayerESP(on)
 					if not boxes[p]then mkb(p)end
 					local e=boxes[p];local head=p.Character.Head
 					local pos,vis=Cam:WorldToViewportPoint(head.Position)
-					if not vis then e.b.Visible=false;e.t.Visible=false;e.r.Visible=false;e.defense.Visible=false;e.power.Visible=false;e.magic.Visible=false else
+					if not vis then e.b.Visible=false;e.t.Visible=false;e.health.Visible=false;e.defense.Visible=false;e.power.Visible=false;e.magic.Visible=false else
 						local d=(Cam.CFrame.Position-head.Position).Magnitude
 						local sz=math.clamp((100/math.max(d,1))*100,20,80)
 						local col=Color3.fromHSV((tick()*0.2)%1,1,1)
@@ -407,11 +403,11 @@ local function TPlayerESP(on)
 
 						e.t.Text=p.Name;e.t.Position=Vector2.new(pos.X,pos.Y-sz/2-18);e.t.Color=col;e.t.Visible=true
 
-						local rv=getRep(p)
-						e.r.Text=tostring(rv)
-						e.r.Color=repColor(rv)
-						e.r.Position=Vector2.new(pos.X,boxPos.Y+sz/2+16)
-						e.r.Visible=true
+						-- Get player health and display as current/max
+						local currentHealth, maxHealth = getPlayerHealth(p)
+						e.health.Text = formatNumber(currentHealth) .. "/" .. formatNumber(maxHealth)
+						e.health.Position = Vector2.new(pos.X,boxPos.Y+sz/2+16)
+						e.health.Visible = true
 						
 						-- Get player stats and display all three
 						local defenseValue, powerValue, magicValue = getPlayerStats(p)
