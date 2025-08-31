@@ -29,29 +29,6 @@ local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
 
--- Add starting teleportation after game loads
-local function teleportToStart()
-	local startPart = getgenv().StartingPart and loadstring("return " .. getgenv().StartingPart)() or workspace.CatacombsCity:GetChildren()[3070]
-	if startPart and startPart:IsA('BasePart') then
-		local c, _, hrp = charHum()
-		if c and hrp then
-			pcall(function()
-				c:PivotTo(startPart.CFrame + Vector3.new(0, 3, 0))
-				print("Teleported to starting part: " .. tostring(startPart))
-			end)
-		else
-			print("Character or HumanoidRootPart not found")
-		end
-	else
-		print("Starting part not found: " .. tostring(startPart))
-	end
-end
-
--- Execute starting teleportation instantly
-task.spawn(function()
-	teleportToStart()
-end)
-
 -- Teleport exotic stores to specific positions instantly
 task.spawn(function()
 	pcall(function()
