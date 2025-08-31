@@ -1031,11 +1031,35 @@ end
 
 local HExp
 local function resolvePart(which)
-	local city=workspace:FindFirstChild('CatacombsCity');if not city then return nil end
-	local kids=city:GetChildren()
+	local city=workspace:FindFirstChild('CatacombsCity')
+	if not city then return nil end
+	
 	local path=which=='low'and(getgenv and getgenv().HealthPart15Path)or(getgenv and getgenv().HealthPart95Path)
-	local idx=tonumber(type(path)=='string'and path:match('%[(%d+)%]')or nil);if not idx then idx=(which=='low')and 2145 or 2389 end
-	return kids[idx]
+	
+	-- Handle different path formats
+	if type(path)=='string' then
+		-- Format: "workspace.CatacombsCity:GetChildren()[96]:GetChildren()[6]"
+		if path:find("workspace.CatacombsCity") then
+			local success, result = pcall(function()
+				return loadstring("return " .. path)()
+			end)
+			if success and result then
+				return result
+			end
+		end
+		
+		-- Format: "workspace.CatacombsCity:GetChildren()[2145]"
+		local idx=tonumber(path:match('%[(%d+)%]'))
+		if idx then
+			local kids=city:GetChildren()
+			return kids[idx]
+		end
+	end
+	
+	-- Fallback to default indices
+	local kids=city:GetChildren()
+	local defaultIdx=(which=='low')and 2145 or 2389
+	return kids[defaultIdx]
 end
 local function THealthExploit(on)cfg.HealthExploit=on;save();getgenv().HealthExploit=on;if HExp then HExp:Disconnect()HExp=nil end;if not on then return end
 	local last=0
