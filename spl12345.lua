@@ -1111,7 +1111,7 @@ local function consumePotion(statType)
     }
     
     while getgenv()["AutoConsume" .. statType] do
-        task.wait(1) -- check every second
+        task.wait(0.1) -- check every second
         for _, item in pairs(inventoryList:GetChildren()) do
             if item:FindFirstChild("ItemName") and item:FindFirstChild("ID") then
                 local itemName = item.ItemName.Text
@@ -1120,7 +1120,7 @@ local function consumePotion(statType)
                     if id then
                         print("Using " .. statType .. " potion:", itemName, "ID:", id)
                         equipRemote:FireServer(id)
-                        task.wait(60) -- wait 60s before using another potion
+                        task.wait(0.1) -- wait 60s before using another potion
                     end
                 end
             end
