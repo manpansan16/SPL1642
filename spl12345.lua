@@ -1111,7 +1111,7 @@ local function consumePotion(statType)
     }
     
     while getgenv()["AutoConsume" .. statType] do
-        task.wait(0.1) -- check every second
+        task.wait(1) -- check every second
         for _, item in pairs(inventoryList:GetChildren()) do
             if item:FindFirstChild("ItemName") and item:FindFirstChild("ID") then
                 local itemName = item.ItemName.Text
