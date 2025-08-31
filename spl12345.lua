@@ -215,7 +215,7 @@ TB.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseBut
 TB.InputChanged:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseMovement then dragIn=i end end)
 U.InputChanged:Connect(function(i)if i==dragIn and drag then upd(i)end end)
 
-local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','��');local Util=Tab('Utility','��');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','��');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Potions=Tab('Potions','��');local Conf=Tab('Config','⚙️')
+local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','🏃');local Util=Tab('Utility','🔧');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','🛒');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Potions=Tab('Potions','🧪');local Conf=Tab('Config','⚙️')
 
 local CScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Combat)
 local CLayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
