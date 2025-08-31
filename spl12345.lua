@@ -29,6 +29,25 @@ local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
 
+-- Add starting teleportation after game loads
+local function teleportToStart()
+	local startPart = getgenv().StartingPart and loadstring("return " .. getgenv().StartingPart)() or workspace.CatacombsCity:GetChildren()[3070]
+	if startPart and startPart:IsA('BasePart') then
+		local c, _, hrp = charHum()
+		if c and hrp then
+			pcall(function()
+				c:PivotTo(startPart.CFrame + Vector3.new(0, 3, 0))
+			end)
+		end
+	end
+end
+
+-- Execute starting teleportation after a short delay
+task.spawn(function()
+	task.wait(2) -- Wait for game to fully load
+	teleportToStart()
+end)
+
 local function charHum()local c=LP.Character or LP.CharacterAdded:Wait();return c,c:FindFirstChildOfClass('Humanoid'),c:FindFirstChild('HumanoidRootPart')end
 local function ev(...)local n=RS;for _,p in ipairs({...})do n=n:WaitForChild(p,9e9)end;return n end
 local function disableAimbots()
@@ -90,7 +109,7 @@ task.spawn(function()
 	end
 end)
 
-local G=Instance.new('ScreenGui');G.Name='SuperPowerLeagueGUI';G.ZIndexBehavior=Enum.ZIndexBehavior.Global;G.IgnoreGuiInset=true;G.ResetOnSpawn=false;G.Enabled=true
+local G=Instance.new('ScreenGui');G.Name='SuperPowerLeagueGUI';G.ZIndexBehavior=Enum.ZIndexBehavior.Global;G.IgnoreGuiInset=true;G.ResetOnSpawn=false;G.Enabled=false
 local function parentGui(gui)local p=(gethui and gethui())or game:FindFirstChildOfClass('CoreGui')or LP:WaitForChild('PlayerGui');if syn and syn.protect_gui and p==game:GetService('CoreGui')then pcall(syn.protect_gui,gui)end gui.Parent=p end
 parentGui(G)
 local function mk(t,pr,par)local i=Instance.new(t);for k,v in pairs(pr or{})do i[k]=v end;if par then i.Parent=par end;return i end
