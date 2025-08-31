@@ -289,7 +289,7 @@ addTp(LC,{'Pads','Store','7'},'Armour Shop 1')
 addTp(LC,{'Pads','Store','8'},'Armour Shop 2')
 addTp(LC,{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade')
 
-title(LC,'---Wands---')
+title(LC,'Wands')
 addTp(LC,{'Pads','Wands','1'},'Wand Store 1')
 addTp(LC,{'Pads','Wands','2'},'Wand Store 2')
 
