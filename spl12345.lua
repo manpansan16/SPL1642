@@ -253,34 +253,75 @@ Btn(row,'Save Place',function()local _,_,hrp=charHum();if hrp then _G.__SavedCFr
 Btn(row,'Teleport To Save',function()local cf=_G.__SavedCFrame;local c=LP.Character;if cf and c then pcall(function()c:PivotTo(cf)end)end end)
 rowL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()row.Size=UDim2.new(1,0,0,rowL.AbsoluteContentSize.Y)end)
 
+title(LC,'Exotics')
+addTp(LC,{'Pads','ExoticStore','1'},'Exotic Store')
+addTp(LC,{'Pads','ExoticStore2','1'},'Dark Exotic Store')
+
 title(LC,'Stores')
-addTp(LC,{'Pads','ExoticStore','1'},'Exotic Store');addTp(LC,{'Pads','ExoticStore2','1'},'Dark Exotic Store')
-addTp(LC,{'Pads','Store','1'},'Starter Store');addTp(LC,{'Pads','Store','2'},'Supermarket');addTp(LC,{'Pads','Store','3'},'Gym Store')
-addTp(LC,{'Pads','Store','4'},'Necklace Store');addTp(LC,{'Pads','Store','5'},'Melee Store');addTp(LC,{'Pads','Store','6'},'Premium Shop')
-addTp(LC,{'Pads','Store','7'},'Armour Shop 1');addTp(LC,{'Pads','Store','8'},'Armour Shop 2');addTp(LC,{'Pads','Store','9'},'Tower Store')
-title(LC,'Wand Stores')
-addTp(LC,{'Pads','Wands','1'},'Wand Store 1');addTp(LC,{'Pads','Wands','2'},'Wand Store 2')
-title(LC,'Weight Stores')
-for i=1,5 do addTp(LC,{'Pads','Weight',tostring(i)},'Weight Store '..i)end
-title(LC,'Stand Stores')
-addTp(LC,{'Pads','StandIndex','1'},'Stand Store 1');addTp(LC,{'Pads','StandIndex','2'},'Greater Stands');addTp(LC,{'Pads','StandIndex','3'},'Demonic Stands')
-title(LC,'Deluxo Upgrades')
+addTp(LC,{'Pads','Store','1'},'Starter Store')
+addTp(LC,{'Pads','Store','9'},'Tower Store')
+
+title(LC,'Tools')
+addTp(LC,{'Pads','Store','2'},'Supermarket')
+
+title(LC,'Talismans')
+addTp(LC,{'Pads','Store','3'},'Gym Store')
+
+title(LC,'Necklaces')
+addTp(LC,{'Pads','Store','4'},'Necklace Store')
+
+title(LC,'Weapons')
+addTp(LC,{'Pads','Store','5'},'Melee Store')
+
+title(LC,'Avatars')
+addTp(LC,{'Pads','Store','12'},'Accessory Store')
+addTp(LC,{'Pads','Store','13'},'Fighter Helmets')
+addTp(LC,{'Pads','Store','10'},'Luxury Hats Store')
+
+title(LC,'Auras')
+addTp(LC,{'Pads','Store','11'},'Basic Trails Store')
+addTp(LC,{'Pads','Store','14'},'Advanced Trails')
+addTp(LC,{'Pads','Store','15'},'Legendary Trails')
+
+title(LC,'Transforms')
+addTp(LC,{'Pads','Store','6'},'Premium Shop')
+addTp(LC,{'Pads','Store','7'},'Armour Shop 1')
+addTp(LC,{'Pads','Store','8'},'Armour Shop 2')
 addTp(LC,{'Pads','DeluxoUpgrade','Credits'},'Deluxo Upgrade')
+
+title(LC,'---Wands---')
+addTp(LC,{'Pads','Wands','1'},'Wand Store 1')
+addTp(LC,{'Pads','Wands','2'},'Wand Store 2')
+
+title(LC,'Weights')
+for i=1,5 do addTp(LC,{'Pads','Weight',tostring(i)},'Weight Store '..i)end
+
 title(LC,'Questlines')
-addTp(LC,{'Pads','MainTasks','MainTask'},'Main Questline');addTp(LC,{'Pads','MainTasks','AQuest'},'Extra Questline')
-addTp(LC,{'Pads','MainTasks','LucaTask'},'Luca Questline');addTp(LC,{'Pads','MainTasks','ReaperTask'},'Reaper Questline')
-addTp(LC,{'Pads','MainTasks','GladiatorTask'},'Gladiator Questline');addTp(LC,{'Pads','MainTasks','TowerFacility'},'Tower Questline')
-addTp(LC,{'Pads','MainTasks','AncientQuests'},'Ancient Questline');addTp(LC,{'Pads','MainTasks','TankQuests'},'Defence Questline')
-addTp(LC,{'Pads','MainTasks','PowerQuests'},'Power Questline');addTp(LC,{'Pads','MainTasks','MagicQuests'},'Magic Questline')
-addTp(LC,{'Pads','MainTasks','MobilityQuests'},'Mobility Questline')
+addTp(LC,{'Pads','MainTasks','MainTask'},'Main Task')
+addTp(LC,{'Pads','MainTasks','AQuest'},'Aquest')
+addTp(LC,{'Pads','MainTasks','LucaTask'},'Luca Task')
+addTp(LC,{'Pads','MainTasks','TowerFacility'},'Tower Facility')
+addTp(LC,{'Pads','MainTasks','ReaperTask'},'Reaper Tasks')
+addTp(LC,{'Pads','MainTasks','GladiatorTask'},'Gladiator Task')
+addTp(LC,{'Pads','MainTasks','AncientQuests'},'Ancient Quests')
+addTp(LC,{'Pads','MainTasks','TankQuests'},'Tank')
+addTp(LC,{'Pads','MainTasks','PowerQuests'},'Fighter')
+addTp(LC,{'Pads','MainTasks','MagicQuests'},'Wizard')
+addTp(LC,{'Pads','MainTasks','MobilityQuests'},'Speedstar')
+
 title(LC,'Side Tasks')
-addTp(LC,{'Pads','SideTasks','1'},'Dishes Side Task');addTp(LC,{'Pads','SideTasks','2'},'Spawn Mob Task')
-addTp(LC,{'Pads','SideTasks','3'},'City Mob Tasks 1');addTp(LC,{'Pads','SideTasks','4'},'City Mob Tasks 2')
-addTp(LC,{'Pads','SideTasks','5'},'Ninja Mob Tasks');addTp(LC,{'Pads','SideTasks','7'},'Arena Mob Tasks')
+addTp(LC,{'Pads','SideTasks','1'},'House Tasks')
+addTp(LC,{'Pads','SideTasks','2'},'Hunter')
+addTp(LC,{'Pads','SideTasks','3'},'Commander')
+addTp(LC,{'Pads','SideTasks','4'},'Wizard')
+addTp(LC,{'Pads','SideTasks','7'},'Arena Investor')
+
 title(LC,'Experiments')
-addTp(LC,{'Experiment','FloorHitbox'},'Mobility Experiment');addTp(LC,{'Experiment','SurvivalHitbox'},'Health Experiment')
-addTp(LC,{'Pads','Telekinesis','Telekinesis'},'Psychic Experiment');addTp(LC,{'WallGame','WallHitbox'},'Power Experiment')
-addTp(LC,{'Experiment','Energy','15','Part'},'Magic Experiment')
+addTp(LC,{'Experiment','FloorHitbox'},'Floor')
+addTp(LC,{'Experiment','SurvivalHitbox'},'Survival')
+addTp(LC,{'Pads','Telekinesis','Telekinesis'},'Telekinesis')
+addTp(LC,{'WallGame','WallHitbox'},'Wall')
+addTp(LC,{'Experiment','Energy','15','Part'},'Energy')
 
 local NC={conn=nil,char=nil,desc=nil,orig={}}
 local function ncRec(p)if not NC.orig[p]then NC.orig[p]=p.CanCollide end end
