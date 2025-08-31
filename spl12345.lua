@@ -23,7 +23,7 @@ local cfg={
 	AutoNinjaSideTask=false,AutoAnimatronicsSideTask=false,AutoMutantsSideTask=false,DualExoticShop=false,
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
 	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
-	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,
+	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
@@ -1065,50 +1065,57 @@ local function consumePotion(statType)
     local equipRemote = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Inventory"):WaitForChild("EquipItem")
     
     -- List of valid potion names for each stat
-    local potionLists = {
-        Power = {
-            ["Power Barrel"] = true,
-            ["Power Bottle"] = true,
-            ["Power Crate"] = true,
-            ["Power Drink"] = true,
-            ["Power Potion"] = true
-        },
-        Health = {
-            ["Health Barrel"] = true,
-            ["Health Bottle"] = true,
-            ["Health Crate"] = true,
-            ["Health Drink"] = true,
-            ["Health Potion"] = true
-        },
-        Defense = {
-            ["Defense Barrel"] = true,
-            ["Defense Bottle"] = true,
-            ["Defense Crate"] = true,
-            ["Defense Drink"] = true,
-            ["Defense Potion"] = true
-        },
-        Psychic = {
-            ["Psychics Barrel"] = true,
-            ["Psychics Bottle"] = true,
-            ["Psychics Crate"] = true,
-            ["Psychics Drink"] = true,
-            ["Psychics Potion"] = true
-        },
-        Magic = {
-            ["Magic Barrel"] = true,
-            ["Magic Bottle"] = true,
-            ["Magic Crate"] = true,
-            ["Magic Drink"] = true,
-            ["Magic Potion"] = true
-        },
-        Mobility = {
-            ["Mobility Barrel"] = true,
-            ["Mobility Bottle"] = true,
-            ["Mobility Crate"] = true,
-            ["Mobility Drink"] = true,
-            ["Mobility Potion"] = true
-        }
+local potionLists = {
+    Power = {
+        ["Power Barrel"] = true,
+        ["Power Bottle"] = true,
+        ["Power Crate"] = true,
+        ["Power Drink"] = true,
+        ["Power Potion"] = true
+    },
+    Health = {
+        ["Health Barrel"] = true,
+        ["Health Bottle"] = true,
+        ["Health Crate"] = true,
+        ["Health Drink"] = true,
+        ["Health Potion"] = true
+    },
+    Defense = {
+        ["Defense Barrel"] = true,
+        ["Defense Bottle"] = true,
+        ["Defense Crate"] = true,
+        ["Defense Drink"] = true,
+        ["Defense Potion"] = true
+    },
+    Psychic = {
+        ["Psychics Barrel"] = true,
+        ["Psychics Bottle"] = true,
+        ["Psychics Crate"] = true,
+        ["Psychics Drink"] = true,
+        ["Psychics Potion"] = true
+    },
+    Magic = {
+        ["Magic Barrel"] = true,
+        ["Magic Bottle"] = true,
+        ["Magic Crate"] = true,
+        ["Magic Drink"] = true,
+        ["Magic Potion"] = true
+    },
+    Mobility = {
+        ["Mobility Barrel"] = true,
+        ["Mobility Bottle"] = true,
+        ["Mobility Crate"] = true,
+        ["Mobility Drink"] = true,
+        ["Mobility Potion"] = true
+    },
+    Super = {
+        ["Super Barrel"] = true,
+        ["Super Bottle"] = true,
+        ["Super Crate"] = true,
+        ["Super Drink"] = true,
+        ["Super Potion"] = true
     }
+}
     
     while getgenv()["AutoConsume" .. statType] do
         task.wait(1) -- check every second
@@ -1183,6 +1190,15 @@ local function TConsumeMobility(on)
     end
 end
 
+local function TConsumeSuper(on)
+    cfg.AutoConsumeSuper = on
+    save()
+    getgenv().AutoConsumeSuper = on
+    if on then
+        task.spawn(function() consumePotion("Super") end)
+    end
+end
+
 local C1=Section(CScroll,'Mob FireBall Aimbot')
 Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
 Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
@@ -1251,6 +1267,7 @@ Toggle(P1,'Consume Defense','AutoConsumeDefense',TConsumeDefense)
 Toggle(P1,'Consume Psychic','AutoConsumePsychic',TConsumePsychic)
 Toggle(P1,'Consume Magic','AutoConsumeMagic',TConsumeMagic)
 Toggle(P1,'Consume Mobility','AutoConsumeMobility',TConsumeMobility)
+Toggle(P1,'Consume Super','AutoConsumeSuper',TConsumeSuper)
 
 local Cfg=Section(Conf,'Configuration')
 local SB=Btn(Cfg,'Save Config',function()save()end)
@@ -1286,6 +1303,7 @@ local LB=Btn(Cfg,'Load Config',function()
 		ap(cfg.AutoConsumePsychic,function()return getgenv().AutoConsumePsychic or false end,TConsumePsychic)
 		ap(cfg.AutoConsumeMagic,function()return getgenv().AutoConsumeMagic or false end,TConsumeMagic)
 		ap(cfg.AutoConsumeMobility,function()return getgenv().AutoConsumeMobility or false end,TConsumeMobility)
+        ap(cfg.AutoConsumeSuper,function()return getgenv().AutoConsumeSuper or false end,TConsumeSuper)
 		getgenv().SmartPanic=cfg.SmartPanic and true or false
 	end
 end)
