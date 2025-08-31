@@ -23,6 +23,7 @@ local cfg={
 	AutoNinjaSideTask=false,AutoAnimatronicsSideTask=false,AutoMutantsSideTask=false,DualExoticShop=false,
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
 	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
+	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
@@ -214,7 +215,7 @@ TB.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseBut
 TB.InputChanged:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseMovement then dragIn=i end end)
 U.InputChanged:Connect(function(i)if i==dragIn and drag then upd(i)end end)
 
-local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','🏃');local Util=Tab('Utility','🔧');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','🛒');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Conf=Tab('Config','⚙️')
+local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','��');local Util=Tab('Utility','��');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','��');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Potions=Tab('Potions','��');local Conf=Tab('Config','⚙️')
 
 local CScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Combat)
 local CLayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
@@ -1053,6 +1054,135 @@ local function TInfiniteZoom(on)
 	end
 end
 
+-- Potion consumption functions
+local function consumePotion(statType)
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local LocalPlayer = Players.LocalPlayer
+    
+    -- Paths
+    local inventoryList = LocalPlayer.PlayerGui.Frames.Inventory.Content.Inventory.List.List
+    local equipRemote = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Inventory"):WaitForChild("EquipItem")
+    
+    -- List of valid potion names for each stat
+    local potionLists = {
+        Power = {
+            ["Power Barrel"] = true,
+            ["Power Bottle"] = true,
+            ["Power Crate"] = true,
+            ["Power Drink"] = true,
+            ["Power Potion"] = true
+        },
+        Health = {
+            ["Health Barrel"] = true,
+            ["Health Bottle"] = true,
+            ["Health Crate"] = true,
+            ["Health Drink"] = true,
+            ["Health Potion"] = true
+        },
+        Defense = {
+            ["Defense Barrel"] = true,
+            ["Defense Bottle"] = true,
+            ["Defense Crate"] = true,
+            ["Defense Drink"] = true,
+            ["Defense Potion"] = true
+        },
+        Psychic = {
+            ["Psychics Barrel"] = true,
+            ["Psychics Bottle"] = true,
+            ["Psychics Crate"] = true,
+            ["Psychics Drink"] = true,
+            ["Psychics Potion"] = true
+        },
+        Magic = {
+            ["Magic Barrel"] = true,
+            ["Magic Bottle"] = true,
+            ["Magic Crate"] = true,
+            ["Magic Drink"] = true,
+            ["Magic Potion"] = true
+        },
+        Mobility = {
+            ["Mobility Barrel"] = true,
+            ["Mobility Bottle"] = true,
+            ["Mobility Crate"] = true,
+            ["Mobility Drink"] = true,
+            ["Mobility Potion"] = true
+        }
+    }
+    
+    while getgenv()["AutoConsume" .. statType] do
+        task.wait(1) -- check every second
+        for _, item in pairs(inventoryList:GetChildren()) do
+            if item:FindFirstChild("ItemName") and item:FindFirstChild("ID") then
+                local itemName = item.ItemName.Text
+                if potionLists[statType][itemName] then
+                    local id = tonumber(item.ID.Value)
+                    if id then
+                        print("Using " .. statType .. " potion:", itemName, "ID:", id)
+                        equipRemote:FireServer(id)
+                        task.wait(60) -- wait 60s before using another potion
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Toggle functions for each stat
+local function TConsumePower(on)
+    cfg.AutoConsumePower = on
+    save()
+    getgenv().AutoConsumePower = on
+    if on then
+        task.spawn(function() consumePotion("Power") end)
+    end
+end
+
+local function TConsumeHealth(on)
+    cfg.AutoConsumeHealth = on
+    save()
+    getgenv().AutoConsumeHealth = on
+    if on then
+        task.spawn(function() consumePotion("Health") end)
+    end
+end
+
+local function TConsumeDefense(on)
+    cfg.AutoConsumeDefense = on
+    save()
+    getgenv().AutoConsumeDefense = on
+    if on then
+        task.spawn(function() consumePotion("Defense") end)
+    end
+end
+
+local function TConsumePsychic(on)
+    cfg.AutoConsumePsychic = on
+    save()
+    getgenv().AutoConsumePsychic = on
+    if on then
+        task.spawn(function() consumePotion("Psychic") end)
+    end
+end
+
+local function TConsumeMagic(on)
+    cfg.AutoConsumeMagic = on
+    save()
+    getgenv().AutoConsumeMagic = on
+    if on then
+        task.spawn(function() consumePotion("Magic") end)
+    end
+end
+
+local function TConsumeMobility(on)
+    cfg.AutoConsumeMobility = on
+    save()
+    getgenv().AutoConsumeMobility = on
+    if on then
+        task.spawn(function() consumePotion("Mobility") end)
+    end
+end
+
 local C1=Section(CScroll,'Mob FireBall Aimbot')
 Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
 Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
@@ -1114,6 +1244,14 @@ local H1=Section(HealthT,'Health Exploit')
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Health Exploit',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},H1)
 Toggle(H1,'Health Exploit','HealthExploit',THealthExploit)
 
+local P1=Section(Potions,'Auto Consume')
+Toggle(P1,'Consume Power','AutoConsumePower',TConsumePower)
+Toggle(P1,'Consume Health','AutoConsumeHealth',TConsumeHealth)
+Toggle(P1,'Consume Defense','AutoConsumeDefense',TConsumeDefense)
+Toggle(P1,'Consume Psychic','AutoConsumePsychic',TConsumePsychic)
+Toggle(P1,'Consume Magic','AutoConsumeMagic',TConsumeMagic)
+Toggle(P1,'Consume Mobility','AutoConsumeMobility',TConsumeMobility)
+
 local Cfg=Section(Conf,'Configuration')
 local SB=Btn(Cfg,'Save Config',function()save()end)
 local LB=Btn(Cfg,'Load Config',function()
@@ -1142,6 +1280,12 @@ local LB=Btn(Cfg,'Load Config',function()
 		ap(cfg.HealthExploit,function()return getgenv().HealthExploit or false end,THealthExploit)
 		ap(cfg.GammaAimbot,function()return getgenv().GammaAimbot or false end,TGamma)
 		ap(cfg.InfiniteZoom,function()return getgenv().InfiniteZoom or false end,TInfiniteZoom)  -- ADD THIS LINE
+		ap(cfg.AutoConsumePower,function()return getgenv().AutoConsumePower or false end,TConsumePower)
+		ap(cfg.AutoConsumeHealth,function()return getgenv().AutoConsumeHealth or false end,TConsumeHealth)
+		ap(cfg.AutoConsumeDefense,function()return getgenv().AutoConsumeDefense or false end,TConsumeDefense)
+		ap(cfg.AutoConsumePsychic,function()return getgenv().AutoConsumePsychic or false end,TConsumePsychic)
+		ap(cfg.AutoConsumeMagic,function()return getgenv().AutoConsumeMagic or false end,TConsumeMagic)
+		ap(cfg.AutoConsumeMobility,function()return getgenv().AutoConsumeMobility or false end,TConsumeMobility)
 		getgenv().SmartPanic=cfg.SmartPanic and true or false
 	end
 end)
