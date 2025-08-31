@@ -37,15 +37,48 @@ local function teleportToStart()
 		if c and hrp then
 			pcall(function()
 				c:PivotTo(startPart.CFrame + Vector3.new(0, 3, 0))
+				print("Teleported to starting part: " .. tostring(startPart))
 			end)
+		else
+			print("Character or HumanoidRootPart not found")
 		end
+	else
+		print("Starting part not found: " .. tostring(startPart))
 	end
 end
 
--- Execute starting teleportation after a short delay
+-- Execute starting teleportation instantly
 task.spawn(function()
-	task.wait(2) -- Wait for game to fully load
 	teleportToStart()
+end)
+
+-- Teleport exotic stores to specific positions instantly
+task.spawn(function()
+	pcall(function()
+		local exoticStore = workspace.Pads.ExoticStore["1"]
+		local exoticStore2 = workspace.Pads.ExoticStore2["1"]
+
+		-- Target positions
+		local pos1 = Vector3.new(-167.33985900878906, 75.6653060913086, 156.6094207763672) -- ExoticStore
+		local pos2 = Vector3.new(-180.12326049804688, 75.6653060913086, 134.66819763183594) -- ExoticStore2
+
+		-- Move them by setting their CFrame
+		exoticStore.CFrame = CFrame.new(pos1)
+		exoticStore2.CFrame = CFrame.new(pos2)
+
+		print("Teleported ExoticStore and ExoticStore2 to target positions")
+	end)
+end)
+
+-- Train mobility script starts instantly
+task.spawn(function()
+	pcall(function()
+		local args = {}
+		while true do
+			game:GetService("ReplicatedStorage"):WaitForChild("Events", 9e9):WaitForChild("Train", 9e9):WaitForChild("TrainMobility", 9e9):FireServer(unpack(args))
+			task.wait(0.1) -- wait for 0.1 seconds before the next iteration
+		end
+	end)
 end)
 
 local function charHum()local c=LP.Character or LP.CharacterAdded:Wait();return c,c:FindFirstChildOfClass('Humanoid'),c:FindFirstChild('HumanoidRootPart')end
