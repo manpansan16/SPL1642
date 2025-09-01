@@ -841,44 +841,273 @@ end
 
 local function CatAimbot(on)
 	getgenv().FireBallAimbot=on;if not on then return end
-	local order={15,14,12,17,13,10,4};local idx=1;local last=0
+	
+	print('Catacombs Fireball Aimbot: Starting...')
+	-- Target order: Dominators, Judgers, Lower Guards, Hell Emperor, Demons, Upper Guards, Veterans
+	local targetOrder = { 15, 14, 12, 17, 13, 10, 4 }
+	local currentTargetIndex = 1
+	local lastFireballTime = 0
+	
+	-- Strategic fallback positions for empty folders (near typical spawn areas)
+	local fallbackPositions = {
+		[15] = Vector3.new(-200, 45, -300),  -- Dominators area
+		[14] = Vector3.new(-180, 50, -280),  -- Judgers area
+		[12] = Vector3.new(-160, 40, -260),  -- Lower Guards area
+		[17] = Vector3.new(-220, 55, -320),  -- Hell Emperor area
+		[13] = Vector3.new(-140, 45, -240),  -- Demons area
+		[10] = Vector3.new(-120, 40, -220),  -- Upper Guards area
+		[4] = Vector3.new(-100, 35, -200),   -- Veterans area
+	}
+
 	task.spawn(function()
 		while getgenv().FireBallAimbot do
-			local pl=P.LocalPlayer;if pl and pl.Character and pl.Character:FindFirstChild('HumanoidRootPart')then
-				local hum=pl.Character:FindFirstChild('Humanoid');if hum and hum.Health<=0 then getgenv().FireBallAimbot=false;cfg.FireBallAimbot=false;save();break end
-				local now=tick();if(now-last)>=(cfg.cityFireballCooldown or 0.2)then
-					local e=workspace:FindFirstChild('Enemies');if e then
-						local folder=e:FindFirstChild(tostring(order[idx]))
-						if folder and folder:IsA('Folder')then
-							local pos=Vector3.new(order[idx]*20,5,order[idx]*10)
-							for _,ch in pairs(folder:GetChildren())do if ch:IsA('Model')and ch:FindFirstChild('HumanoidRootPart')then pos=ch.HumanoidRootPart.Position;break elseif ch:IsA('BasePart')then pos=ch.Position;break end end
-							local ok=pcall(function()fireAt(pos)end);last=now;idx=idx%#order+1;task.wait(ok and 0.3 or 0.1)
-						else idx=idx%#order+1;task.wait(0.1)end
-					else task.wait(0.5)end
-				else task.wait(0.05)end
-			else task.wait(0.1)end
+			local player = P.LocalPlayer
+			if player and player.Character and player.Character:FindFirstChild('HumanoidRootPart') then
+				-- Check if player is dead
+				local humanoid = player.Character:FindFirstChild('Humanoid')
+				if humanoid and humanoid.Health <= 0 then
+					print('Catacombs Fireball Aimbot: Player is dead, stopping...')
+					getgenv().FireBallAimbot = false
+					cfg.FireBallAimbot = false
+					save()
+					break
+				end
+
+				local currentTime = tick()
+
+				-- Check cooldown (use same cooldown as City Aimbot)
+				if (currentTime - lastFireballTime) >= (cfg.cityFireballCooldown or 0.2) then
+					local targetFolderNumber = targetOrder[currentTargetIndex]
+					local enemies = workspace:FindFirstChild('Enemies')
+
+					if enemies then
+						local targetFolder = enemies:FindFirstChild(tostring(targetFolderNumber))
+						if targetFolder and targetFolder:IsA('Folder') then
+							local children = targetFolder:GetChildren()
+							print('Catacombs Fireball Aimbot: Checking folder ' .. targetFolderNumber .. ' with ' .. #children .. ' children')
+							
+							-- Get target position (use first mob or calculated folder position)
+							local targetPosition = nil
+							local foundMob = false
+
+							for _, child in pairs(children) do
+								print('Catacombs Fireball Aimbot: Checking child: ' .. child.Name .. ' (Type: ' .. child.ClassName .. ')')
+								if child:IsA('Model') and child:FindFirstChild('HumanoidRootPart') then
+									local hrp = child:FindFirstChild('HumanoidRootPart')
+									if hrp and hrp.Position then
+										targetPosition = hrp.Position
+										foundMob = true
+										print('Catacombs Fireball Aimbot: Found Model mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+										break
+									else
+										print('Catacombs Fireball Aimbot: Model "' .. child.Name .. '" has invalid HumanoidRootPart')
+									end
+								elseif child:IsA('BasePart') and child.Position then
+									-- Validate the position is not at origin or invalid
+									if child.Position ~= Vector3.new(0, 0, 0) then
+										targetPosition = child.Position
+										foundMob = true
+										print('Catacombs Fireball Aimbot: Found BasePart mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+										break
+									else
+										print('Catacombs Fireball Aimbot: BasePart "' .. child.Name .. '" has invalid position (0,0,0)')
+									end
+								else
+									print('Catacombs Fireball Aimbot: Skipping child "' .. child.Name .. '" (not a valid mob type)')
+								end
+							end
+
+							-- If no mob found, use strategic fallback position to maintain cycle
+							if not foundMob then
+								targetPosition = fallbackPositions[targetFolderNumber] or Vector3.new(targetFolderNumber * 20, 5, targetFolderNumber * 10)
+								print('Catacombs Fireball Aimbot: No mobs in folder ' .. targetFolderNumber .. ', firing at strategic position ' .. tostring(targetPosition))
+							end
+
+							-- Fire the fireball (always fire to maintain cycle)
+							local success = pcall(function()
+								fireAt(targetPosition)
+							end)
+
+							if success then
+								if foundMob then
+									print('Catacombs Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/7) mob position ' .. tostring(targetPosition))
+								else
+									print('Catacombs Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/7) calculated position ' .. tostring(targetPosition))
+								end
+								lastFireballTime = currentTime
+
+								-- Move to next target
+								currentTargetIndex = currentTargetIndex + 1
+
+								-- Reset to first target if completed cycle
+								if currentTargetIndex > #targetOrder then
+									currentTargetIndex = 1
+									print('Catacombs Fireball Aimbot: Completed cycle, restarting...')
+								end
+
+								-- Wait before next target (same as City Aimbot)
+								task.wait(0.3)
+							else
+								print('Catacombs Fireball Aimbot: Failed to fire at folder ' .. targetFolderNumber .. ', moving to next...')
+								currentTargetIndex = currentTargetIndex + 1
+								if currentTargetIndex > #targetOrder then
+									currentTargetIndex = 1
+								end
+								task.wait(0.1)
+							end
+						else
+							print('Catacombs Fireball Aimbot: Folder ' .. targetFolderNumber .. ' not found, moving to next...')
+							currentTargetIndex = currentTargetIndex + 1
+							if currentTargetIndex > #targetOrder then
+								currentTargetIndex = 1
+							end
+							task.wait(0.1)
+						end
+					else
+						print('Catacombs Fireball Aimbot: workspace.Enemies not found')
+						task.wait(0.5)
+					end
+				else
+					task.wait(0.05)
+				end
+			else
+				task.wait(0.1)
+			end
 		end
 	end)
 end
 
 local function CityAimbot(on)
 	getgenv().FireBallAimbotCity=on;if not on then return end
-	local o={5,9,8,6,3};local idx,last=1,0
+	
+	print('City Fireball Aimbot: Starting...')
+	-- Simple target order: 5, 9, 8, 6, 3
+	local targetOrder = { 5, 9, 8, 6, 3 }
+	local currentTargetIndex = 1
+	local lastFireballTime = 0
+	
+	-- Strategic fallback positions for empty folders (near typical city spawn areas)
+	local fallbackPositions = {
+		[5] = Vector3.new(120, 25, 80),   -- City area 5
+		[9] = Vector3.new(200, 30, 160),  -- City area 9
+		[8] = Vector3.new(180, 25, 140),  -- City area 8
+		[6] = Vector3.new(140, 30, 100),  -- City area 6
+		[3] = Vector3.new(80, 20, 60),    -- City area 3
+	}
+
 	task.spawn(function()
 		while getgenv().FireBallAimbotCity do
-			local c,h,hrp=charHum()
-			if not hrp then task.wait(0.1) else
-				if h and h.Health<=0 then getgenv().FireBallAimbotCity=false;cfg.FireBallAimbotCity=false;save();break end
-				local now=tick();if(now-last)>=(cfg.cityFireballCooldown or 0.5)then
-					local e=workspace:FindFirstChild('Enemies');if e then
-						local folder=e:FindFirstChild(tostring(o[idx]))
-						if folder and folder:IsA('Folder')then
-							local pos=Vector3.new(o[idx]*20,5,o[idx]*10)
-							for _,ch in ipairs(folder:GetChildren())do local p=ch:IsA('Model')and ch:FindFirstChild('HumanoidRootPart')or(ch:IsA('BasePart')and ch);if p then pos=p.Position;break end end
-							fireAt(pos);last=now;idx=idx%#o+1;task.wait(0.3)
-						else idx=idx%#o+1;task.wait(0.1)end
-					else task.wait(0.5)end
-				else task.wait(0.05)end
+			local player = P.LocalPlayer
+			if player and player.Character and player.Character:FindFirstChild('HumanoidRootPart') then
+				-- Check if player is dead
+				local humanoid = player.Character:FindFirstChild('Humanoid')
+				if humanoid and humanoid.Health <= 0 then
+					print('City Fireball Aimbot: Player is dead, stopping...')
+					getgenv().FireBallAimbotCity = false
+					cfg.FireBallAimbotCity = false
+					save()
+					break
+				end
+
+				local currentTime = tick()
+
+				-- Check cooldown
+				if (currentTime - lastFireballTime) >= (cfg.cityFireballCooldown or 0.2) then
+					local targetFolderNumber = targetOrder[currentTargetIndex]
+					local enemies = workspace:FindFirstChild('Enemies')
+
+					if enemies then
+						local targetFolder = enemies:FindFirstChild(tostring(targetFolderNumber))
+						if targetFolder and targetFolder:IsA('Folder') then
+							local children = targetFolder:GetChildren()
+							print('City Fireball Aimbot: Checking folder ' .. targetFolderNumber .. ' with ' .. #children .. ' children')
+							
+							-- Get target position (use first mob or calculated folder position)
+							local targetPosition = nil
+							local foundMob = false
+
+							for _, child in pairs(children) do
+								print('City Fireball Aimbot: Checking child: ' .. child.Name .. ' (Type: ' .. child.ClassName .. ')')
+								if child:IsA('Model') and child:FindFirstChild('HumanoidRootPart') then
+									local hrp = child:FindFirstChild('HumanoidRootPart')
+									if hrp and hrp.Position then
+										targetPosition = hrp.Position
+										foundMob = true
+										print('City Fireball Aimbot: Found Model mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+										break
+									else
+										print('City Fireball Aimbot: Model "' .. child.Name .. '" has invalid HumanoidRootPart')
+									end
+								elseif child:IsA('BasePart') and child.Position then
+									-- Validate the position is not at origin or invalid
+									if child.Position ~= Vector3.new(0, 0, 0) then
+										targetPosition = child.Position
+										foundMob = true
+										print('City Fireball Aimbot: Found BasePart mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+										break
+									else
+										print('City Fireball Aimbot: BasePart "' .. child.Name .. '" has invalid position (0,0,0)')
+									end
+								else
+									print('City Fireball Aimbot: Skipping child "' .. child.Name .. '" (not a valid mob type)')
+								end
+							end
+
+							-- If no mob found, use strategic fallback position to maintain cycle
+							if not foundMob then
+								targetPosition = fallbackPositions[targetFolderNumber] or Vector3.new(targetFolderNumber * 20, 5, targetFolderNumber * 10)
+								print('City Fireball Aimbot: No mobs in folder ' .. targetFolderNumber .. ', firing at strategic position ' .. tostring(targetPosition))
+							end
+
+							-- Fire the fireball (always fire to maintain cycle)
+							local success = pcall(function()
+								fireAt(targetPosition)
+							end)
+
+							if success then
+								if foundMob then
+									print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) mob position ' .. tostring(targetPosition))
+								else
+									print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) calculated position ' .. tostring(targetPosition))
+								end
+								lastFireballTime = currentTime
+
+								-- Move to next target
+								currentTargetIndex = currentTargetIndex + 1
+
+								-- Reset to first target if completed cycle
+								if currentTargetIndex > #targetOrder then
+									currentTargetIndex = 1
+									print('City Fireball Aimbot: Completed cycle, restarting...')
+								end
+
+								-- Wait before next target
+								task.wait(0.3)
+							else
+								print('City Fireball Aimbot: Failed to fire at folder ' .. targetFolderNumber .. ', moving to next...')
+								currentTargetIndex = currentTargetIndex + 1
+								if currentTargetIndex > #targetOrder then
+									currentTargetIndex = 1
+								end
+								task.wait(0.1)
+							end
+						else
+							print('City Fireball Aimbot: Folder ' .. targetFolderNumber .. ' not found, moving to next...')
+							currentTargetIndex = currentTargetIndex + 1
+							if currentTargetIndex > #targetOrder then
+								currentTargetIndex = 1
+							end
+							task.wait(0.1)
+						end
+					else
+						print('City Fireball Aimbot: workspace.Enemies not found')
+						task.wait(0.5)
+					end
+				else
+					task.wait(0.05)
+				end
+			else
+				task.wait(0.1)
 			end
 		end
 	end)
@@ -1031,35 +1260,50 @@ end
 
 local HExp
 local function resolvePart(which)
-	local city=workspace:FindFirstChild('CatacombsCity')
-	if not city then return nil end
-	
 	local path=which=='low'and(getgenv and getgenv().HealthPart15Path)or(getgenv and getgenv().HealthPart95Path)
 	
-	-- Handle different path formats
-	if type(path)=='string' then
-		-- Format: "workspace.CatacombsCity:GetChildren()[96]:GetChildren()[6]"
-		if path:find("workspace.CatacombsCity") then
-			local success, result = pcall(function()
-				return loadstring("return " .. path)()
-			end)
-			if success and result then
-				return result
+	-- Handle custom workspace paths like "workspace:GetChildren()[96]:GetChildren()[6]"
+	if type(path)=='string' and path:find('workspace:') then
+		local success, result = pcall(function()
+			-- Parse workspace:GetChildren()[96]:GetChildren()[6] format
+			local indices = {}
+			for index in path:gmatch('%[(%d+)%]') do
+				table.insert(indices, tonumber(index))
 			end
-		end
+			
+			if #indices >= 2 then
+				-- workspace:GetChildren()[96]:GetChildren()[6] format
+				local container = workspace:GetChildren()[indices[1]]
+				if container then
+					return container:GetChildren()[indices[2]]
+				end
+			elseif #indices == 1 and path:find('workspace:GetChildren()') then
+				-- workspace:GetChildren()[index] format
+				return workspace:GetChildren()[indices[1]]
+			end
+			return nil
+		end)
 		
-		-- Format: "workspace.CatacombsCity:GetChildren()[2145]"
-		local idx=tonumber(path:match('%[(%d+)%]'))
-		if idx then
-			local kids=city:GetChildren()
-			return kids[idx]
+		if success and result then
+			return result
 		end
 	end
 	
-	-- Fallback to default indices
+	-- Handle workspace.CatacombsCity format with loadstring (legacy support)
+	if type(path)=='string' and path:find("workspace.CatacombsCity") then
+		local success, result = pcall(function()
+			return loadstring("return " .. path)()
+		end)
+		if success and result then
+			return result
+		end
+	end
+	
+	-- Fallback to original CatacombsCity method
+	local city=workspace:FindFirstChild('CatacombsCity');if not city then return nil end
 	local kids=city:GetChildren()
-	local defaultIdx=(which=='low')and 2145 or 2389
-	return kids[defaultIdx]
+	local idx=tonumber(type(path)=='string'and path:match('%[(%d+)%]')or nil);if not idx then idx=(which=='low')and 2145 or 2389 end
+	return kids[idx]
 end
 local function THealthExploit(on)cfg.HealthExploit=on;save();getgenv().HealthExploit=on;if HExp then HExp:Disconnect()HExp=nil end;if not on then return end
 	local last=0
