@@ -390,10 +390,17 @@ local function TUltimate(on)cfg.UltimateAFKOptimization=on;save()
 end
 
 local function TPlayerESP(on)
-	getgenv().PlayerESP=on;if not Drawing then return end
-	if getgenv().__PESP then getgenv().__PESP:Disconnect();getgenv().__PESP=nil end
-	local boxes={}
-	
+	getgenv().PlayerESP = on
+	if not Drawing then return end
+
+	-- disconnect old loop if any
+	if getgenv().__PESP then
+		getgenv().__PESP:Disconnect()
+		getgenv().__PESP = nil
+	end
+
+	local boxes = {}
+
 	local function formatNumber(num)
 		local absNum = math.abs(num)
 		if absNum == 0 then
@@ -414,28 +421,25 @@ local function TPlayerESP(on)
 			return tostring(num)
 		end
 	end
-	
+
 	local function getPlayerStats(player)
 		local success, statsFolder = pcall(function()
 			return game:GetService("ReplicatedStorage").Data[player.Name].Stats
 		end)
-		
 		if success and statsFolder then
 			local defense = statsFolder:FindFirstChild('Defense')
 			local power = statsFolder:FindFirstChild('Power')
 			local magic = statsFolder:FindFirstChild('Magic')
 			local reputation = statsFolder:FindFirstChild('Reputation')
-			
 			local defenseValue = defense and defense.Value or 0
 			local powerValue = power and power.Value or 0
 			local magicValue = magic and magic.Value or 0
 			local repValue = reputation and reputation.Value or 0
-			
 			return defenseValue, powerValue, magicValue, repValue
 		end
 		return 0, 0, 0, 0
 	end
-	
+
 	local function getPlayerHealth(player)
 		local char = player.Character
 		local humanoid = char and char:FindFirstChild("Humanoid")
@@ -444,97 +448,145 @@ local function TPlayerESP(on)
 		end
 		return 0, 0
 	end
-	
+
 	local function getRepColor(repValue)
 		if repValue <= -25000 then
-			return Color3.fromRGB(0, 0, 0) -- Black
+			return Color3.fromRGB(0, 0, 0)
 		elseif repValue <= -10000 then
-			return Color3.fromRGB(139, 0, 0) -- Dark red
+			return Color3.fromRGB(139, 0, 0)
 		elseif repValue <= -4000 then
-			return Color3.fromRGB(128, 0, 128) -- Purple
+			return Color3.fromRGB(128, 0, 128)
 		elseif repValue <= -1 then
-			return Color3.fromRGB(255, 100, 100) -- Light red
+			return Color3.fromRGB(255, 100, 100)
 		elseif repValue == 0 then
-			return Color3.fromRGB(255, 255, 255) -- White
+			return Color3.fromRGB(255, 255, 255)
 		elseif repValue >= 1 and repValue < 4000 then
-			return Color3.fromRGB(0, 255, 0) -- Green
+			return Color3.fromRGB(0, 255, 0)
 		elseif repValue >= 4000 and repValue < 10000 then
-			return Color3.fromRGB(64, 224, 208) -- Turquoise blue
+			return Color3.fromRGB(64, 224, 208)
 		elseif repValue >= 10000 and repValue < 25000 then
-			return Color3.fromRGB(173, 216, 230) -- Baby blue
+			return Color3.fromRGB(173, 216, 230)
 		else
-			return Color3.fromRGB(255, 255, 0) -- Yellow
+			return Color3.fromRGB(255, 255, 0)
 		end
 	end
-	
+
 	local function mkb(p)
-		local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false
-		local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false
-		local healthText=Drawing.new('Text');healthText.Size=22;healthText.Center=true;healthText.Outline=true;healthText.OutlineColor=Color3.new(0,0,0);healthText.Color=Color3.fromRGB(100,255,100);healthText.Visible=false
-		local defenseText=Drawing.new('Text');defenseText.Size=20;defenseText.Center=true;defenseText.Outline=true;defenseText.OutlineColor=Color3.new(0,0,0);defenseText.Color=Color3.fromRGB(0,150,255);defenseText.Visible=false
-		local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(255,50,50);powerText.Visible=false
-		local magicText=Drawing.new('Text');magicText.Size=20;magicText.Center=true;magicText.Outline=true;magicText.OutlineColor=Color3.new(0,0,0);magicText.Color=Color3.fromRGB(255,100,255);magicText.Visible=false
-		local repText=Drawing.new('Text');repText.Size=20;repText.Center=true;repText.Outline=true;repText.OutlineColor=Color3.new(0,0,0);repText.Color=Color3.fromRGB(255,255,255);repText.Visible=false
-		boxes[p]={b=b,t=t,health=healthText,defense=defenseText,power=powerText,magic=magicText,rep=repText}
+		local b = Drawing.new('Square'); b.Filled=false; b.Thickness=2; b.Visible=false
+		local t = Drawing.new('Text'); t.Size=24; t.Center=true; t.Outline=true; t.OutlineColor=Color3.new(0,0,0); t.Visible=false
+		local healthText = Drawing.new('Text'); healthText.Size=22; healthText.Center=true; healthText.Outline=true; healthText.OutlineColor=Color3.new(0,0,0); healthText.Color=Color3.fromRGB(100,255,100); healthText.Visible=false
+		local defenseText = Drawing.new('Text'); defenseText.Size=20; defenseText.Center=true; defenseText.Outline=true; defenseText.OutlineColor=Color3.new(0,0,0); defenseText.Color=Color3.fromRGB(0,150,255); defenseText.Visible=false
+		local powerText = Drawing.new('Text'); powerText.Size=20; powerText.Center=true; powerText.Outline=true; powerText.OutlineColor=Color3.new(0,0,0); powerText.Color=Color3.fromRGB(255,50,50); powerText.Visible=false
+		local magicText = Drawing.new('Text'); magicText.Size=20; magicText.Center=true; magicText.Outline=true; magicText.OutlineColor=Color3.new(0,0,0); magicText.Color=Color3.fromRGB(255,100,255); magicText.Visible=false
+		local repText = Drawing.new('Text'); repText.Size=20; repText.Center=true; repText.Outline=true; repText.OutlineColor=Color3.new(0,0,0); repText.Color=Color3.fromRGB(255,255,255); repText.Visible=false
+		boxes[p] = { b=b, t=t, health=healthText, defense=defenseText, power=powerText, magic=magicText, rep=repText }
 	end
+
 	local function rm(p)
-		local e=boxes[p];if not e then return end
-		pcall(function()e.b:Remove()e.t:Remove()e.health:Remove()e.defense:Remove()e.power:Remove()e.magic:Remove()e.rep:Remove()end);boxes[p]=nil
+		local e = boxes[p]; if not e then return end
+		pcall(function()
+			e.b:Remove(); e.t:Remove(); e.health:Remove(); e.defense:Remove(); e.power:Remove(); e.magic:Remove(); e.rep:Remove()
+		end)
+		boxes[p] = nil
 	end
+
 	if on then
-		getgenv().__PESP=game:GetService('RunService').RenderStepped:Connect(function()
-			if not getgenv().PlayerESP then for p in pairs(boxes)do rm(p)end return end
-			for _,p in ipairs(game:GetService('Players'):GetPlayers())do
-				if p~=LP and p.Character and p.Character:FindFirstChild('Head')then
-					if not boxes[p]then mkb(p)end
-					local e=boxes[p];local head=p.Character.Head
-					local pos,vis=Cam:WorldToViewportPoint(head.Position)
-					if not vis then e.b.Visible=false;e.t.Visible=false;e.health.Visible=false;e.defense.Visible=false;e.power.Visible=false;e.magic.Visible=false;e.rep.Visible=false else
-						local d=(Cam.CFrame.Position-head.Position).Magnitude
-						local sz=math.clamp((100/math.max(d,1))*100,20,80)
-						local col=Color3.fromHSV((tick()*0.2)%1,1,1)
-						local boxPos=Vector2.new(pos.X-sz/2,pos.Y-sz/2)
+		getgenv().__PESP = game:GetService('RunService').RenderStepped:Connect(function()
+			if not getgenv().PlayerESP then
+				for p2 in pairs(boxes) do rm(p2) end
+				boxes = {}
+				return
+			end
 
-						e.b.Position=boxPos;e.b.Size=Vector2.new(sz,sz);e.b.Color=col;e.b.Visible=true
+			for _, p in ipairs(game:GetService('Players'):GetPlayers()) do
+				if p ~= LP and p.Character and p.Character:FindFirstChild('Head') then
+					if not boxes[p] then mkb(p) end
+					local e = boxes[p]
+					local head = p.Character.Head
+					local pos, vis = Cam:WorldToViewportPoint(head.Position)
+					if not vis then
+						e.b.Visible=false; e.t.Visible=false
+						e.health.Visible=false; e.defense.Visible=false; e.power.Visible=false; e.magic.Visible=false; e.rep.Visible=false
+					else
+						local d = (Cam.CFrame.Position - head.Position).Magnitude
+						local sz = math.clamp((100 / math.max(d,1)) * 100, 20, 80)
+						local col = Color3.fromHSV((tick() * 0.2) % 1, 1, 1)
+						local boxPos = Vector2.new(pos.X - sz/2, pos.Y - sz/2)
 
-						e.t.Text=p.Name;e.t.Position=Vector2.new(pos.X,pos.Y-sz/2-18);e.t.Color=col;e.t.Visible=true
+						e.b.Position = boxPos
+						e.b.Size = Vector2.new(sz, sz)
+						e.b.Color = col
+						e.b.Visible = true
 
-						-- Get player health and display as current/max
+						e.t.Text = p.Name
+						e.t.Position = Vector2.new(pos.X, pos.Y - sz/2 - 18)
+						e.t.Color = col
+						e.t.Visible = true
+
+						-- Health and stats with threshold logic
 						local currentHealth, maxHealth = getPlayerHealth(p)
-						e.health.Text = formatNumber(currentHealth) .. "/" .. formatNumber(maxHealth)
-						e.health.Position = Vector2.new(pos.X,boxPos.Y+sz/2+16)
-						e.health.Visible = true
-						
-						-- Get player stats and display all three
 						local defenseValue, powerValue, magicValue, repValue = getPlayerStats(p)
-						
-						-- Defense - Blue
-						e.defense.Text = formatNumber(defenseValue)
-						e.defense.Position = Vector2.new(pos.X, boxPos.Y+sz/2+38)
-						e.defense.Visible = true
-						
-						-- Power - Red
-						e.power.Text = formatNumber(powerValue)
-						e.power.Position = Vector2.new(pos.X, boxPos.Y+sz/2+60)
-						e.power.Visible = true
-						
-						-- Magic - Pink
-						e.magic.Text = formatNumber(magicValue)
-						e.magic.Position = Vector2.new(pos.X, boxPos.Y+sz/2+82)
-						e.magic.Visible = true
-						
-						-- Reputation - Color coded based on value
-						e.rep.Text = formatNumber(repValue)
+
+						local SHOW_THRESHOLD = 1e15 -- 1 quadrillion
+						local showDefense = defenseValue >= SHOW_THRESHOLD
+						local showPower = powerValue >= SHOW_THRESHOLD
+						local showMagic = magicValue >= SHOW_THRESHOLD
+						local showAnyCore = showDefense or showPower or showMagic
+
+						-- Health only if any core stat meets threshold
+						if showAnyCore then
+							e.health.Text = formatNumber(currentHealth) .. "/" .. formatNumber(maxHealth)
+							e.health.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
+							e.health.Visible = true
+						else
+							e.health.Visible = false
+						end
+
+						-- Defense
+						if showDefense then
+							e.defense.Text = formatNumber(defenseValue)
+							e.defense.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 38)
+							e.defense.Visible = true
+						else
+							e.defense.Visible = false
+						end
+
+						-- Power
+						if showPower then
+							e.power.Text = formatNumber(powerValue)
+							e.power.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 60)
+							e.power.Visible = true
+						else
+							e.power.Visible = false
+						end
+
+						-- Magic
+						if showMagic then
+							e.magic.Text = formatNumber(magicValue)
+							e.magic.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 82)
+							e.magic.Visible = true
+						else
+							e.magic.Visible = false
+						end
+
+						-- Reputation always shows; 0 should be "0" (not "Concealed")
+						e.rep.Text = (repValue == 0) and "0" or formatNumber(repValue)
 						e.rep.Color = getRepColor(repValue)
-						e.rep.Position = Vector2.new(pos.X, boxPos.Y+sz/2+104)
+						e.rep.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 104)
 						e.rep.Visible = true
 					end
 				end
 			end
-			for p in pairs(boxes)do if (not p) or (not p.Character) or (not p.Character:FindFirstChild('Head')) then rm(p)end end
+
+			for p2 in pairs(boxes) do
+				if (not p2) or (not p2.Character) or (not p2.Character:FindFirstChild('Head')) then
+					rm(p2)
+				end
+			end
 		end)
 	else
-		for p in pairs(boxes)do rm(p)end
+		for p2 in pairs(boxes) do rm(p2) end
+		boxes = {}
 	end
 end
 
