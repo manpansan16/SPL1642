@@ -2236,7 +2236,7 @@ mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Auto A
 Toggle(U1,'Auto Invisible','AutoInvisible',TInv);Toggle(U1,'Auto Resize','AutoResize',TResize);Toggle(U1,'Auto Fly','AutoFly',TFly)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Guis',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Stat Gui','StatGui',TStatGui)
-Toggle(U1,'Quick Teleports','QuickTeleports',TQuickTeleports)
+Toggle(U1,'Quick Teleport Gui','QuickTeleports',TQuickTeleports)
 
 local V1=Section(Visual,'Visual Features')
 Toggle(V1,'Player ESP','PlayerESP',TPlayerESP)
