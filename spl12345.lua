@@ -253,6 +253,82 @@ Btn(row,'Save Place',function()local _,_,hrp=charHum();if hrp then _G.__SavedCFr
 Btn(row,'Teleport To Save',function()local cf=_G.__SavedCFrame;local c=LP.Character;if cf and c then pcall(function()c:PivotTo(cf)end)end end)
 rowL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()row.Size=UDim2.new(1,0,0,rowL.AbsoluteContentSize.Y)end)
 
+-- Zones (RIGHT COLUMN)
+title(RC,'Zones')
+
+local function resolveHeavensDoorPart()
+	local ok, res = pcall(function()
+		local hd = workspace:FindFirstChild("HeavensDoor")
+		return hd and hd:GetChildren()[10] or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveUndergroundQDoorPart()
+	local ok, res = pcall(function()
+		local gm = workspace:FindFirstChild("GameMap")
+		local ug = gm and gm:FindFirstChild("Underground")
+		local c = ug and ug:FindFirstChild("R237G234B234")
+		local qd = c and c:FindFirstChild("? Door")
+		local mdl = qd and qd:FindFirstChild("Model")
+		return mdl and mdl:GetChildren()[2] or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveIceCrystalPart()
+	local ok, res = pcall(function()
+		local child = workspace:GetChildren()[95]
+		local ic = child and child:FindFirstChild("Ice Crystal")
+		return ic and ic:GetChildren()[2] or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveCatacombsCityPart()
+	local ok, res = pcall(function()
+		local city = workspace:FindFirstChild("CatacombsCity")
+		return city and city:GetChildren()[3074] or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveHellMapUnion()
+	local ok, res = pcall(function()
+		local hm = workspace:FindFirstChild("HellMap")
+		return hm and hm:FindFirstChild("Union") or nil
+	end)
+	return ok and res or nil
+end
+
+local function bestDefenseTeleport()
+	local statsFolder = RS:WaitForChild("Data"):WaitForChild(LP.Name):WaitForChild("Stats")
+	local defenseValue = statsFolder and statsFolder:FindFirstChild("Defense") and statsFolder.Defense.Value or 0
+
+	-- Highest to lowest
+	local zones = {
+		{ req = 1e20, getter = resolveHeavensDoorPart },      -- 100qn
+		{ req = 1e19, getter = resolveUndergroundQDoorPart }, -- 10qn
+		{ req = 1e18, getter = resolveIceCrystalPart },       -- 1qn
+		{ req = 1e17, getter = resolveCatacombsCityPart },    -- 100qd
+		{ req = 1e16, getter = resolveHellMapUnion },         -- 10qd
+	}
+
+	for _, z in ipairs(zones) do
+		if defenseValue >= z.req then
+			local inst = z.getter()
+			if inst then
+				tpTo(inst)
+				return
+			end
+		end
+	end
+end
+
+Btn(RC,'Defense', function()
+	pcall(bestDefenseTeleport)
+end)
+
 title(LC,'Exotics')
 addTp(LC,{'Pads','ExoticStore','1'},'Exotic Store')
 addTp(LC,{'Pads','ExoticStore2','1'},'Dark Exotic Store')
