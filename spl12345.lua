@@ -256,6 +256,7 @@ rowL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()row.Size=
 -- Zones (RIGHT COLUMN)
 title(RC,'Zones')
 
+-- Defense zones
 local function resolveHeavensDoorPart()
 	local ok, res = pcall(function()
 		local hd = workspace:FindFirstChild("HeavensDoor")
@@ -301,11 +302,162 @@ local function resolveHellMapUnion()
 	return ok and res or nil
 end
 
+-- Power zones
+local function resolveFireCrystalPart()
+	local ok, res = pcall(function()
+		local child = workspace:GetChildren()[117]
+		local child7 = child and child:GetChildren()[7]
+		local mdl = child7 and child7:FindFirstChild("Model")
+		local mdl2 = mdl and mdl:FindFirstChild("Model")
+		local fc = mdl2 and mdl2:FindFirstChild("Fire Crystal")
+		return fc and fc:GetChildren()[2] or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolvePower30()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local pwr = ti and ti:FindFirstChild("Power")
+		return pwr and pwr:FindFirstChild("30") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveHellMapPower()
+	local ok, res = pcall(function()
+		local hm = workspace:FindFirstChild("HellMap")
+		return hm and hm:GetChildren()[2729] or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolvePower28()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local pwr = ti and ti:FindFirstChild("Power")
+		return pwr and pwr:FindFirstChild("28") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveMeteoriteOrb()
+	local ok, res = pcall(function()
+		local meteorite = workspace:FindFirstChild("meteorite for psl")
+		return meteorite and meteorite:FindFirstChild("orb") or nil
+	end)
+	return ok and res or nil
+end
+
+-- Magic zones
+local function resolveMagicPart()
+	local ok, res = pcall(function()
+		local child = workspace:GetChildren()[136]
+		return child and child:FindFirstChild("Part") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveMagic15()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local mag = ti and ti:FindFirstChild("Magic")
+		return mag and mag:FindFirstChild("15") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveMagic14()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local mag = ti and ti:FindFirstChild("Magic")
+		return mag and mag:FindFirstChild("14") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveMagic13()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local mag = ti and ti:FindFirstChild("Magic")
+		return mag and mag:FindFirstChild("13") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolveMagic12()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local mag = ti and ti:FindFirstChild("Magic")
+		return mag and mag:FindFirstChild("12") or nil
+	end)
+	return ok and res or nil
+end
+
+-- Psychic zones
+local function resolvePsychicTree()
+	local ok, res = pcall(function()
+		local gm = workspace:FindFirstChild("GameMap")
+		local ug = gm and gm:FindFirstChild("Underground")
+		local c = ug and ug:FindFirstChild("R237G234B234")
+		local child5 = c and c:GetChildren()[5]
+		local mdl = child5 and child5:FindFirstChild("Model")
+		local tree = mdl and mdl:FindFirstChild("Tree3")
+		return tree and tree:FindFirstChild("Trunk") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolvePsychic28()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local psy = ti and ti:FindFirstChild("Psychics")
+		return psy and psy:FindFirstChild("28") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolvePsychic27()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local psy = ti and ti:FindFirstChild("Psychics")
+		return psy and psy:FindFirstChild("27") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolvePsychic24()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local psy = ti and ti:FindFirstChild("Psychics")
+		return psy and psy:FindFirstChild("24") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolvePsychic23()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local psy = ti and ti:FindFirstChild("Psychics")
+		return psy and psy:FindFirstChild("23") or nil
+	end)
+	return ok and res or nil
+end
+
+local function resolvePsychic22()
+	local ok, res = pcall(function()
+		local ti = workspace:FindFirstChild("TrainingInterface")
+		local psy = ti and ti:FindFirstChild("Psychics")
+		return psy and psy:FindFirstChild("22") or nil
+	end)
+	return ok and res or nil
+end
+
+-- Teleport functions
 local function bestDefenseTeleport()
 	local statsFolder = RS:WaitForChild("Data"):WaitForChild(LP.Name):WaitForChild("Stats")
 	local defenseValue = statsFolder and statsFolder:FindFirstChild("Defense") and statsFolder.Defense.Value or 0
 
-	-- Highest to lowest
 	local zones = {
 		{ req = 1e20, getter = resolveHeavensDoorPart },      -- 100qn
 		{ req = 1e19, getter = resolveUndergroundQDoorPart }, -- 10qn
@@ -325,8 +477,91 @@ local function bestDefenseTeleport()
 	end
 end
 
+local function bestPowerTeleport()
+	local statsFolder = RS:WaitForChild("Data"):WaitForChild(LP.Name):WaitForChild("Stats")
+	local powerValue = statsFolder and statsFolder:FindFirstChild("Power") and statsFolder.Power.Value or 0
+
+	local zones = {
+		{ req = 1e20, getter = resolveFireCrystalPart }, -- 100qn
+		{ req = 1e19, getter = resolvePower30 },         -- 10qn
+		{ req = 1e18, getter = resolveHellMapPower },     -- 1qn
+		{ req = 1e17, getter = resolvePower28 },          -- 100qd
+		{ req = 1e16, getter = resolveMeteoriteOrb },     -- 10qd
+	}
+
+	for _, z in ipairs(zones) do
+		if powerValue >= z.req then
+			local inst = z.getter()
+			if inst then
+				tpTo(inst)
+				return
+			end
+		end
+	end
+end
+
+local function bestMagicTeleport()
+	local statsFolder = RS:WaitForChild("Data"):WaitForChild(LP.Name):WaitForChild("Stats")
+	local magicValue = statsFolder and statsFolder:FindFirstChild("Magic") and statsFolder.Magic.Value or 0
+
+	local zones = {
+		{ req = 1e20, getter = resolveMagicPart }, -- 100qn
+		{ req = 1e19, getter = resolveMagic15 },   -- 10qn
+		{ req = 1e18, getter = resolveMagic14 },   -- 1qn
+		{ req = 1e17, getter = resolveMagic13 },   -- 100qd
+		{ req = 5e15, getter = resolveMagic12 },   -- 5qd
+	}
+
+	for _, z in ipairs(zones) do
+		if magicValue >= z.req then
+			local inst = z.getter()
+			if inst then
+				tpTo(inst)
+				return
+			end
+		end
+	end
+end
+
+local function bestPsychicTeleport()
+	local statsFolder = RS:WaitForChild("Data"):WaitForChild(LP.Name):WaitForChild("Stats")
+	local psychicValue = statsFolder and statsFolder:FindFirstChild("Psychics") and statsFolder.Psychics.Value or 0
+
+	local zones = {
+		{ req = 1e20, getter = resolvePsychicTree }, -- 100qn
+		{ req = 1e19, getter = resolvePsychic28 },   -- 10qn
+		{ req = 1e18, getter = resolvePsychic27 },   -- 1qn
+		{ req = 1e17, getter = resolvePsychic24 },  -- 100qd
+		{ req = 5e16, getter = resolvePsychic23 },   -- 50qd
+		{ req = 5e15, getter = resolvePsychic22 },  -- 5qd
+	}
+
+	for _, z in ipairs(zones) do
+		if psychicValue >= z.req then
+			local inst = z.getter()
+			if inst then
+				tpTo(inst)
+				return
+			end
+		end
+	end
+end
+
+-- Buttons
 Btn(RC,'Defense', function()
 	pcall(bestDefenseTeleport)
+end)
+
+Btn(RC,'Power', function()
+	pcall(bestPowerTeleport)
+end)
+
+Btn(RC,'Magic', function()
+	pcall(bestMagicTeleport)
+end)
+
+Btn(RC,'Psychic', function()
+	pcall(bestPsychicTeleport)
 end)
 
 title(LC,'Exotics')
