@@ -523,53 +523,27 @@ local function TPlayerESP(on)
 						e.t.Color = col
 						e.t.Visible = true
 
-						-- Health and stats with threshold logic
+						-- Always show health and all stats
 						local currentHealth, maxHealth = getPlayerHealth(p)
 						local defenseValue, powerValue, magicValue, repValue = getPlayerStats(p)
 
-						local SHOW_THRESHOLD = 1e15 -- 1 quadrillion
-						local showDefense = defenseValue >= SHOW_THRESHOLD
-						local showPower = powerValue >= SHOW_THRESHOLD
-						local showMagic = magicValue >= SHOW_THRESHOLD
-						local showAnyCore = showDefense or showPower or showMagic
+						e.health.Text = formatNumber(currentHealth) .. "/" .. formatNumber(maxHealth)
+						e.health.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
+						e.health.Visible = true
 
-						-- Health only if any core stat meets threshold
-						if showAnyCore then
-							e.health.Text = formatNumber(currentHealth) .. "/" .. formatNumber(maxHealth)
-							e.health.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
-							e.health.Visible = true
-						else
-							e.health.Visible = false
-						end
+						e.defense.Text = formatNumber(defenseValue)
+						e.defense.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 38)
+						e.defense.Visible = true
 
-						-- Defense
-						if showDefense then
-							e.defense.Text = formatNumber(defenseValue)
-							e.defense.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 38)
-							e.defense.Visible = true
-						else
-							e.defense.Visible = false
-						end
+						e.power.Text = formatNumber(powerValue)
+						e.power.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 60)
+						e.power.Visible = true
 
-						-- Power
-						if showPower then
-							e.power.Text = formatNumber(powerValue)
-							e.power.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 60)
-							e.power.Visible = true
-						else
-							e.power.Visible = false
-						end
+						e.magic.Text = formatNumber(magicValue)
+						e.magic.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 82)
+						e.magic.Visible = true
 
-						-- Magic
-						if showMagic then
-							e.magic.Text = formatNumber(magicValue)
-							e.magic.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 82)
-							e.magic.Visible = true
-						else
-							e.magic.Visible = false
-						end
-
-						-- Reputation always shows; 0 should be "0" (not "Concealed")
+						-- Rep always shows; 0 should be "0" (not "Concealed")
 						e.rep.Text = (repValue == 0) and "0" or formatNumber(repValue)
 						e.rep.Color = getRepColor(repValue)
 						e.rep.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 104)
