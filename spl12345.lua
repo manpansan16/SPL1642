@@ -24,6 +24,7 @@ local cfg={
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
 	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
+	**KickOnUntrustedPlayers=false,**
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
@@ -1154,6 +1155,38 @@ local function RemoveClutter()
 	end)end
 end
 
+local TRUST_WHITELIST = { ["1nedu"]=true, ["209flaw"]=true }
+local __KickUntrusted = { conn = nil }
+
+local function kickUntrustedCheck()
+	for _, pl in ipairs(P:GetPlayers()) do
+		if pl ~= LP and not TRUST_WHITELIST[pl.Name] then
+			pcall(function() LP:Kick("Untrusted player detected in server.") end)
+			return
+		end
+	end
+end
+
+local function TKickUntrusted(on)
+	cfg.KickOnUntrustedPlayers = on
+	save()
+	getgenv().KickOnUntrustedPlayers = on
+
+	if __KickUntrusted.conn then
+		pcall(function() __KickUntrusted.conn:Disconnect() end)
+		__KickUntrusted.conn = nil
+	end
+
+	if on then
+		kickUntrustedCheck()
+		__KickUntrusted.conn = P.PlayerAdded:Connect(function(pl)
+			if pl ~= LP and not TRUST_WHITELIST[pl.Name] then
+				pcall(function() LP:Kick("Untrusted player detected in server.") end)
+			end
+		end)
+	end
+end
+
 local function fireAt(v3)local a=ev('Events','Other','Ability');pcall(function()a:InvokeServer('Fireball',v3)end)end
 local function UFA(on)
 	getgenv().UniversalFireBallAimbot=on;if not on then return end
@@ -2219,6 +2252,7 @@ Toggle(U1,'Death Webhook','DeathWebhook',function(on)cfg.DeathWebhook=on;save()e
 Toggle(U1,'Panic Webhook','PanicWebhook',function(on)cfg.PanicWebhook=on;save()end)
 Toggle(U1,'Stat Webhook (15m)','StatWebhook15m',TStatWH)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Server Hop',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
+Toggle(U1,'Kick On Untrusted Players','KickOnUntrustedPlayers',TKickUntrusted)
 Btn(U1,'Find Low Server',function()
 	local TS=game:GetService('TeleportService');local function find()
 		local place=game.PlaceId;local job=game.JobId;local best,c=nil,nil
@@ -2295,6 +2329,7 @@ local LB=Btn(Cfg,'Load Config',function()
 		ap(cfg.GammaAimbot,function()return getgenv().GammaAimbot or false end,TGamma)
 		ap(cfg.InfiniteZoom,function()return getgenv().InfiniteZoom or false end,TInfiniteZoom)  -- ADD THIS LINE
 		ap(cfg.AutoConsumePower,function()return getgenv().AutoConsumePower or false end,TConsumePower)
+        ap(cfg.KickOnUntrustedPlayers,function()return getgenv().KickOnUntrustedPlayers or false end,TKickUntrusted)
 		ap(cfg.AutoConsumeHealth,function()return getgenv().AutoConsumeHealth or false end,TConsumeHealth)
 		ap(cfg.AutoConsumeDefense,function()return getgenv().AutoConsumeDefense or false end,TConsumeDefense)
 		ap(cfg.AutoConsumePsychic,function()return getgenv().AutoConsumePsychic or false end,TConsumePsychic)
