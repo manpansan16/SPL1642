@@ -1201,50 +1201,6 @@ local function RemoveClutter()
 	end)end
 end
 
-local TRUST_WHITELIST = { ["1nedu"]=true, ["209flaw"]=true, ["209Flaw"]=true }
-local __KickUntrusted = { conn = nil }
-
-local function isTrustedPlayer(playerName)
-    -- Convert to lowercase for case-insensitive comparison
-    local lowerName = string.lower(playerName)
-    return TRUST_WHITELIST[lowerName] or TRUST_WHITELIST[playerName]
-end
-
-local function kickUntrustedCheck()
-    for _, pl in ipairs(P:GetPlayers()) do
-        if pl ~= LP and not isTrustedPlayer(pl.Name) then
-            print("Untrusted player detected: " .. pl.Name)
-            pcall(function() LP:Kick("Untrusted player detected in server.") end)
-            return
-        end
-    end
-end
-
-local function TKickUntrusted(on)
-    cfg.KickOnUntrustedPlayers = on
-    save()
-    getgenv().KickOnUntrustedPlayers = on
-
-    if __KickUntrusted.conn then
-        pcall(function() __KickUntrusted.conn:Disconnect() end)
-        __KickUntrusted.conn = nil
-    end
-
-    if on then
-        task.wait(1)
-        kickUntrustedCheck()
-        __KickUntrusted.conn = P.PlayerAdded:Connect(function(pl)
-            task.wait(0.5)
-            if pl ~= LP and not isTrustedPlayer(pl.Name) then
-                print("Untrusted player joined: " .. pl.Name)
-                pcall(function() LP:Kick("Untrusted player detected in server.") end)
-            else
-                print("Trusted player joined: " .. pl.Name)
-            end
-        end)
-    end
-end
-
 local function fireAt(v3)local a=ev('Events','Other','Ability');pcall(function()a:InvokeServer('Fireball',v3)end)end
 local function UFA(on)
 	getgenv().UniversalFireBallAimbot=on;if not on then return end
