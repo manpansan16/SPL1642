@@ -752,6 +752,35 @@ local function TPlayerESP(on)
 		return 0, 0, 0, 0
 	end
 
+	local function getPlayerClan(player)
+		local success, statsFolder = pcall(function()
+			return game:GetService("ReplicatedStorage").Data[player.Name].Stats
+		end)
+		if success and statsFolder then
+			local clanJoined = statsFolder:FindFirstChild('ClanJoined')
+			if clanJoined then
+				local clanId = clanJoined.Value
+				-- Clan mapping
+				local clanNames = {
+					[6440] = "Calamity2",
+					[7] = "Calamity", 
+					[11] = "YTPvP",
+					[3704] = "YTPvP2",
+					[4588] = "YTpvP3"
+				}
+				local clanColors = {
+					[6440] = Color3.fromRGB(0, 255, 0), -- Green
+					[7] = Color3.fromRGB(0, 255, 0),     -- Green
+					[11] = Color3.fromRGB(255, 0, 0),    -- Red
+					[3704] = Color3.fromRGB(255, 0, 0),  -- Red
+					[4588] = Color3.fromRGB(255, 0, 0)   -- Red
+				}
+				return clanNames[clanId], clanColors[clanId]
+			end
+		end
+		return nil, nil
+	end
+
 	local function getPlayerHealth(player)
 		local char = player.Character
 		local humanoid = char and char:FindFirstChild("Humanoid")
@@ -786,18 +815,19 @@ local function TPlayerESP(on)
 	local function mkb(p)
 		local b = Drawing.new('Square'); b.Filled=false; b.Thickness=2; b.Visible=false
 		local t = Drawing.new('Text'); t.Size=24; t.Center=true; t.Outline=true; t.OutlineColor=Color3.new(0,0,0); t.Visible=false
+		local clanText = Drawing.new('Text'); clanText.Size=20; clanText.Center=true; clanText.Outline=true; clanText.OutlineColor=Color3.new(0,0,0); clanText.Visible=false
 		local healthText = Drawing.new('Text'); healthText.Size=22; healthText.Center=true; healthText.Outline=true; healthText.OutlineColor=Color3.new(0,0,0); healthText.Color=Color3.fromRGB(100,255,100); healthText.Visible=false
 		local defenseText = Drawing.new('Text'); defenseText.Size=20; defenseText.Center=true; defenseText.Outline=true; defenseText.OutlineColor=Color3.new(0,0,0); defenseText.Color=Color3.fromRGB(0,150,255); defenseText.Visible=false
 		local powerText = Drawing.new('Text'); powerText.Size=20; powerText.Center=true; powerText.Outline=true; powerText.OutlineColor=Color3.new(0,0,0); powerText.Color=Color3.fromRGB(255,50,50); powerText.Visible=false
 		local magicText = Drawing.new('Text'); magicText.Size=20; magicText.Center=true; magicText.Outline=true; magicText.OutlineColor=Color3.new(0,0,0); magicText.Color=Color3.fromRGB(255,100,255); magicText.Visible=false
 		local repText = Drawing.new('Text'); repText.Size=20; repText.Center=true; repText.Outline=true; repText.OutlineColor=Color3.new(0,0,0); repText.Color=Color3.fromRGB(255,255,255); repText.Visible=false
-		boxes[p] = { b=b, t=t, health=healthText, defense=defenseText, power=powerText, magic=magicText, rep=repText }
+		boxes[p] = { b=b, t=t, clan=clanText, health=healthText, defense=defenseText, power=powerText, magic=magicText, rep=repText }
 	end
 
 	local function rm(p)
 		local e = boxes[p]; if not e then return end
 		pcall(function()
-			e.b:Remove(); e.t:Remove(); e.health:Remove(); e.defense:Remove(); e.power:Remove(); e.magic:Remove(); e.rep:Remove()
+			e.b:Remove(); e.t:Remove(); e.clan:Remove(); e.health:Remove(); e.defense:Remove(); e.power:Remove(); e.magic:Remove(); e.rep:Remove()
 		end)
 		boxes[p] = nil
 	end
@@ -817,7 +847,7 @@ local function TPlayerESP(on)
 					local head = p.Character.Head
 					local pos, vis = Cam:WorldToViewportPoint(head.Position)
 					if not vis then
-						e.b.Visible=false; e.t.Visible=false
+						e.b.Visible=false; e.t.Visible=false; e.clan.Visible=false
 						e.health.Visible=false; e.defense.Visible=false; e.power.Visible=false; e.magic.Visible=false; e.rep.Visible=false
 					else
 						local d = (Cam.CFrame.Position - head.Position).Magnitude
@@ -830,10 +860,23 @@ local function TPlayerESP(on)
 						e.b.Color = col
 						e.b.Visible = true
 
+						-- Get clan info
+						local clanName, clanColor = getPlayerClan(p)
+
 						e.t.Text = p.Name
 						e.t.Position = Vector2.new(pos.X, pos.Y - sz/2 - 18)
 						e.t.Color = col
 						e.t.Visible = true
+
+						-- Show clan text above player name if clan exists
+						if clanName then
+							e.clan.Text = clanName
+							e.clan.Position = Vector2.new(pos.X, pos.Y - sz/2 - 40)
+							e.clan.Color = clanColor
+							e.clan.Visible = true
+						else
+							e.clan.Visible = false
+						end
 
 						-- Always show health and all stats
 						local currentHealth, maxHealth = getPlayerHealth(p)
@@ -862,11 +905,11 @@ local function TPlayerESP(on)
 						e.rep.Visible = true
 					end
 				end
-			end
 
-			for p2 in pairs(boxes) do
-				if (not p2) or (not p2.Character) or (not p2.Character:FindFirstChild('Head')) then
-					rm(p2)
+				for p2 in pairs(boxes) do
+					if (not p2) or (not p2.Character) or (not p2.Character:FindFirstChild('Head')) then
+						rm(p2)
+					end
 				end
 			end
 		end)
