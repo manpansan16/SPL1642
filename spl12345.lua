@@ -27,12 +27,60 @@ local cfg={
 	KickOnUntrustedPlayers=false,
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
--- Force disable kick on untrusted players
-cfg.KickOnUntrustedPlayers = false
-getgenv().KickOnUntrustedPlayers = false
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
+
+-- Kick on Untrusted Players System
+local TRUST_WHITELIST = { 
+    ["1nedu"] = true, 
+    ["209Flaw"] = true 
+}
+
+local function isTrustedPlayer(playerName)
+    return TRUST_WHITELIST[playerName] == true
+end
+
+local function kickUntrustedCheck()
+    print("Checking for untrusted players...")
+    for _, player in ipairs(P:GetPlayers()) do
+        if player ~= LP then
+            print("Found player: " .. player.Name)
+            if isTrustedPlayer(player.Name) then
+                print("Player " .. player.Name .. " is TRUSTED")
+            else
+                print("Player " .. player.Name .. " is UNTRUSTED - Kicking...")
+                LP:Kick("Untrusted player detected in server.")
+                return
+            end
+        end
+    end
+    print("No untrusted players found")
+end
+
+local function TKickUntrusted(on)
+    cfg.KickOnUntrustedPlayers = on
+    save()
+    getgenv().KickOnUntrustedPlayers = on
+
+    if on then
+        print("Kick on Untrusted Players enabled")
+        kickUntrustedCheck()
+        
+        -- Monitor for new players
+        P.PlayerAdded:Connect(function(player)
+            print("New player joined: " .. player.Name)
+            if isTrustedPlayer(player.Name) then
+                print("Player " .. player.Name .. " is TRUSTED")
+            else
+                print("Player " .. player.Name .. " is UNTRUSTED - Kicking...")
+                LP:Kick("Untrusted player detected in server.")
+            end
+        end)
+    else
+        print("Kick on Untrusted Players disabled")
+    end
+end
 
 -- Teleport exotic stores to specific positions instantly
 task.spawn(function()
