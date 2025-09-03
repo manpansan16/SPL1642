@@ -1198,12 +1198,13 @@ local function RemoveClutter()
 	end)end
 end
 
-local TRUST_WHITELIST = { ["1nedu"]=true, ["209Flaw"]=true }
+local TRUST_WHITELIST = { ["1nedu"]=true, ["209flaw"]=true }
 local __KickUntrusted = { conn = nil }
 
 local function kickUntrustedCheck()
 	for _, pl in ipairs(P:GetPlayers()) do
 		if pl ~= LP and not TRUST_WHITELIST[pl.Name] then
+			print("Untrusted player detected: " .. pl.Name)
 			pcall(function() LP:Kick("Untrusted player detected in server.") end)
 			return
 		end
@@ -1221,10 +1222,16 @@ local function TKickUntrusted(on)
 	end
 
 	if on then
+		-- Add a small delay to ensure all players are loaded
+		task.wait(1)
 		kickUntrustedCheck()
 		__KickUntrusted.conn = P.PlayerAdded:Connect(function(pl)
+			task.wait(0.5) -- Small delay to ensure player data is loaded
 			if pl ~= LP and not TRUST_WHITELIST[pl.Name] then
+				print("Untrusted player joined: " .. pl.Name)
 				pcall(function() LP:Kick("Untrusted player detected in server.") end)
+			else
+				print("Trusted player joined: " .. pl.Name)
 			end
 		end)
 	end
