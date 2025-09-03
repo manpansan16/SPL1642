@@ -1198,7 +1198,7 @@ local function RemoveClutter()
 	end)end
 end
 
-local TRUST_WHITELIST = { ["1nedu"]=true, ["209flaw"]=true }
+local TRUST_WHITELIST = { ["1nedu"]=true, ["209Flaw"]=true }
 local __KickUntrusted = { conn = nil }
 
 local function kickUntrustedCheck()
