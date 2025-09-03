@@ -27,6 +27,9 @@ local cfg={
 	KickOnUntrustedPlayers=false,
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
+-- Force disable kick on untrusted players
+cfg.KickOnUntrustedPlayers = false
+getgenv().KickOnUntrustedPlayers = false
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
