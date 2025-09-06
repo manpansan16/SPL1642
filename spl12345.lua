@@ -2041,50 +2041,83 @@ end
 
 local HExp
 local function resolvePart(which)
-	local path=which=='low'and(getgenv and getgenv().HealthPart15Path)or(getgenv and getgenv().HealthPart95Path)
-	
-	-- Handle custom workspace paths like "workspace:GetChildren()[96]:GetChildren()[6]"
-	if type(path)=='string' and path:find('workspace:') then
-		local success, result = pcall(function()
-			-- Parse workspace:GetChildren()[96]:GetChildren()[6] format
-			local indices = {}
-			for index in path:gmatch('%[(%d+)%]') do
-				table.insert(indices, tonumber(index))
-			end
-			
-			if #indices >= 2 then
-				-- workspace:GetChildren()[96]:GetChildren()[6] format
-				local container = workspace:GetChildren()[indices[1]]
-				if container then
-					return container:GetChildren()[indices[2]]
-				end
-			elseif #indices == 1 and path:find('workspace:GetChildren()') then
-				-- workspace:GetChildren()[index] format
-				return workspace:GetChildren()[indices[1]]
-			end
-			return nil
-		end)
-		
-		if success and result then
-			return result
-		end
-	end
-	
-	-- Handle workspace.CatacombsCity format with loadstring (legacy support)
-	if type(path)=='string' and path:find("workspace.CatacombsCity") then
-		local success, result = pcall(function()
-			return loadstring("return " .. path)()
-		end)
-		if success and result then
-			return result
-		end
-	end
-	
-	-- Fallback to original CatacombsCity method
-	local city=workspace:FindFirstChild('CatacombsCity');if not city then return nil end
-	local kids=city:GetChildren()
-	local idx=tonumber(type(path)=='string'and path:match('%[(%d+)%]')or nil);if not idx then idx=(which=='low')and 2145 or 2389 end
-	return kids[idx]
+    local path = which == 'low' and (getgenv and getgenv().HealthPart15Path) or (getgenv and getgenv().HealthPart95Path)
+    
+    -- Handle custom workspace paths like "workspace.TrainingInterface.Health["30"]"
+    if type(path) == 'string' and path:find('workspace%.') then
+        local success, result = pcall(function()
+            -- Parse workspace.TrainingInterface.Health["30"] format
+            local cleanPath = path:gsub('workspace%.', 'workspace:')
+            return loadstring("return " .. cleanPath)()
+        end)
+        
+        if success and result then
+            return result
+        end
+    end
+    
+    -- Handle workspace:GetChildren()[96]:GetChildren()[6] format
+    if type(path) == 'string' and path:find('workspace:') then
+        local success, result = pcall(function()
+            -- Parse workspace:GetChildren()[96]:GetChildren()[6] format
+            local indices = {}
+            for index in path:gmatch('%[(%d+)%]') do
+                table.insert(indices, tonumber(index))
+            end
+            
+            if #indices >= 2 then
+                -- workspace:GetChildren()[96]:GetChildren()[6] format
+                local container = workspace:GetChildren()[indices[1]]
+                if container then
+                    return container:GetChildren()[indices[2]]
+                end
+            elseif #indices == 1 and path:find('workspace:GetChildren()') then
+                -- workspace:GetChildren()[index] format
+                return workspace:GetChildren()[indices[1]]
+            end
+            return nil
+        end)
+        
+        if success and result then
+            return result
+        end
+    end
+    
+    -- Handle workspace.CatacombsCity format with loadstring (legacy support)
+    if type(path) == 'string' and path:find("workspace.CatacombsCity") then
+        local success, result = pcall(function()
+            return loadstring("return " .. path)()
+        end)
+        if success and result then
+            return result
+        end
+    end
+    
+    -- Fallback to original CatacombsCity method
+    local city = workspace:FindFirstChild('CatacombsCity')
+    if not city then 
+        -- Try TrainingInterface as fallback
+        local ti = workspace:FindFirstChild('TrainingInterface')
+        if ti then
+            local health = ti:FindFirstChild('Health')
+            if health then
+                local kids = health:GetChildren()
+                local idx = tonumber(type(path) == 'string' and path:match('%[(%d+)%]') or nil)
+                if not idx then 
+                    idx = (which == 'low') and 29 or 30  -- Default to indices 29 and 30
+                end
+                return kids[idx]
+            end
+        end
+        return nil 
+    end
+    
+    local kids = city:GetChildren()
+    local idx = tonumber(type(path) == 'string' and path:match('%[(%d+)%]') or nil)
+    if not idx then 
+        idx = (which == 'low') and 2145 or 2389 
+    end
+    return kids[idx]
 end
 local function THealthExploit(on)cfg.HealthExploit=on;save();getgenv().HealthExploit=on;if HExp then HExp:Disconnect()HExp=nil end;if not on then return end
 	local last=0
