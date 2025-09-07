@@ -786,6 +786,10 @@ local function TPlayerESP(on)
 		end
 	end
 
+local function trunc(n)
+	return n >= 0 and math.floor(n) or math.ceil(n)
+end
+
 	local function getPlayerStats(player)
 		local success, statsFolder = pcall(function()
 			return game:GetService("ReplicatedStorage").Data[player.Name].Stats
@@ -931,30 +935,41 @@ local function TPlayerESP(on)
 						end
 
 						-- Always show health and all stats
-						local currentHealth, maxHealth = getPlayerHealth(p)
-						local defenseValue, powerValue, magicValue, repValue = getPlayerStats(p)
+						local totalCombat = (defenseValue or 0) + (powerValue or 0) + (magicValue or 0)
+if totalCombat < 1e18 then
+	-- Hide health + D/P/M, show only rep at health line
+	e.health.Visible = false
+	e.defense.Visible = false
+	e.power.Visible = false
+	e.magic.Visible = false
 
-						e.health.Text = formatNumber(currentHealth) .. "/" .. formatNumber(maxHealth)
-						e.health.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
-						e.health.Visible = true
+	e.rep.Text = (repValue == 0) and "0" or formatNumber(repValue)
+	e.rep.Color = getRepColor(repValue)
+	e.rep.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
+	e.rep.Visible = true
+else
+	-- Show full info (truncate health decimals)
+	e.health.Text = formatNumber(trunc(currentHealth)) .. "/" .. formatNumber(trunc(maxHealth))
+	e.health.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
+	e.health.Visible = true
 
-						e.defense.Text = formatNumber(defenseValue)
-						e.defense.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 38)
-						e.defense.Visible = true
+	e.defense.Text = formatNumber(defenseValue)
+	e.defense.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 38)
+	e.defense.Visible = true
 
-						e.power.Text = formatNumber(powerValue)
-						e.power.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 60)
-						e.power.Visible = true
+	e.power.Text = formatNumber(powerValue)
+	e.power.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 60)
+	e.power.Visible = true
 
-						e.magic.Text = formatNumber(magicValue)
-						e.magic.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 82)
-						e.magic.Visible = true
+	e.magic.Text = formatNumber(magicValue)
+	e.magic.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 82)
+	e.magic.Visible = true
 
-						-- Rep always shows; 0 should be "0" (not "Concealed")
-						e.rep.Text = (repValue == 0) and "0" or formatNumber(repValue)
-						e.rep.Color = getRepColor(repValue)
-						e.rep.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 104)
-						e.rep.Visible = true
+	e.rep.Text = (repValue == 0) and "0" or formatNumber(repValue)
+	e.rep.Color = getRepColor(repValue)
+	e.rep.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 104)
+	e.rep.Visible = true
+end
 					end
 				end
 
