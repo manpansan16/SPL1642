@@ -2080,15 +2080,15 @@ local function resolvePart(which)
 		end
 	end
 	
-	-- Handle workspace.CatacombsCity format with loadstring (legacy support)
-	if type(path)=='string' and path:find("workspace.CatacombsCity") then
-		local success, result = pcall(function()
-			return loadstring("return " .. path)()
-		end)
-		if success and result then
-			return result
-		end
+-- Handle generic workspace.* paths (e.g., TrainingInterface, CatacombsCity)
+if type(path)=='string' and path:match('^workspace%.') then
+	local success, result = pcall(function()
+		return loadstring('return ' .. path)()
+	end)
+	if success and result then
+		return result
 	end
+end
 	
 	-- Fallback to original CatacombsCity method
 	local city=workspace:FindFirstChild('CatacombsCity');if not city then return nil end
