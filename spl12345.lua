@@ -30,6 +30,7 @@ local cfg={
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
+local targetAttempts = {} -- Global attempt tracking for aimbots
 
 -- Kick on Untrusted Players System
 local TRUST_WHITELIST = { 
@@ -1280,6 +1281,11 @@ local function CatAimbot(on)
 	local currentTargetIndex = 1
 	local lastFireballTime = 0
 	
+	-- Initialize attempt counters for each target
+	for i = 1, #targetOrder do
+		targetAttempts[i] = 0
+	end
+	
 	-- Strategic fallback positions for empty folders (near typical spawn areas)
 	local fallbackPositions = {
 		[15] = Vector3.new(-200, 45, -300),  -- Dominators area
@@ -1413,19 +1419,28 @@ local function CityAimbot(on)
 	getgenv().FireBallAimbotCity=on;if not on then return end
 	
 	print('City Fireball Aimbot: Starting...')
-	-- Simple target order: 5, 9, 8, 6, 3
-	local targetOrder = { 5, 9, 8, 6, 3 }
+	-- Smart 5-folder system: 6, 9, 5, 3, 2
+	local targetOrder = { 6, 9, 5, 3, 2 }
 	local currentTargetIndex = 1
 	local lastFireballTime = 0
+	local targetAttempts = {} -- Track attempts per target
+	
+	-- Initialize attempt counters for each target
+	for i = 1, #targetOrder do
+		targetAttempts[i] = 0
+	end
 	
 	-- Strategic fallback positions for empty folders (near typical city spawn areas)
 	local fallbackPositions = {
-		[5] = Vector3.new(120, 25, 80),   -- City area 5
-		[9] = Vector3.new(200, 30, 160),  -- City area 9
-		[8] = Vector3.new(180, 25, 140),  -- City area 8
 		[6] = Vector3.new(140, 30, 100),  -- City area 6
+		[9] = Vector3.new(200, 30, 160),  -- City area 9
+		[5] = Vector3.new(120, 25, 80),   -- City area 5
 		[3] = Vector3.new(80, 20, 60),    -- City area 3
+		[2] = Vector3.new(60, 25, 40),    -- City area 2
 	}
+	
+	-- Smart timing system for 5-folder optimization
+	local targetWaitTime = 0.15  -- Optimized for 5-folder system
 
 	task.spawn(function()
 		while getgenv().FireBallAimbotCity do
@@ -1446,6 +1461,7 @@ local function CityAimbot(on)
 				-- Check cooldown
 				if (currentTime - lastFireballTime) >= (cfg.cityFireballCooldown or 0.2) then
 					local targetFolderNumber = targetOrder[currentTargetIndex]
+					print('City Fireball Aimbot: TARGETING folder ' .. targetFolderNumber .. ' (Index: ' .. currentTargetIndex .. '/5)')
 					local enemies = workspace:FindFirstChild('Enemies')
 
 					if enemies then
@@ -1491,45 +1507,39 @@ local function CityAimbot(on)
 								print('City Fireball Aimbot: No mobs in folder ' .. targetFolderNumber .. ', firing at strategic position ' .. tostring(targetPosition))
 							end
 
-							-- Fire the fireball (always fire to maintain cycle)
+							-- Fire the fireball
 							local success = pcall(function()
 								fireAt(targetPosition)
 							end)
 
-							if success then
-								if foundMob then
-									print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) mob position ' .. tostring(targetPosition))
-								else
-									print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) calculated position ' .. tostring(targetPosition))
-								end
-								lastFireballTime = currentTime
-
-								-- Move to next target
-								currentTargetIndex = currentTargetIndex + 1
-
-								-- Reset to first target if completed cycle
-								if currentTargetIndex > #targetOrder then
-									currentTargetIndex = 1
-									print('City Fireball Aimbot: Completed cycle, restarting...')
-								end
-
-								-- Wait before next target
-								task.wait(0.3)
+							-- Always advance to next target after firing (success or fail)
+							if foundMob then
+								print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) mob position ' .. tostring(targetPosition))
 							else
-								print('City Fireball Aimbot: Failed to fire at folder ' .. targetFolderNumber .. ', moving to next...')
-								currentTargetIndex = currentTargetIndex + 1
-								if currentTargetIndex > #targetOrder then
-									currentTargetIndex = 1
-								end
-								task.wait(0.1)
+								print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) calculated position ' .. tostring(targetPosition))
 							end
+							
+							lastFireballTime = currentTime
+							currentTargetIndex = currentTargetIndex + 1
+							print('City Fireball Aimbot: Moving to next target: ' .. currentTargetIndex .. '/5')
+
+							-- Reset to first target if completed cycle
+							if currentTargetIndex > #targetOrder then
+								currentTargetIndex = 1
+								print('City Fireball Aimbot: Cycle completed, restarting...')
+							end
+
+							-- Wait before next target
+							task.wait(targetWaitTime)
 						else
-							print('City Fireball Aimbot: Folder ' .. targetFolderNumber .. ' not found, moving to next...')
+							print('City Fireball Aimbot: Folder ' .. targetFolderNumber .. ' not found, moving to next target...')
+							-- Move to next target if folder is missing
 							currentTargetIndex = currentTargetIndex + 1
 							if currentTargetIndex > #targetOrder then
 								currentTargetIndex = 1
+								print('City Fireball Aimbot: Cycle completed, restarting...')
 							end
-							task.wait(0.1)
+							task.wait(targetWaitTime)
 						end
 					else
 						print('City Fireball Aimbot: workspace.Enemies not found')
@@ -1611,13 +1621,13 @@ local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=
 	task.spawn(function()
 		local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
 		local op,od,oh,om,oy,omob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
-		local function fmt(n)n=tonumber(n)or 0;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
+		local function fmt(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.2f',n/1e18)..'QN' end;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
 			if n>=1e9 then return string.format('%.2f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.2f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.2f',n/1e3)..'k'end return tostring(n)end
 		while getgenv().StatWebhook15m do for i=1,900 do if not getgenv().StatWebhook15m then break end task.wait(1)end;if not getgenv().StatWebhook15m then break end
 			local np,nd,nh,nm,ny,nmob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
 			if np>op or nd>od or nh>oh or nm>om or ny>oy or nmob>omob then
 				local t=LP.Name..' Stats Gained Last 15 Minutes'
-				local d='**Power:** '..fmt(np-op)..'\n**Defense:** '..fmt(nd-od)..'\n**Health:** '..fmt(nh-oh)..'\n**Magic:** '..fmt(nm-om)..'\n**Psychics:** '..fmt(ny-oy)..'\n**Mobility:** '..fmt(nmob-omob)
+				local d='💪 **Power:** '..fmt(np)..' → **'..fmt(np-op)..'**\n❤️ **Health:** '..fmt(nh)..' → **'..fmt(nh-oh)..'**\n🛡️ **Defense:** '..fmt(nd)..' → **'..fmt(nd-od)..'**\n🔮 **Psychics:** '..fmt(ny)..' → **'..fmt(ny-oy)..'**\n✨ **Magic:** '..fmt(nm)..' → **'..fmt(nm-om)..'**\n💨 **Mobility:** '..fmt(nmob)..' → **'..fmt(nmob-omob)..'**'
 				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy,omob=np,nd,nh,nm,ny,nmob
 			end
 		end
