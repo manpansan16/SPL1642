@@ -1335,13 +1335,6 @@ Toggle(U1,'Quick Teleport Gui','QuickTeleports',TQuickTeleports)
 
 local V1=Section(Visual,'Visual Features')
 Toggle(V1,'Player ESP','PlayerESP',TPlayerESP)
-local function TMobESP(on)
-	if on then
-		-- (Mob ESP implementation not repeated here)
-	else
-		if getgenv().EnemyESP2 and getgenv().EnemyESP2.Disable then getgenv().EnemyESP2:Disable() end
-	end
-end
 Toggle(V1,'Mob ESP','MobESP',TMobESP)
 
 local Q1=Section(Quests,'Quest Automation')
