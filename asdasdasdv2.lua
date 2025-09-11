@@ -30,7 +30,16 @@ local cfg={
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
-local targetAttempts = {}
+local targetAttempts={}
+
+-- persistent saved teleport
+local SAVEP_FILE='SuperPowerLeague_SavePos.json'
+local savedCFrame=nil
+local function cfToTable(cf)local a={cf:GetComponents()};return a end
+local function tableToCF(t)if type(t)=='table' and #t==12 then return CFrame.new(unpack(t)) end return nil end
+local function persistSave(cf)local ok,err=pcall(function()writefile(SAVEP_FILE,H:JSONEncode(cfToTable(cf)))end)end
+local function loadPersistedSave()if isfile(SAVEP_FILE)then local ok,data=pcall(function()return H:JSONDecode(readfile(SAVEP_FILE))end);if ok then local cf=tableToCF(data);if cf then savedCFrame=cf end end end end
+loadPersistedSave()
 
 local TRUST_WHITELIST = { ["1nedu"]=true, ["209Flaw"]=true }
 local function isTrustedPlayer(playerName) return TRUST_WHITELIST[playerName]==true end
@@ -88,7 +97,8 @@ local function disableAimbots()
 	end
 end
 
-local lastPanicSentAt,PANIC_THRESHOLD,PANIC_COOLDOWN,REARM=0,0.95,5,0.95
+-- death + panic hooks
+local lastPanicSentAt,PANIC_THRESHOLD,PANIC_COOLDOWN,REARM=0,0.5,5,0.95
 local function initDeathPanic()
 	local function hook(c)
 		local h=c:WaitForChild('Humanoid',10);if not h then return end
@@ -115,11 +125,7 @@ end
 initDeathPanic()
 
 getgenv().SmartPanic=cfg.SmartPanic and true or false
-local TARGET_PLACE=79106917651793
-local function fallbackCF()for _,d in ipairs(workspace:GetDescendants())do if d:IsA('SpawnLocation')then return d.CFrame end end local _,_,hrp=charHum();return hrp and(hrp.CFrame+Vector3.new(0,35,0)) or nil end
-local function panicCF()
-	return CFrame.new(Vector3.new(-9102992384, 63823437843548678, 37903106048))
-end
+local function panicCF()return CFrame.new(Vector3.new(-9102992384, 63823437843548678, 37903106048))end
 task.spawn(function()
 	local last,armed=0,true
 	while true do
@@ -299,8 +305,19 @@ P.PlayerRemoving:Connect(function(pl)if pbtn[pl]then pcall(function()pbtn[pl]:De
 title(RC,'Saved Position')
 local row=mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1},RC)
 local rowL=mk('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},row)
-Btn(row,'Save Place',function()local _,_,hrp=charHum();if hrp then _G.__SavedCFrame=hrp.CFrame end end)
-Btn(row,'Teleport To Save',function()local cf=_G.__SavedCFrame;local c=LP.Character;if cf and c then pcall(function()c:PivotTo(cf)end)end end)
+Btn(row,'Save Place',function()
+	local c,_,hrp=charHum();if hrp then
+		local cf=hrp.CFrame
+		_G.__SavedCFrame=cf
+		savedCFrame=cf
+		persistSave(cf)
+	end
+end)
+Btn(row,'Teleport To Save',function()
+	local cf=_G.__SavedCFrame or savedCFrame
+	if not cf then loadPersistedSave(); cf=savedCFrame end
+	local c=LP.Character;if cf and c then pcall(function()c:PivotTo(cf)end)end
+end)
 rowL:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()row.Size=UDim2.new(1,0,0,rowL.AbsoluteContentSize.Y)end)
 
 -- Zones (RIGHT COLUMN)
@@ -494,7 +511,7 @@ local function TUltimate(on)cfg.UltimateAFKOptimization=on;save()
 	S.conn=workspace.DescendantAdded:Connect(simple);S.applied=true
 end
 
--- REPLACED: Player ESP (enhanced version, no GUI from snippet)
+-- Enhanced Player ESP (no GUI)
 local function TPlayerESP(on)
 	cfg.PlayerESP = on
 	if not Drawing then return end
@@ -837,7 +854,7 @@ end
 
 local SG={gui=nil,run=false}
 local function TStatGui(on)cfg.StatGui=on;save();getgenv().StatGui=on;if not on then SG.run=false;if SG.gui then pcall(function()SG.gui:Destroy()end)SG.gui=nil end return end
-	-- (kept function to be harmless; toggle removed from UI)
+	-- retained but no UI toggle
 end
 
 local QuickTeleportsGUI = nil
@@ -848,7 +865,7 @@ local function TQuickTeleports(on)
 	if not on then if QuickTeleportsGUI then pcall(function() QuickTeleportsGUI:Destroy() end) QuickTeleportsGUI=nil end return end
 	local Players=game:GetService("Players");local ReplicatedStorage=game:GetService("ReplicatedStorage");local LocalPlayer=Players.LocalPlayer
 	local ScreenGui=Instance.new("ScreenGui")ScreenGui.ResetOnSpawn=false ScreenGui.Parent=LocalPlayer:WaitForChild("PlayerGui") QuickTeleportsGUI=ScreenGui
-	local Frame=Instance.new("Frame")Frame.Size=UDim2.new(0,180,0,200)Frame.Position=UDim2.new(0,20,1,-220)Frame.BackgroundColor3=Color3.fromRGB(30,30,30)Frame.BorderSizePixel=0 Frame.Active=true Frame.Draggable=true Frame.Parent=ScreenGui
+	local Frame=Instance.new("Frame")Frame.Size=UDim2.new(0,180,0,240)Frame.Position=UDim2.new(0,20,1,-260)Frame.BackgroundColor3=Color3.fromRGB(30,30,30)Frame.BorderSizePixel=0 Frame.Active=true Frame.Draggable=true Frame.Parent=ScreenGui
 	local UICorner=Instance.new("UICorner")UICorner.CornerRadius=UDim.new(0,8)UICorner.Parent=Frame
 	local Title=Instance.new("TextLabel")Title.Size=UDim2.new(1,0,0,25)Title.BackgroundTransparency=1 Title.Text="Teleports"Title.TextColor3=Color3.fromRGB(255,255,255)Title.TextSize=14 Title.Font=Enum.Font.GothamSemibold Title.Parent=Frame
 	local function createButton(name,onClick,y)local Button=Instance.new("TextButton")Button.Size=UDim2.new(0,160,0,30)Button.Position=UDim2.new(0.5,-80,0,y)Button.Text=name Button.Font=Enum.Font.Gotham Button.TextSize=12 Button.BackgroundColor3=Color3.fromRGB(45,45,45)Button.TextColor3=Color3.fromRGB(255,255,255)Button.BorderSizePixel=0 Button.Parent=Frame local UIC=Instance.new("UICorner")UIC.CornerRadius=UDim.new(0,4)UIC.Parent=Button Button.MouseEnter:Connect(function()Button.BackgroundColor3=Color3.fromRGB(60,60,60)end)Button.MouseLeave:Connect(function()Button.BackgroundColor3=Color3.fromRGB(45,45,45)end)Button.MouseButton1Click:Connect(function()pcall(onClick)end)end
@@ -874,6 +891,7 @@ local function TQuickTeleports(on)
 	local function resolvePsychic24()local ok,res=pcall(function()local ti=workspace:FindFirstChild("TrainingInterface");local psy=ti and ti:FindFirstChild("Psychics")return psy and psy:FindFirstChild("24") or nil end)return ok and res or nil end
 	local function resolvePsychic23()local ok,res=pcall(function()local ti=workspace:FindFirstChild("TrainingInterface");local psy=ti and ti:FindFirstChild("Psychics")return psy and psy:FindFirstChild("23") or nil end)return ok and res or nil end
 	local function resolvePsychic22()local ok,res=pcall(function()local ti=workspace:FindFirstChild("TrainingInterface");local psy=ti and ti:FindFirstChild("Psychics")return psy and psy:FindFirstChild("22") or nil end)return ok and res or nil end
+	local function tpToQuick(target)if not target then return end local char=LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()local hrp=char:WaitForChild("HumanoidRootPart")local cf=target:IsA("BasePart") and target.CFrame or (target.IsA and target:IsA("Model") and target:GetPivot() or nil)if not cf then return end hrp.CFrame=cf+Vector3.new(0,3,0)end
 	local function bestDefenseTeleportQ()local stats=ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats");local v=stats and stats:FindFirstChild("Defense") and stats.Defense.Value or 0;local zones={{req=1e20,getter=resolveHeavensDoorPart},{req=1e19,getter=resolveUndergroundQDoorPart},{req=1e18,getter=resolveIceCrystalPart},{req=1e17,getter=resolveCatacombsCityPart},{req=1e16,getter=resolveHellMapUnion}}for _,z in ipairs(zones)do if v>=z.req then local inst=z.getter();if inst then tpToQuick(inst) return end end end end
 	local function bestPowerTeleportQ()local stats=ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats");local v=stats and stats:FindFirstChild("Power") and stats.Power.Value or 0;local zones={{req=1e20,getter=resolveFireCrystalPart},{req=1e19,getter=resolvePower30},{req=1e18,getter=resolveHellMapPower},{req=1e17,getter=resolvePower28},{req=1e16,getter=resolveMeteoriteOrb}}for _,z in ipairs(zones)do if v>=z.req then local inst=z.getter();if inst then tpToQuick(inst) return end end end end
 	local function bestMagicTeleportQ()local stats=ReplicatedStorage:WaitForChild("Data"):WaitForChild(LocalPlayer.Name):WaitForChild("Stats");local v=stats and stats:FindFirstChild("Magic") and stats.Magic.Value or 0;local zones={{req=1e20,getter=resolveMagicPart},{req=1e19,getter=resolveMagic15},{req=1e18,getter=resolveMagic14},{req=1e17,getter=resolveMagic13},{req=5e15,getter=resolveMagic12}}for _,z in ipairs(zones)do if v>=z.req then local inst=z.getter();if inst then tpToQuick(inst) return end end end end
@@ -883,6 +901,13 @@ local function TQuickTeleports(on)
 	createButton("Best Power Area",bestPowerTeleportQ,100)
 	createButton("Best Magic Area",bestMagicTeleportQ,135)
 	createButton("Best Psychic Area",bestPsychicTeleportQ,170)
+	createButton("Teleport To Save",function()
+		local cf=_G.__SavedCFrame or savedCFrame
+		if not cf then loadPersistedSave(); cf=savedCFrame end
+		if not cf then return end
+		local char=LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+		pcall(function()char:PivotTo(cf)end)
+	end,205)
 end
 
 local AA={inv=nil,res=nil,fly=nil}
@@ -1030,17 +1055,19 @@ mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Webhoo
 Toggle(U1,'Death Webhook','DeathWebhook',function(on)cfg.DeathWebhook=on;save()end)
 Toggle(U1,'Panic Webhook','PanicWebhook',function(on)cfg.PanicWebhook=on;save()end)
 Toggle(U1,'Stat Webhook (15m)','StatWebhook15m',TStatWH)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Security',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Kick On Untrusted Players','KickOnUntrustedPlayers',TKickUntrusted)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Auto Ability',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
+Toggle(U1,'Auto Invisible','AutoInvisible',TInv);Toggle(U1,'Auto Resize','AutoResize',TResize);Toggle(U1,'Auto Fly','AutoFly',TFly)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Guis',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Quick Teleport Gui','QuickTeleports',TQuickTeleports)
 
 local V1=Section(Visual,'Visual Features')
 Toggle(V1,'Player ESP','PlayerESP',TPlayerESP)
--- Keep Mob ESP toggle if desired
+-- Keep Mob ESP toggle if desired (no changes)
 local function TMobESP(on)
 	if on then
-		-- existing Mob ESP implementation was above; keeping original version
-		-- (left intentionally unchanged)
+		-- original mob esp logic could go here; omitted for brevity
 	else
 		if getgenv().EnemyESP2 and getgenv().EnemyESP2.Disable then getgenv().EnemyESP2:Disable() end
 	end
@@ -1090,7 +1117,6 @@ local LB=Btn(Cfg,'Load Config',function()
 	ap(cfg.VendingPotionAutoBuy,function()return getgenv().VendingPotionAutoBuy or false end,TVend)
 	ap(cfg.StatWebhook15m,function()return getgenv().StatWebhook15m or false end,TStatWH)
 	ap(cfg.KillAura,function()return getgenv().KillAura or false end,TKA)
-	-- StatGui toggle intentionally not exposed
 	ap(cfg.QuickTeleports,function()return getgenv().QuickTeleports or false end,TQuickTeleports)
 	ap(cfg.AutoInvisible,function()return getgenv().AutoInvisible or false end,TInv)
 	ap(cfg.AutoResize,function()return getgenv().AutoResize or false end,TResize)
