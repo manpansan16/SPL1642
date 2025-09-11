@@ -1082,7 +1082,7 @@ local function TCombatLog(on)
 		CL.conn=h.HealthChanged:Connect(function(hp)
 			if not getgenv().CombatLog then return end
 			if h.MaxHealth and h.MaxHealth>0 and hp>0 then
-				if hp<=0.10*h.MaxHealth then pcall(function()LP:Kick('Combat Log')end) end
+				if hp<=0.25*h.MaxHealth then pcall(function()LP:Kick('Combat Log')end) end
 			end
 		end)
 	end
