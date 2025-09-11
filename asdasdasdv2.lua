@@ -25,12 +25,19 @@ local cfg={
 	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
 	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,
-	UFASelectedMob='',
+	UFASelectedMobs={},
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
+if type(cfg.UFASelectedMob)=="string" and cfg.UFASelectedMob~="" then
+	cfg.UFASelectedMobs = cfg.UFASelectedMobs or {}
+	cfg.UFASelectedMobs[cfg.UFASelectedMob]=true
+	cfg.UFASelectedMob=nil
+	save()
+end
+cfg.UFASelectedMobs = cfg.UFASelectedMobs or {}
 local targetAttempts={}
 
 -- persistent saved teleport
@@ -535,6 +542,7 @@ local function uniqueMobNames()local seen, list = {}, {}
 	for _,name in pairs(BUCKET_NAME) do if name and name~="" and not seen[name] then seen[name]=true;table.insert(list,name) end end
 	table.sort(list);return list
 end
+local function isMobSelected(name)return cfg.UFASelectedMobs and cfg.UFASelectedMobs[name]==true end
 
 -- Enhanced Player ESP (no GUI)
 local function TPlayerESP(on)
@@ -611,7 +619,8 @@ local function UFA(on)
 			pcall(function()
 				local enemies=workspace:FindFirstChild('Enemies');if not enemies then return end
 				local _,_,hrp=charHum();if not hrp then return end
-				local want=tostring(cfg.UFASelectedMob or '')
+				local hasAny=false;for k,v in pairs(cfg.UFASelectedMobs) do if v then hasAny=true break end end
+				if not hasAny then return end
 				local myPos=hrp.Position
 				local bestPart,bestD=nil,math.huge
 				for _,bucket in ipairs(enemies:GetChildren()) do
@@ -620,14 +629,10 @@ local function UFA(on)
 							local dtag=mob:FindFirstChild('Dead');local alive=(not dtag or dtag.Value~=true)
 							if alive then
 								local targetName=getMobDisplayName(mob)
-								if (want=='' or targetName==want) then
+								if isMobSelected(targetName) then
 									local p=mob:FindFirstChild('HumanoidRootPart')
 									if p then local d=(myPos-p.Position).Magnitude;if d<bestD then bestD=d;bestPart=p end end
 								end
-							end
-						elseif mob:IsA('BasePart') then
-							if want=='' then
-								if mob.Position~=Vector3.new(0,0,0)then local d=(myPos-mob.Position).Magnitude;if d<bestD then bestD=d;bestPart=mob end end
 							end
 						end
 					end
@@ -1071,12 +1076,36 @@ local function TConsumeSuper(on)cfg.AutoConsumeSuper=on;save();getgenv().AutoCon
 local C1=Section(CScroll,'Mob FireBall Aimbot')
 Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
 
--- Mob selection UI for Universal Fireball
-mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Select Mob (Universal Fireball)',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
-local MobSelFrame = mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.Y},C1)
-local MobSelLayout = mk('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},MobSelFrame)
-Btn(MobSelFrame,'All (no filter)',function()cfg.UFASelectedMob='';save()end)
-do local names=uniqueMobNames() for _,name in ipairs(names) do Btn(MobSelFrame,name,function()cfg.UFASelectedMob=name;save()end) end end
+-- Mob selection UI for Universal Fireball (2 columns, multi-select, green selected)
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Select Mobs (Universal Fireball)',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
+local MobGrid = mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.Y},C1)
+local GridLayout = Instance.new('UIGridLayout')
+GridLayout.Parent = MobGrid
+GridLayout.CellPadding = UDim2.new(0,8,0,8)
+GridLayout.CellSize = UDim2.new(0.5,-6,0,32)
+GridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+GridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+local function paint(btn, selected)btn.BackgroundColor3=selected and Color3.fromRGB(40,140,40) or Color3.fromRGB(36,36,48)end
+local function makeMobButton(name)
+	local b=Instance.new('TextButton')
+	b.Name='Mob_'..name
+	b.Size=UDim2.new(0,0,0,32)
+	b.BackgroundColor3=Color3.fromRGB(36,36,48)
+	b.BorderSizePixel=0
+	b.Text=name
+	b.TextColor3=Color3.fromRGB(235,235,245)
+	b.TextScaled=true
+	b.Font=Enum.Font.Gotham
+	local corner=Instance.new('UICorner');corner.CornerRadius=UDim.new(0,8);corner.Parent=b
+	paint(b,isMobSelected(name))
+	b.Parent=MobGrid
+	b.MouseButton1Click:Connect(function()
+		cfg.UFASelectedMobs[name]=not isMobSelected(name)
+		paint(b,isMobSelected(name))
+		save()
+	end)
+end
+do local names=uniqueMobNames() for _,name in ipairs(names) do makeMobButton(name) end end
 
 Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
 Toggle(C1,'FireBall Aimbot City Preset','FireBallAimbotCity',CityAimbot);Slider(C1,'City Fireball Cooldown','cityFireballCooldown',0.05,1.0,0.5,function()end)
