@@ -25,6 +25,7 @@ local cfg={
 	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
 	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,
+	UFASelectedMob='',
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
@@ -97,7 +98,7 @@ local function disableAimbots()
 	end
 end
 
--- death + panic hooks
+-- death + panic hooks (panic under 50% for webhook trigger baseline)
 local lastPanicSentAt,PANIC_THRESHOLD,PANIC_COOLDOWN,REARM=0,0.5,5,0.95
 local function initDeathPanic()
 	local function hook(c)
@@ -511,6 +512,30 @@ local function TUltimate(on)cfg.UltimateAFKOptimization=on;save()
 	S.conn=workspace.DescendantAdded:Connect(simple);S.applied=true
 end
 
+-- Mob name mapping for selection
+local BUCKET_NAME = {
+	["1"]="Goblin",["2"]="Thug",["3"]="Gym Rat",["4"]="Veteran",["5"]="Yakuza",
+	["6"]="Mutant",["7"]="Samurai",["8"]="Ninja",["9"]="Animatronic",
+	["10"]="Catacombs Guard",["11"]="Catacombs Guard",["12"]="Catacombs Guard",
+	["13"]="Demon",["14"]="The Judger",["15"]="Dominator",["16"]="?",["17"]="The Emperor",
+	["18"]="Ancient Gladiator",["19"]="Old Knight",
+}
+local function bucketOf(inst)local root=workspace:FindFirstChild("Enemies");if not root then return nil end;local node=inst
+	while node and node~=root do if node.Parent==root and tonumber(node.Name)~=nil then return node end node=node.Parent end
+	return nil end
+local function getMobDisplayName(model)
+	local b=bucketOf(model);local id=b and b.Name or nil
+	if id and BUCKET_NAME[id] and BUCKET_NAME[id]~="" then return BUCKET_NAME[id] end
+	local hum=model:FindFirstChildOfClass("Humanoid")
+	if hum and hum.DisplayName and hum.DisplayName~="" then return hum.DisplayName end
+	for _,a in ipairs({"EnemyName","DisplayName","NameOverride","MobType","Type"}) do local v=model:GetAttribute(a);if v and tostring(v)~="" then return tostring(v) end end
+	return model.Name
+end
+local function uniqueMobNames()local seen, list = {}, {}
+	for _,name in pairs(BUCKET_NAME) do if name and name~="" and not seen[name] then seen[name]=true;table.insert(list,name) end end
+	table.sort(list);return list
+end
+
 -- Enhanced Player ESP (no GUI)
 local function TPlayerESP(on)
 	cfg.PlayerESP = on
@@ -584,16 +609,30 @@ local function UFA(on)
 	task.spawn(function()
 		while getgenv().UniversalFireBallAimbot do
 			pcall(function()
-				local e=workspace:FindFirstChild('Enemies');if not e then return end
+				local enemies=workspace:FindFirstChild('Enemies');if not enemies then return end
 				local _,_,hrp=charHum();if not hrp then return end
-				local mp,bestD,best=hrp.Position,math.huge,nil
-				for _,b in ipairs(e:GetChildren())do
-					for _,m in ipairs(b:GetChildren())do
-						local p=m:FindFirstChild('HumanoidRootPart');local dtag=m:FindFirstChild('Dead')
-						if p and (not dtag or dtag.Value~=true)then local d=(mp-p.Position).Magnitude;if d<bestD then bestD=d;best=p end end
+				local want=tostring(cfg.UFASelectedMob or '')
+				local myPos=hrp.Position
+				local bestPart,bestD=nil,math.huge
+				for _,bucket in ipairs(enemies:GetChildren()) do
+					for _,mob in ipairs(bucket:GetChildren()) do
+						if mob:IsA('Model') then
+							local dtag=mob:FindFirstChild('Dead');local alive=(not dtag or dtag.Value~=true)
+							if alive then
+								local targetName=getMobDisplayName(mob)
+								if (want=='' or targetName==want) then
+									local p=mob:FindFirstChild('HumanoidRootPart')
+									if p then local d=(myPos-p.Position).Magnitude;if d<bestD then bestD=d;bestPart=p end end
+								end
+							end
+						elseif mob:IsA('BasePart') then
+							if want=='' then
+								if mob.Position~=Vector3.new(0,0,0)then local d=(myPos-mob.Position).Magnitude;if d<bestD then bestD=d;bestPart=mob end end
+							end
+						end
 					end
 				end
-				if best then fireAt(best.Position)end
+				if bestPart then fireAt(bestPart.Position) end
 			end)
 			task.wait(math.max(0.01,tonumber(cfg.universalFireballInterval)or 1.0))
 		end
@@ -1031,6 +1070,14 @@ local function TConsumeSuper(on)cfg.AutoConsumeSuper=on;save();getgenv().AutoCon
 
 local C1=Section(CScroll,'Mob FireBall Aimbot')
 Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
+
+-- Mob selection UI for Universal Fireball
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Select Mob (Universal Fireball)',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
+local MobSelFrame = mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.Y},C1)
+local MobSelLayout = mk('UIListLayout',{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},MobSelFrame)
+Btn(MobSelFrame,'All (no filter)',function()cfg.UFASelectedMob='';save()end)
+do local names=uniqueMobNames() for _,name in ipairs(names) do Btn(MobSelFrame,name,function()cfg.UFASelectedMob=name;save()end) end end
+
 Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
 Toggle(C1,'FireBall Aimbot City Preset','FireBallAimbotCity',CityAimbot);Slider(C1,'City Fireball Cooldown','cityFireballCooldown',0.05,1.0,0.5,function()end)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Panic',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
@@ -1064,10 +1111,9 @@ Toggle(U1,'Quick Teleport Gui','QuickTeleports',TQuickTeleports)
 
 local V1=Section(Visual,'Visual Features')
 Toggle(V1,'Player ESP','PlayerESP',TPlayerESP)
--- Keep Mob ESP toggle if desired (no changes)
 local function TMobESP(on)
 	if on then
-		-- original mob esp logic could go here; omitted for brevity
+		-- (Mob ESP implementation not repeated here)
 	else
 		if getgenv().EnemyESP2 and getgenv().EnemyESP2.Disable then getgenv().EnemyESP2:Disable() end
 	end
