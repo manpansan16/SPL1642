@@ -524,7 +524,7 @@ local BUCKET_NAME = {
 	["1"]="Goblin",["2"]="Thug",["3"]="Gym Rat",["4"]="Veteran",["5"]="Yakuza",
 	["6"]="Mutant",["7"]="Samurai",["8"]="Ninja",["9"]="Animatronic",
 	["10"]="Catacombs Guard",["11"]="Catacombs Guard",["12"]="Catacombs Guard",
-	["13"]="Demon",["14"]="The Judger",["15"]="Dominator",["16"]="Arena",["17"]="The Emperor",
+	["13"]="Demon",["14"]="The Judger",["15"]="Dominator",["16"]="?",["17"]="The Emperor",
 	["18"]="Ancient Gladiator",["19"]="Old Knight",
 }
 local function bucketOf(inst)local root=workspace:FindFirstChild("Enemies");if not root then return nil end;local node=inst
