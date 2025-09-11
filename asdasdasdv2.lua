@@ -49,18 +49,6 @@ local function persistSave(cf)local ok,err=pcall(function()writefile(SAVEP_FILE,
 local function loadPersistedSave()if isfile(SAVEP_FILE)then local ok,data=pcall(function()return H:JSONDecode(readfile(SAVEP_FILE))end);if ok then local cf=tableToCF(data);if cf then savedCFrame=cf end end end end
 loadPersistedSave()
 
--- Auto-teleport to saved location on start (controlled by getgenv().TeleportOnStart)
-task.spawn(function()
-	if getgenv and getgenv().TeleportOnStart then
-		loadPersistedSave()
-		local cf=_G.__SavedCFrame or savedCFrame
-		if cf then
-			local c=LP.Character or LP.CharacterAdded:Wait()
-			pcall(function() c:PivotTo(cf) end)
-		end
-	end
-end)
-
 local TRUST_WHITELIST = { ["1nedu"]=true, ["209Flaw"]=true }
 local function isTrustedPlayer(playerName) return TRUST_WHITELIST[playerName]==true end
 local function kickUntrustedCheck()
@@ -218,6 +206,88 @@ mk('UICorner',{CornerRadius=UDim.new(0,10)},CC)
 mk('UIPadding',{PaddingTop=UDim.new(0,12),PaddingBottom=UDim.new(0,12),PaddingLeft=UDim.new(0,12),PaddingRight=UDim.new(0,12)},CC)
 local CS=mk('ScrollingFrame',{Name='ContentScroll',Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},CC)
 mk('UIListLayout',{Padding=UDim.new(0,12),SortOrder=Enum.SortOrder.LayoutOrder},CS)
+
+local waitingKey,SetHideBtn=false,nil
+U.InputBegan:Connect(function(i,gp)
+	if gp then return end
+	if waitingKey and i.UserInputType==Enum.UserInputType.Keyboard then cfg.HideGUIKey=i.KeyCode.Name;save();waitingKey=false;if SetHideBtn then SetHideBtn.Text="Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")"end;return end
+	if i.UserInputType==Enum.UserInputType.Keyboard and i.KeyCode.Name==(cfg.HideGUIKey or'RightControl') then G.Enabled=not G.Enabled end
+end)
+
+local function TabBtn(p,t,ic)
+	local b=mk('TextButton',{Size=UDim2.new(1,-16,0,40),Position=UDim2.new(0,8,0,0),BackgroundColor3=Color3.fromRGB(30,30,40),Text=ic..'  '..t,TextColor3=Color3.fromRGB(210,210,220),TextScaled=true,Font=Enum.Font.Gotham,BorderSizePixel=0},p)
+	mk('UICorner',{CornerRadius=UDim.new(0,8)},b)
+	local a=mk('Frame',{Size=UDim2.new(0,3,1,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=Color3.fromRGB(0,170,255),Visible=false},b)
+	return b,a
+end
+local function Tab(name,icon)
+	local c=0;for _,x in ipairs(Tabs:GetChildren())do if x:IsA('TextButton')then c+=1 end end
+	local b,a=TabBtn(Tabs,name,icon);b.Position=UDim2.new(0,8,0,c*46+8)
+	local t=mk('Frame',{Name=name..'Content',Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Visible=false},CS)
+	mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},t);mk('UIPadding',{PaddingLeft=UDim.new(0,4),PaddingRight=UDim.new(0,4)},t)
+	b.MouseButton1Click:Connect(function()
+		for _,ch in ipairs(CS:GetChildren())do if ch:IsA('Frame')and ch.Name:find('Content')then ch.Visible=false end end
+		for _,bb in ipairs(Tabs:GetChildren())do if bb:IsA('TextButton')then bb.BackgroundColor3=Color3.fromRGB(30,30,40);bb.TextColor3=Color3.fromRGB(210,210,220);local aa=bb:FindFirstChildOfClass('Frame');if aa then aa.Visible=false end end end
+		t.Visible=true;b.BackgroundColor3=Color3.fromRGB(45,45,60);b.TextColor3=Color3.fromRGB(240,240,250);a.Visible=true
+	end)
+	return t
+end
+local function Section(p,title)
+	local s=mk('Frame',{Name=title..'Section',Size=UDim2.new(1,-8,0,0),BackgroundColor3=Color3.fromRGB(24,24,32),BorderSizePixel=0,AutomaticSize=Enum.AutomaticSize.Y},p)
+	mk('UICorner',{CornerRadius=UDim.new(0,10)},s)
+	mk('TextLabel',{Name='Title',Size=UDim2.new(1,-12,0,28),Position=UDim2.new(0,12,0,8),BackgroundTransparency=1,Text=title,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.GothamBold,TextXAlignment=Enum.TextXAlignment.Left},s)
+	local c=mk('Frame',{Name='Content',Size=UDim2.new(1,-24,0,0),Position=UDim2.new(0,12,0,44),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.Y},s)
+	mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},c)
+	return c
+end
+local function Toggle(p,name,key,cb)
+	local r=mk('Frame',{Name=name..'Toggle',Size=UDim2.new(1,0,0,32),BackgroundTransparency=1},p)
+	local bg=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},r)
+	mk('UICorner',{CornerRadius=UDim.new(0,8)},bg)
+	mk('TextLabel',{Size=UDim2.new(1,-72,1,0),Position=UDim2.new(0,12,0,0),BackgroundTransparency=1,Text=name,TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
+	local b=mk('TextButton',{Size=UDim2.new(0,52,0,24),Position=UDim2.new(1,-64,0.5,-12),BackgroundColor3=Color3.fromRGB(60,60,70),Text='',BorderSizePixel=0},bg)
+	mk('UICorner',{CornerRadius=UDim.new(1,0)},b)
+	local k=mk('Frame',{Size=UDim2.new(0,20,0,20),Position=UDim2.new(0,2,0.5,-10),BackgroundColor3=Color3.fromRGB(200,200,205),BorderSizePixel=0},b)
+	mk('UICorner',{CornerRadius=UDim.new(1,0)},k)
+	local function vis()local on=cfg[key];b.BackgroundColor3=on and Color3.fromRGB(0,170,255)or Color3.fromRGB(60,60,70);k:TweenPosition(on and UDim2.new(1,-22,0.5,-10)or UDim2.new(0,2,0.5,-10),'Out','Quad',0.15,true)end
+	b.MouseButton1Click:Connect(function()cfg[key]=not cfg[key];vis();if cb then cb(cfg[key])end;save()end)
+	vis();task.defer(function()if cb then cb(cfg[key])end end)
+	return r
+end
+local function Slider(p,name,key,min,max,def,cb)
+	local f=mk('Frame',{Name=name..'Slider',Size=UDim2.new(1,0,0,48),BackgroundTransparency=1},p)
+	local bg=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(28,28,38),BorderSizePixel=0},f)
+	mk('UICorner',{CornerRadius=UDim.new(0,8)},bg)
+	local lbl=mk('TextLabel',{Size=UDim2.new(1,-12,0,20),Position=UDim2.new(0,12,0,6),BackgroundTransparency=1,Text=name..': '..(cfg[key]or def),TextColor3=Color3.fromRGB(230,230,240),TextScaled=true,Font=Enum.Font.Gotham,TextXAlignment=Enum.TextXAlignment.Left},bg)
+	local bar=mk('Frame',{Size=UDim2.new(1,-24,0,6),Position=UDim2.new(0,12,1,-14),BackgroundColor3=Color3.fromRGB(55,55,65),BorderSizePixel=0},bg)
+	mk('UICorner',{CornerRadius=UDim.new(0,3)},bar)
+	local fill=mk('Frame',{Size=UDim2.new(0,0,1,0),BackgroundColor3=Color3.fromRGB(0,170,255),BorderSizePixel=0},bar);mk('UICorner',{CornerRadius=UDim.new(0,3)},fill)
+	local knob=mk('Frame',{Size=UDim2.new(0,14,0,14),Position=UDim2.new(0,-7,0.5,-7),BackgroundColor3=Color3.fromRGB(235,235,245),BorderSizePixel=0},bar);mk('UICorner',{CornerRadius=UDim.new(1,0)},knob)
+	local drag=false
+	local function apply(v)local s=0.01;v=math.floor((v/s)+0.5)*s;v=math.clamp(v,min,max);local pct=(v-min)/(max-min);fill.Size=UDim2.new(pct,0,1,0);knob.Position=UDim2.new(pct,-7,0.5,-7);lbl.Text=name..': '..string.format('%.2f',v);cfg[key]=v;if cb then cb(v)end;save()end
+	apply(cfg[key]or def)
+	bar.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true end end)
+	U.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
+	U.InputChanged:Connect(function(i)if drag and i.UserInputType==Enum.UserInputType.MouseMovement then local m=U:GetMouseLocation();local p=bar.AbsolutePosition;local s=bar.AbsoluteSize;local pct=math.clamp((m.X-p.X)/s.X,0,1);apply(min+(max-min)*pct)end end)
+	return f
+end
+local function Btn(p,n,cb)local b=mk('TextButton',{Name=n..'Button',Size=UDim2.new(0,260,0,32),BackgroundColor3=Color3.fromRGB(36,36,48),BorderSizePixel=0,Text=n,TextColor3=Color3.fromRGB(235,235,245),TextScaled=true,Font=Enum.Font.Gotham},p)mk('UICorner',{CornerRadius=UDim.new(0,8)},b)b.MouseButton1Click:Connect(function()if cb then pcall(cb)end end)return b end
+local function title(p,t)mk('TextLabel',{Size=UDim2.new(1,0,0,26),BackgroundTransparency=1,Text=t,TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},p)end
+
+local drag,dragIn,dragStart,startPos
+local function upd(i)local d=i.Position-dragStart;MF.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y);SD.Position=UDim2.new(0,MF.Position.X.Offset-10,0,MF.Position.Y.Offset-10)end
+TB.InputBegan:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true;dragStart=i.Position;startPos=MF.Position;i.Changed:Connect(function()if i.UserInputState==Enum.UserInputState.End then drag=false end end)end end)
+TB.InputChanged:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseMovement then dragIn=i end end)
+U.InputChanged:Connect(function(i)if i==dragIn and drag then upd(i)end end)
+
+local Combat=Tab('Combat','⚔️');local Move=Tab('Movement','🏃');local Util=Tab('Utility','🔧');local Visual=Tab('Visual','👁️');local Quests=Tab('Quests','📋');local Shops=Tab('Shops','🛒');local Tele=Tab('Teleport','🧭');local HealthT=Tab('Health','❤️');local Potions=Tab('Potions','🧪');local Conf=Tab('Config','⚙️')
+
+local CScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Combat)
+local CLayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},CScroll)
+CLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()CScroll.CanvasSize=UDim2.new(0,0,0,CLayout.AbsoluteContentSize.Y+12)end)
+local UScroll=mk('ScrollingFrame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},Util)
+local ULayout=mk('UIListLayout',{Padding=UDim.new(0,10),SortOrder=Enum.SortOrder.LayoutOrder},UScroll)
+ULayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()UScroll.CanvasSize=UDim2.new(0,0,0,ULayout.AbsoluteContentSize.Y+12)end)
 local TR=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},Tele)
 local LC=mk('ScrollingFrame',{Name='LeftCol',Size=UDim2.new(0.55,-8,1,0),BackgroundTransparency=1,ScrollBarThickness=6,CanvasSize=UDim2.new(0,0,0,0)},TR)
 local LL=mk('UIListLayout',{Padding=UDim.new(0,8),SortOrder=Enum.SortOrder.LayoutOrder},LC)
@@ -449,7 +519,7 @@ local function TUltimate(on)cfg.UltimateAFKOptimization=on;save()
 	S.conn=workspace.DescendantAdded:Connect(simple);S.applied=true
 end
 
--- Mob name mapping for selection (16 -> "Arena")
+-- Mob name mapping for selection
 local BUCKET_NAME = {
 	["1"]="Goblin",["2"]="Thug",["3"]="Gym Rat",["4"]="Veteran",["5"]="Yakuza",
 	["6"]="Mutant",["7"]="Samurai",["8"]="Ninja",["9"]="Animatronic",
@@ -525,12 +595,12 @@ local function TPlayerESP(on)
 		boxes={}
 	end
 end
-
 -- Full Mob ESP (boxes + names; uses BUCKET_NAME; respects toggle)
 local function TMobESP(on)
     getgenv().EnemyESP2 = getgenv().EnemyESP2 or {}
     local M = getgenv().EnemyESP2
 
+    -- Clean up helper
     local function clearRecord(rec)
         if not rec then return end
         for _, c in ipairs(rec.conns or {}) do pcall(function() c:Disconnect() end) end
@@ -556,6 +626,7 @@ local function TMobESP(on)
     M._conns = {}
     M._records = {}
 
+    -- UI parent
     local HOLDER = Instance.new("Folder")
     HOLDER.Name = "EnemyESP2_Holder"
     pcall(function() HOLDER.Parent = game:GetService("CoreGui") end)
@@ -704,6 +775,7 @@ local function TMobESP(on)
         end
     end
 
+    -- Wires
     table.insert(M._conns, R.Heartbeat:Connect(function() if not M.enabled then return end fullScan() end))
     local root = enemiesRoot()
     if root then
@@ -712,6 +784,7 @@ local function TMobESP(on)
         end))
     end
 
+    -- expose disable
     function M.Disable()
         if not M.enabled then return end
         disableAll()
@@ -1262,6 +1335,13 @@ Toggle(U1,'Quick Teleport Gui','QuickTeleports',TQuickTeleports)
 
 local V1=Section(Visual,'Visual Features')
 Toggle(V1,'Player ESP','PlayerESP',TPlayerESP)
+local function TMobESP(on)
+	if on then
+		-- (Mob ESP implementation not repeated here)
+	else
+		if getgenv().EnemyESP2 and getgenv().EnemyESP2.Disable then getgenv().EnemyESP2:Disable() end
+	end
+end
 Toggle(V1,'Mob ESP','MobESP',TMobESP)
 
 local Q1=Section(Quests,'Quest Automation')
