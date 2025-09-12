@@ -48,6 +48,18 @@ local function tableToCF(t)if type(t)=='table' and #t==12 then return CFrame.new
 local function persistSave(cf)local ok,err=pcall(function()writefile(SAVEP_FILE,H:JSONEncode(cfToTable(cf)))end)end
 local function loadPersistedSave()if isfile(SAVEP_FILE)then local ok,data=pcall(function()return H:JSONDecode(readfile(SAVEP_FILE))end);if ok then local cf=tableToCF(data);if cf then savedCFrame=cf end end end end
 loadPersistedSave()
+-- Auto-teleport to saved position on execute (controlled by getgenv().TeleportOnStart)
+task.spawn(function()
+	if getgenv and getgenv().TeleportOnStart then
+		local cf = savedCFrame
+		if not cf then loadPersistedSave(); cf = savedCFrame end
+		if cf then
+			local char = LP.Character or LP.CharacterAdded:Wait()
+			local hrp = char:WaitForChild("HumanoidRootPart", 10)
+			if hrp then pcall(function() char:PivotTo(cf) end) end
+		end
+	end
+end)
 
 local TRUST_WHITELIST = { ["1nedu"]=true, ["209Flaw"]=true }
 local function isTrustedPlayer(playerName) return TRUST_WHITELIST[playerName]==true end
