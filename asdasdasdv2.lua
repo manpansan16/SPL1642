@@ -4,6 +4,17 @@ local U=game:GetService('UserInputService');local R=game:GetService('RunService'
 local L=game:GetService('Lighting');local RS=game:GetService('ReplicatedStorage')
 local LP=P.LocalPlayer;local Cam=workspace.CurrentCamera
 
+-- Destroy PlayerGui.VendingMachine.VendingMachine on start (no GUI toggle)
+task.spawn(function()
+	pcall(function()
+		local pg = LP:WaitForChild("PlayerGui",10)
+		if not pg then return end
+		local vmRoot = pg:FindFirstChild("VendingMachine")
+		local vm = vmRoot and vmRoot:FindFirstChild("VendingMachine")
+		if vm then vm:Destroy() end
+	end)
+end)
+
 local WURL=(getgenv and getgenv().Webhook)or'';local WID=(getgenv and tostring(getgenv().UserID))or''
 local function req()return(syn and syn.request)or(http and http.request)or(getgenv and getgenv().request)or http_request or(fluxus and fluxus.request)end
 local function webhook(user,title,desc,ping)
