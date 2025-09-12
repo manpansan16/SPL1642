@@ -1146,41 +1146,91 @@ local function TAnim(on)cfg.AutoAnimatronicsSideTask=on;save();if on then sideLo
 local function TMut(on)cfg.AutoMutantsSideTask=on;save();if on then sideLoop('AutoMutantsSideTask','AutoMutantsSideTask',7)else getgenv().AutoMutantsSideTask=false end end
 
 local function TDualExotic(on)
-	cfg.DualExoticShop=on;save();getgenv().DualExoticShop=on;if not on then return end
+	cfg.DualExoticShop=on;save();getgenv().DualExoticShop=on
+	if not on then return end
+
 	task.spawn(function()
-		local function base(p)if not p then return nil end;if p:IsA('BasePart')then return p end;if p:IsA('Model')then return p:FindFirstChildWhichIsA('BasePart')end end
 		task.wait(10)
-		while getgenv().DualExoticShop do
-			pcall(function()
-				local _,h,hrp=charHum();if not hrp or(h and h.Health<=0)then return end
-				local spent=RS:WaitForChild('Events'):WaitForChild('Spent')
-				local r1=spent:WaitForChild('BuyExotic')
-				local r2=RS:WaitForChild('Events'):WaitForChild('GiveItemRequest2')
-				local r2Old=spent:WaitForChild('BuyExotic2')
-				local fr=LP.PlayerGui:WaitForChild('Frames')
-				local g1=fr:WaitForChild('ExoticStore')
-				local g2=fr:WaitForChild('ExoticStore2')
-				local p1=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore'):WaitForChild('1'))
-				local p2=base(workspace:WaitForChild('Pads'):WaitForChild('ExoticStore2'):WaitForChild('1'))
-				local function buy(ui,remote,isStore2)
-					local list=ui and ui:FindFirstChild('Content')and ui.Content:FindFirstChild('ExoticList');if not list then return end
-					for _,v in pairs(list:GetChildren())do
-						local i=v:FindFirstChild('Info');local i2=i and i:FindFirstChild('Info')
-						if i2 and i2.Text=='POTION' then
-							local n=tonumber(v.Name:match('%d+'))
-							if n then
-								pcall(function()remote:FireServer(n)end)
-								if isStore2 then pcall(function()r2Old:FireServer(n)end) end
-								task.wait(0.1)
-							end
+
+		local player = LP
+		local character = player.Character or player.CharacterAdded:Wait()
+		local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+		player.CharacterAdded:Connect(function(newCharacter)
+			character = newCharacter
+			humanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart")
+		end)
+
+		local remote1 = RS:WaitForChild("Events"):WaitForChild("Spent"):WaitForChild("BuyExotic")
+		local remote2 = RS:WaitForChild("Events"):WaitForChild("GiveItemRequest2")
+		local remote2Old = RS:WaitForChild("Events"):WaitForChild("Spent"):WaitForChild("BuyExotic2")
+
+		local guiFolder = player.PlayerGui:WaitForChild("Frames")
+		local gui1 = guiFolder:WaitForChild("ExoticStore")
+		local gui2 = guiFolder:WaitForChild("ExoticStore2")
+
+		local function getPadPart(padModel)
+			if not padModel then return nil end
+			if padModel:IsA("BasePart") then return padModel end
+			if padModel:IsA("Model") then return padModel:FindFirstChildWhichIsA("BasePart") end
+			return nil
+		end
+
+		local pad1 = getPadPart(workspace.Pads.ExoticStore["1"])
+		local pad2 = getPadPart(workspace.Pads.ExoticStore2["1"])
+
+		local function buyPotions(shopFrame, remote, isExoticStore2)
+			if not shopFrame or not remote then return end
+			local content = shopFrame:FindFirstChild("Content")
+			local list = content and content:FindFirstChild("ExoticList")
+			if not list then return end
+
+			for _, v in pairs(list:GetChildren()) do
+				local info = v:FindFirstChild("Info")
+				local info2 = info and info:FindFirstChild("Info")
+				if info2 and info2.Text == "POTION" then
+					local itemNumber = tonumber(string.match(v.Name, "%d+"))
+					if itemNumber then
+						task.wait(0.1)
+						pcall(function() remote:FireServer(itemNumber) end)
+						if isExoticStore2 then
+							pcall(function() remote2Old:FireServer(itemNumber) end)
 						end
 					end
 				end
-				local orig=hrp.CFrame
-				if p1 then hrp.CFrame=p1.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g1,r1,false);hrp.CFrame=orig;task.wait(2)end
-				if p2 then hrp.CFrame=p2.CFrame+Vector3.new(0,3,0);task.wait(2);buy(g2,r2,true);hrp.CFrame=orig;task.wait(2)end
+			end
+		end
+
+		local function safeTeleport(targetCFrame)
+			if not humanoidRootPart or not humanoidRootPart.Parent then return false end
+			humanoidRootPart.CFrame = targetCFrame + Vector3.new(0, 3, 0)
+			task.wait(3)
+			return true
+		end
+
+		while getgenv().DualExoticShop do
+			local success = pcall(function()
+				local originalCFrame = humanoidRootPart.CFrame
+
+				if pad1 and gui1 and remote1 and safeTeleport(pad1.CFrame) then
+					buyPotions(gui1, remote1, false)
+					humanoidRootPart.CFrame = originalCFrame
+					task.wait(3)
+				end
+
+				if pad2 and gui2 and remote2 and safeTeleport(pad2.CFrame) then
+					buyPotions(gui2, remote2, true)
+					humanoidRootPart.CFrame = originalCFrame
+					task.wait(3)
+				end
 			end)
-			for i=1,600 do if not getgenv().DualExoticShop then break end task.wait(1)end
+
+			if not success then task.wait(30) end
+
+			for i=1,1200 do
+				if not getgenv().DualExoticShop then break end
+				task.wait(1)
+			end
 		end
 	end)
 end
