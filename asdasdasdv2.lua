@@ -601,200 +601,178 @@ local function TPlayerESP(on)
 		boxes={}
 	end
 end
--- Full Mob ESP (boxes + names; uses BUCKET_NAME; respects toggle)
+-- Full Mob ESP (boxes + names; smaller visuals; uses BUCKET_NAME/getMobDisplayName)
 local function TMobESP(on)
-    getgenv().EnemyESP2 = getgenv().EnemyESP2 or {}
-    local M = getgenv().EnemyESP2
+	getgenv().EnemyESP2 = getgenv().EnemyESP2 or {enabled=false,_conns={},_records={}}
+	local M = getgenv().EnemyESP2
 
-    -- Clean up helper
-    local function clearRecord(rec)
-        if not rec then return end
-        for _, c in ipairs(rec.conns or {}) do pcall(function() c:Disconnect() end) end
-        if rec.box then pcall(function() rec.box:Destroy() end) end
-        if rec.bill then pcall(function() rec.bill:Destroy() end) end
-    end
-    local function disableAll()
-        for _, rec in pairs(M._records or {}) do clearRecord(rec) end
-        if M.HOLDER then pcall(function() M.HOLDER:Destroy() end) end
-        for _, c in ipairs(M._conns or {}) do pcall(function() c:Disconnect() end) end
-        M._records = {}
-        M._conns = {}
-        M.enabled = false
-    end
+	local function clearRecord(rec)
+		if not rec then return end
+		for _, c in ipairs(rec.conns or {}) do pcall(function() c:Disconnect() end) end
+		if rec.box then pcall(function() rec.box:Destroy() end) end
+		if rec.bill then pcall(function() rec.bill:Destroy() end) end
+	end
+	local function disableAll()
+		for _, rec in pairs(M._records or {}) do clearRecord(rec) end
+		if M.HOLDER then pcall(function() M.HOLDER:Destroy() end) end
+		for _, c in ipairs(M._conns or {}) do pcall(function() c:Disconnect() end) end
+		M._records, M._conns, M.enabled = {}, {}, false
+	end
+	if not on then if M.enabled then disableAll() end return end
+	if M.enabled then return end
+	M.enabled, M._conns, M._records = true, {}, {}
 
-    if not on then
-        if M and M.enabled then disableAll() end
-        return
-    end
+	local function ensureHolder()
+		if M.HOLDER and M.HOLDER.Parent then return end
+		local h = Instance.new("Folder")
+		h.Name = "EnemyESP2_Holder"
+		pcall(function() h.Parent = game:GetService("CoreGui") end)
+		if not h.Parent then h.Parent = LP:WaitForChild("PlayerGui") end
+		M.HOLDER = h
+	end
+	ensureHolder()
 
-    if M.enabled then return end
-    M.enabled = true
-    M._conns = {}
-    M._records = {}
+	local function enemiesRoot() return workspace:FindFirstChild("Enemies") end
 
-    -- UI parent
-    local HOLDER = Instance.new("Folder")
-    HOLDER.Name = "EnemyESP2_Holder"
-    pcall(function() HOLDER.Parent = game:GetService("CoreGui") end)
-    if not HOLDER.Parent then
-        HOLDER.Parent = LP:WaitForChild("PlayerGui")
-    end
-    M.HOLDER = HOLDER
+	local CATACOMBS_IDS = { ["10"]=true, ["11"]=true, ["12"]=true }
+	local CATACOMBS_COLOR = Color3.fromRGB(0,255,140)
+	local function colorForBucketName(id)
+		id = tostring(id or "")
+		if CATACOMBS_IDS[id] then return CATACOMBS_COLOR end
+		local n = tonumber(id) or 0
+		return Color3.fromHSV((n % 12)/12, 0.85, 1)
+	end
 
-    local function enemiesRoot() return workspace:FindFirstChild("Enemies") end
+	local WEAPON_HINTS = {"weapon","sword","blade","gun","bow","staff","club","knife","axe","mace","spear"}
+	local function looksLikeWeapon(name)
+		name = string.lower(tostring(name or ""))
+		for _, w in ipairs(WEAPON_HINTS) do if string.find(name, w, 1, true) then return true end end
+		return false
+	end
+	local function isAccessoryPart(p)
+		while p and p.Parent do if p:IsA("Accessory") then return true end p = p.Parent end
+		return false
+	end
+	local function pickBodyPart(model)
+		for _, n in ipairs({"HumanoidRootPart","UpperTorso","LowerTorso","Torso","Head"}) do
+			local p = model:FindFirstChild(n)
+			if p and p:IsA("BasePart") then return p end
+		end
+		if model.PrimaryPart and model.PrimaryPart:IsA("BasePart") then return model.PrimaryPart end
+		local best, score = nil, -1
+		for _, p in ipairs(model:GetDescendants()) do
+			if p:IsA("BasePart") and p.Parent and not isAccessoryPart(p) and not looksLikeWeapon(p.Name) and p.Transparency < 1 then
+				local s = p.Size; local sc = s.X*s.Y*s.Z
+				if sc > score then best, score = p, sc end
+			end
+		end
+		return best or model:FindFirstChildWhichIsA("BasePart", true)
+	end
 
-    local CATACOMBS_IDS = { ["10"]=true, ["11"]=true, ["12"]=true }
-    local CATACOMBS_COLOR = Color3.fromRGB(0, 255, 140)
+	local function makeBox(part, col)
+		local box = Instance.new("BoxHandleAdornment")
+		box.Name = "EnemyESP2_Box"
+		box.ZIndex = 5
+		box.Color3 = col
+		box.AlwaysOnTop = true
+		box.Adornee = part
+		box.Transparency = 0.25
+		-- Smaller than the part for a tighter look
+		box.Size = part.Size * 0.8
+		box.Parent = M.HOLDER
+		return box
+	end
+	local function makeBill(part, text, col)
+		local bill = Instance.new("BillboardGui")
+		bill.Name = "EnemyESP2_Label"
+		bill.Adornee = part
+		bill.AlwaysOnTop = true
+		-- Smaller label
+		bill.Size = UDim2.new(0, 140, 0, 18)
+		bill.StudsOffset = Vector3.new(0, 2.5, 0)
+		bill.MaxDistance = 1e6
+		bill.Parent = M.HOLDER
 
-    local function colorForBucketName(id)
-        id = tostring(id or "")
-        if CATACOMBS_IDS[id] then
-            return CATACOMBS_COLOR
-        end
-        local n = tonumber(id) or 0
-        local hue = (n % 12) / 12
-        return Color3.fromHSV(hue, 0.85, 1)
-    end
+		local tl = Instance.new("TextLabel")
+		tl.BackgroundTransparency = 1
+		tl.Size = UDim2.new(1, 0, 1, 0)
+		tl.Font = Enum.Font.GothamBold
+		tl.TextSize = 12
+		tl.TextColor3 = col
+		tl.TextStrokeTransparency = 0.3
+		tl.Text = text
+		tl.Parent = bill
+		return bill, tl
+	end
 
-    local WEAPON_HINTS = {"weapon","sword","blade","gun","bow","staff","club","knife","axe","mace","spear"}
-    local function looksLikeWeapon(name)
-        name = string.lower(tostring(name or ""))
-        for _, w in ipairs(WEAPON_HINTS) do
-            if string.find(name, w, 1, true) then return true end
-        end
-        return false
-    end
-    local function isAccessoryPart(p)
-        while p and p.Parent do
-            if p:IsA("Accessory") then return true end
-            p = p.Parent
-        end
-        return false
-    end
-    local function pickBodyPart(model)
-        for _, n in ipairs({"HumanoidRootPart","UpperTorso","LowerTorso","Torso","Head"}) do
-            local p = model:FindFirstChild(n)
-            if p and p:IsA("BasePart") then return p end
-        end
-        if model.PrimaryPart and model.PrimaryPart:IsA("BasePart") then return model.PrimaryPart end
-        local best, score = nil, -1
-        for _, p in ipairs(model:GetDescendants()) do
-            if p:IsA("BasePart") and p.Parent then
-                if not isAccessoryPart(p) and not looksLikeWeapon(p.Name) and p.Transparency < 1 then
-                    local s = p.Size; local sc = s.X*s.Y*s.Z
-                    if sc > score then best, score = p, sc end
-                end
-            end
-        end
-        return best or model:FindFirstChildWhichIsA("BasePart", true)
-    end
+	local function attachToModel(model)
+		if M._records[model] then return end
+		if P:GetPlayerFromCharacter(model) then return end
+		local b = bucketOf(model); if not b then return end
 
-    local function makeBox(part, col)
-        local box = Instance.new("BoxHandleAdornment")
-        box.Name = "EnemyESP2_Box"
-        box.ZIndex = 5
-        box.Color3 = col
-        box.AlwaysOnTop = true
-        box.Adornee = part
-        box.Transparency = 0.2
-        box.Size = part.Size + Vector3.new(0.2,0.2,0.2)
-        box.Parent = HOLDER
-        return box
-    end
-    local function makeBill(part, text, col)
-        local bill = Instance.new("BillboardGui")
-        bill.Name = "EnemyESP2_Label"
-        bill.Adornee = part
-        bill.AlwaysOnTop = true
-        bill.Size = UDim2.new(0, 170, 0, 22)
-        bill.StudsOffset = Vector3.new(0, 3, 0)
-        bill.MaxDistance = 1e6
-        bill.Parent = HOLDER
+		local part = pickBodyPart(model); if not part then return end
+		local id = b.Name
+		local col = colorForBucketName(id)
+		local label = getMobDisplayName(model)
 
-        local tl = Instance.new("TextLabel")
-        tl.BackgroundTransparency = 1
-        tl.Size = UDim2.new(1, 0, 1, 0)
-        tl.Font = Enum.Font.GothamBold
-        tl.TextSize = 14
-        tl.TextColor3 = col
-        tl.TextStrokeTransparency = 0.3
-        tl.Text = text
-        tl.Parent = bill
-        return bill, tl
-    end
+		local box = makeBox(part, col)
+		local bill, billLabel = makeBill(part, label, col)
 
-    local function attachToModel(model)
-        if M._records[model] then return end
-        if P:GetPlayerFromCharacter(model) then return end
-        local b = bucketOf(model); if not b then return end
+		local rec = {box=box, bill=bill, billLabel=billLabel, part=part, conns={}}
+		M._records[model] = rec
 
-        local part = pickBodyPart(model); if not part then return end
-        local id = b.Name
-        local col = colorForBucketName(id)
-        local label = getMobDisplayName(model)
+		table.insert(rec.conns, part:GetPropertyChangedSignal("Size"):Connect(function()
+			if rec.box then rec.box.Size = part.Size * 0.8 end
+		end))
+		table.insert(rec.conns, model.DescendantAdded:Connect(function(inst)
+			if inst:IsA("BasePart") then
+				local better = pickBodyPart(model)
+				if better and better ~= rec.part then
+					rec.part = better
+					if rec.box then rec.box.Adornee = better end
+					if rec.bill then rec.bill.Adornee = better end
+				end
+			end
+		end))
+		local function refreshName()
+			if rec.billLabel then rec.billLabel.Text = getMobDisplayName(model) end
+		end
+		local hum = model:FindFirstChildOfClass("Humanoid")
+		if hum then table.insert(rec.conns, hum:GetPropertyChangedSignal("DisplayName"):Connect(refreshName)) end
+		for _, a in ipairs({"EnemyName","DisplayName","NameOverride","MobType","Type"}) do
+			table.insert(rec.conns, model:GetAttributeChangedSignal(a):Connect(refreshName))
+		end
+		table.insert(rec.conns, model.AncestryChanged:Connect(function(_, parent)
+			if parent == nil then
+				clearRecord(rec)
+				M._records[model] = nil
+			end
+		end))
+	end
 
-        local box = makeBox(part, col)
-        local bill, billLabel = makeBill(part, label, col)
+	local function fullScan()
+		local root = enemiesRoot(); if not root then return end
+		for _, bucket in ipairs(root:GetChildren()) do
+			if tonumber(bucket.Name) ~= nil then
+				for _, inst in ipairs(bucket:GetDescendants()) do
+					if inst:IsA("Model") then attachToModel(inst) end
+				end
+			end
+		end
+	end
 
-        local rec = {box=box, bill=bill, billLabel=billLabel, part=part, conns={}}
-        M._records[model] = rec
+	table.insert(M._conns, R.Heartbeat:Connect(function() if not M.enabled then return end fullScan() end))
+	local root = enemiesRoot()
+	if root then
+		table.insert(M._conns, root.DescendantAdded:Connect(function(inst)
+			if inst:IsA("Model") then task.defer(function() attachToModel(inst) end) end
+		end))
+	end
 
-        table.insert(rec.conns, part:GetPropertyChangedSignal("Size"):Connect(function()
-            if rec.box then rec.box.Size = part.Size + Vector3.new(0.2,0.2,0.2) end
-        end))
-        table.insert(rec.conns, model.DescendantAdded:Connect(function(inst)
-            if inst:IsA("BasePart") then
-                local better = pickBodyPart(model)
-                if better and better ~= rec.part then
-                    rec.part = better
-                    if rec.box then rec.box.Adornee = better end
-                    if rec.bill then rec.bill.Adornee = better end
-                end
-            end
-        end))
-        local function refreshName()
-            if rec.billLabel then rec.billLabel.Text = getMobDisplayName(model) end
-        end
-        local hum = model:FindFirstChildOfClass("Humanoid")
-        if hum then
-            table.insert(rec.conns, hum:GetPropertyChangedSignal("DisplayName"):Connect(refreshName))
-        end
-        for _, a in ipairs({"EnemyName","DisplayName","NameOverride","MobType","Type"}) do
-            table.insert(rec.conns, model:GetAttributeChangedSignal(a):Connect(refreshName))
-        end
-        table.insert(rec.conns, model.AncestryChanged:Connect(function(_, parent)
-            if parent == nil then
-                clearRecord(rec)
-                M._records[model] = nil
-            end
-        end))
-    end
-
-    local function fullScan()
-        local root = enemiesRoot(); if not root then return end
-        for _, bucket in ipairs(root:GetChildren()) do
-            if tonumber(bucket.Name) ~= nil then
-                for _, inst in ipairs(bucket:GetDescendants()) do
-                    if inst:IsA("Model") then attachToModel(inst) end
-                end
-            end
-        end
-    end
-
-    -- Wires
-    table.insert(M._conns, R.Heartbeat:Connect(function() if not M.enabled then return end fullScan() end))
-    local root = enemiesRoot()
-    if root then
-        table.insert(M._conns, root.DescendantAdded:Connect(function(inst)
-            if inst:IsA("Model") then task.defer(function() attachToModel(inst) end) end
-        end))
-    end
-
-    -- expose disable
-    function M.Disable()
-        if not M.enabled then return end
-        disableAll()
-    end
+	function M.Disable()
+		if not M.enabled then return end
+		disableAll()
+	end
 end
 
 local function RemoveClutter()
@@ -1346,13 +1324,6 @@ Toggle(U1,'Quick Teleport Gui','QuickTeleports',TQuickTeleports)
 
 local V1=Section(Visual,'Visual Features')
 Toggle(V1,'Player ESP','PlayerESP',TPlayerESP)
-local function TMobESP(on)
-	if on then
-		-- (Mob ESP implementation not repeated here)
-	else
-		if getgenv().EnemyESP2 and getgenv().EnemyESP2.Disable then getgenv().EnemyESP2:Disable() end
-	end
-end
 Toggle(V1,'Mob ESP','MobESP',TMobESP)
 
 local Q1=Section(Quests,'Quest Automation')
