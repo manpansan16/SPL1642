@@ -573,57 +573,132 @@ local function uniqueMobNames()local seen, list = {}, {}
 end
 local function isMobSelected(name)return cfg.UFASelectedMobs and cfg.UFASelectedMobs[name]==true end
 
--- Enhanced Player ESP (no GUI)
+-- Player ESP (Drawing) with robust cleanup
 local function TPlayerESP(on)
 	cfg.PlayerESP = on
 	if not Drawing then return end
-	if getgenv().__PESP then getgenv().__PESP:Disconnect(); getgenv().__PESP=nil end
-	local boxes={}
-	local function formatNumber(num)local absNum=math.abs(num)if absNum==0 then return "Concealed" elseif absNum>=1e18 then return string.format("%.2fQn",num/1e18) elseif absNum>=1e15 then return string.format("%.2fQd",num/1e15) elseif absNum>=1e12 then return string.format("%.2fT",num/1e12) elseif absNum>=1e9 then return string.format("%.2fB",num/1e9) elseif absNum>=1e6 then return string.format("%.2fM",num/1e6) elseif absNum>=1e3 then return string.format("%.2fK",num/1e3) else return tostring(num) end end
-	local function getPlayerStats(player)local success,statsFolder=pcall(function()return RS.Data[player.Name].Stats end)if success and statsFolder then local defense=statsFolder:FindFirstChild('Defense');local power=statsFolder:FindFirstChild('Power');local magic=statsFolder:FindFirstChild('Magic');local reputation=statsFolder:FindFirstChild('Reputation');local defenseValue=defense and defense.Value or 0;local powerValue=power and power.Value or 0;local magicValue=magic and magic.Value or 0;local repValue=reputation and reputation.Value or 0;return defenseValue,powerValue,magicValue,repValue end return 0,0,0,0 end
-	local function getPlayerClan(player)local success,statsFolder=pcall(function()return RS.Data[player.Name].Stats end)if success and statsFolder then local clanJoined=statsFolder:FindFirstChild('ClanJoined');if clanJoined then local clanId=clanJoined.Value;local clanNames={[6440]="Calamity2",[7]="Calamity",[11]="YTPvP",[3704]="YTPvP2",[4588]="YTpvP3"};local clanColors={[6440]=Color3.fromRGB(0,255,0),[7]=Color3.fromRGB(0,255,0),[11]=Color3.fromRGB(255,0,0),[3704]=Color3.fromRGB(255,0,0),[4588]=Color3.fromRGB(255,0,0)};return clanNames[clanId],clanColors[clanId] end end return nil,nil end
-	local function getPlayerHealth(player)local char=player.Character;local humanoid=char and char:FindFirstChild("Humanoid");if humanoid then return humanoid.Health,humanoid.MaxHealth end return 0,0 end
-	local function getRepColor(repValue)if repValue<=-25000 then return Color3.fromRGB(0,0,0) elseif repValue<=-10000 then return Color3.fromRGB(139,0,0) elseif repValue<=-4000 then return Color3.fromRGB(128,0,128) elseif repValue<=-1 then return Color3.fromRGB(255,100,100) elseif repValue==0 then return Color3.fromRGB(255,255,255) elseif repValue>=1 and repValue<4000 then return Color3.fromRGB(0,255,0) elseif repValue>=4000 and repValue<10000 then return Color3.fromRGB(64,224,208) elseif repValue>=10000 and repValue<25000 then return Color3.fromRGB(173,216,230) else return Color3.fromRGB(255,255,0) end end
-	local function mkb(p)local b=Drawing.new('Square');b.Filled=false;b.Thickness=2;b.Visible=false;local t=Drawing.new('Text');t.Size=24;t.Center=true;t.Outline=true;t.OutlineColor=Color3.new(0,0,0);t.Visible=false;local clanText=Drawing.new('Text');clanText.Size=20;clanText.Center=true;clanText.Outline=true;clanText.OutlineColor=Color3.new(0,0,0);clanText.Visible=false;local healthText=Drawing.new('Text');healthText.Size=22;healthText.Center=true;healthText.Outline=true;healthText.OutlineColor=Color3.new(0,0,0);healthText.Color=Color3.fromRGB(100,255,100);healthText.Visible=false;local defenseText=Drawing.new('Text');defenseText.Size=20;defenseText.Center=true;defenseText.Outline=true;defenseText.OutlineColor=Color3.new(0,0,0);defenseText.Color=Color3.fromRGB(0,150,255);defenseText.Visible=false;local powerText=Drawing.new('Text');powerText.Size=20;powerText.Center=true;powerText.Outline=true;powerText.OutlineColor=Color3.new(0,0,0);powerText.Color=Color3.fromRGB(255,50,50);powerText.Visible=false;local magicText=Drawing.new('Text');magicText.Size=20;magicText.Center=true;magicText.Outline=true;magicText.OutlineColor=Color3.new(0,0,0);magicText.Color=Color3.fromRGB(255,100,255);magicText.Visible=false;local repText=Drawing.new('Text');repText.Size=20;repText.Center=true;repText.Outline=true;repText.OutlineColor=Color3.new(0,0,0);repText.Color=Color3.fromRGB(255,255,255);repText.Visible=false;boxes[p]={b=b,t=t,clan=clanText,health=healthText,defense=defenseText,power=powerText,magic=magicText,rep=repText}end
-	local function rm(p)local e=boxes[p];if not e then return end pcall(function()e.b:Remove();e.t:Remove();e.clan:Remove();e.health:Remove();e.defense:Remove();e.power:Remove();e.magic:Remove();e.rep:Remove()end)boxes[p]=nil end
-	if on then
-		getgenv().__PESP=R.RenderStepped:Connect(function()
-			if not cfg.PlayerESP then for p2 in pairs(boxes)do rm(p2) end boxes={} return end
-			for _,p in ipairs(P:GetPlayers())do
-				if p~=LP and p.Character and p.Character:FindFirstChild('Head') then
-					if not boxes[p] then mkb(p) end
-					local e=boxes[p];local head=p.Character.Head;local pos,vis=Cam:WorldToViewportPoint(head.Position)
-					if not vis then e.b.Visible=false;e.t.Visible=false;e.clan.Visible=false;e.health.Visible=false;e.defense.Visible=false;e.power.Visible=false;e.magic.Visible=false;e.rep.Visible=false
+
+	-- Global state
+	getgenv().__PESP = getgenv().__PESP or {conn=nil, records={}}
+
+	local S = getgenv().__PESP
+
+	local function rmRecord(rec)
+		if not rec then return end
+		pcall(function() if rec.box then rec.box:Remove() end end)
+		pcall(function() if rec.text then rec.text:Remove() end end)
+	end
+
+	local function clearAll()
+		if S.conn then pcall(function() S.conn:Disconnect() end); S.conn=nil end
+		for k,rec in pairs(S.records) do rmRecord(rec); S.records[k]=nil end
+	end
+
+	-- If turning off, fully clean
+	if not on then
+		clearAll()
+		return
+	end
+
+	-- Turn on: clear any leftover drawings first
+	clearAll()
+
+	local function makeDraws()
+		local box = Drawing.new("Square")
+		box.Filled = false
+		box.Thickness = 2
+		box.Visible = false
+		local text = Drawing.new("Text")
+		text.Size = 16
+		text.Center = true
+		text.Outline = true
+		text.Visible = false
+		return {box=box, text=text}
+	end
+
+	local function ensureRec(plr)
+		if S.records[plr] then return S.records[plr] end
+		S.records[plr] = makeDraws()
+		return S.records[plr]
+	end
+
+	local function removePlr(plr)
+		local rec = S.records[plr]
+		if rec then rmRecord(rec); S.records[plr]=nil end
+	end
+
+	-- Clean on player removal
+	if not S._playersConnAdded then
+		S._playersConnAdded = true
+		game:GetService("Players").PlayerRemoving:Connect(function(plr)
+			removePlr(plr)
+		end)
+	end
+
+	-- Watchdog: purge orphans periodically
+	if S.wd then pcall(function() S.wd:Disconnect() end) end
+	S.wd = game:GetService("RunService").Stepped:Connect(function()
+		for plr,rec in pairs(S.records) do
+			if not plr or not plr.Parent then
+				removePlr(plr)
+			end
+		end
+	end)
+
+	S.conn = game:GetService("RunService").RenderStepped:Connect(function()
+		if not cfg.PlayerESP then
+			clearAll()
+			return
+		end
+
+		for _,pl in ipairs(P:GetPlayers()) do
+			if pl ~= LP then
+				local char = pl.Character
+				local head = char and char:FindFirstChild("Head")
+				local hum = char and char:FindFirstChildOfClass("Humanoid")
+				local rec = ensureRec(pl)
+				if head and hum and hum.Health > 0 then
+					local pos,vis = Cam:WorldToViewportPoint(head.Position)
+					if vis then
+						-- Box size scaled smaller to reduce clutter
+						local dist = (Cam.CFrame.Position - head.Position).Magnitude
+						local sz = math.clamp(80 / math.max(dist, 1), 12, 50)
+						rec.box.Position = Vector2.new(pos.X - sz/2, pos.Y - sz/2)
+						rec.box.Size = Vector2.new(sz, sz)
+						rec.box.Color = Color3.fromRGB(50,255,50)
+						rec.box.Visible = true
+
+						rec.text.Text = string.format("%s  HP:%d", pl.Name, math.floor(hum.Health))
+						rec.text.Position = Vector2.new(pos.X, pos.Y - sz/2 - 14)
+						rec.text.Color = Color3.new(1,1,1)
+						rec.text.Visible = true
 					else
-						local d=(Cam.CFrame.Position-head.Position).Magnitude;local sz=math.clamp((100/math.max(d,1))*100,20,80);local col=Color3.fromHSV((tick()*0.2)%1,1,1);local boxPos=Vector2.new(pos.X-sz/2,pos.Y-sz/2)
-						e.b.Position=boxPos;e.b.Size=Vector2.new(sz,sz);e.b.Color=col;e.b.Visible=true
-						local clanName,clanColor=getPlayerClan(p)
-						e.t.Text=p.Name;e.t.Position=Vector2.new(pos.X,pos.Y-sz/2-18);e.t.Color=col;e.t.Visible=true
-						if clanName then e.clan.Text=clanName;e.clan.Position=Vector2.new(pos.X,pos.Y-sz/2-40);e.clan.Color=clanColor;e.clan.Visible=true else e.clan.Visible=false end
-						local currentHealth,maxHealth=getPlayerHealth(p)
-						local defenseValue,powerValue,magicValue,repValue=getPlayerStats(p)
-						local combinedStats=defenseValue+magicValue+powerValue
-						local isLowStats=combinedStats<1e17
-						if isLowStats then
-							e.health.Visible=false;e.defense.Visible=false;e.power.Visible=false;e.magic.Visible=false
-							e.rep.Text=(repValue==0)and"0"or formatNumber(repValue);e.rep.Color=getRepColor(repValue);e.rep.Position=Vector2.new(pos.X,boxPos.Y+sz/2+16);e.rep.Visible=true
-						else
-							e.health.Text=formatNumber(currentHealth).."/"..formatNumber(maxHealth);e.health.Position=Vector2.new(pos.X,boxPos.Y+sz/2+16);e.health.Visible=true
-							e.defense.Text=formatNumber(defenseValue);e.defense.Position=Vector2.new(pos.X,boxPos.Y+sz/2+38);e.defense.Visible=true
-							e.power.Text=formatNumber(powerValue);e.power.Position=Vector2.new(pos.X,boxPos.Y+sz/2+60);e.power.Visible=true
-							e.magic.Text=formatNumber(magicValue);e.magic.Position=Vector2.new(pos.X,boxPos.Y+sz/2+82);e.magic.Visible=true
-							e.rep.Text=(repValue==0)and"0"or formatNumber(repValue);e.rep.Color=getRepColor(repValue);e.rep.Position=Vector2.new(pos.X,boxPos.Y+sz/2+104);e.rep.Visible=true
-						end
+						rec.box.Visible = false
+						rec.text.Visible = false
+					end
+				else
+					if rec then
+						rec.box.Visible = false
+						rec.text.Visible = false
 					end
 				end
-				for p2 in pairs(boxes)do if (not p2)or(not p2.Character)or(not p2.Character:FindFirstChild('Head')) then rm(p2) end end
 			end
-		end)
-	else
-		for p2 in pairs(boxes)do rm(p2) end
-		boxes={}
-	end
+		end
+
+		-- Remove entries of players no longer returned by GetPlayers
+		for plr in pairs(S.records) do
+			if typeof(plr) ~= "Instance" or not plr:IsDescendantOf(game) then
+				removePlr(plr)
+			end
+		end
+	end)
 end
+
+LP.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	TPlayerESP(cfg.PlayerESP)
+end)
+
 -- Full Mob ESP (boxes + names; smaller visuals; uses BUCKET_NAME/getMobDisplayName)
 local function TMobESP(on)
 	getgenv().EnemyESP2 = getgenv().EnemyESP2 or {enabled=false,_conns={},_records={}}
