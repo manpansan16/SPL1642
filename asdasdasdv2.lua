@@ -101,8 +101,8 @@ task.spawn(function()
 	pcall(function()
 		local exoticStore = workspace.Pads.ExoticStore["1"]
 		local exoticStore2 = workspace.Pads.ExoticStore2["1"]
-		local pos1 = Vector3.new(-167.33985900878906, 938211, 156.6094207763672)
-		local pos2 = Vector3.new(-180.12326049804688, 938211, 134.66819763183594)
+		local pos1 = Vector3.new(-167.33985900878906, 938243, 156.6094207763672)
+		local pos2 = Vector3.new(-180.12326049804688, 938243, 134.66819763183594)
 		exoticStore.CFrame = CFrame.new(pos1)
 		exoticStore2.CFrame = CFrame.new(pos2)
 	end)
