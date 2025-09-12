@@ -155,7 +155,7 @@ end
 initDeathPanic()
 
 getgenv().SmartPanic=cfg.SmartPanic and true or false
-local function panicCF()return CFrame.new(Vector3.new(-9102992384, 938243, 37903106048))end
+local function panicCF()return CFrame.new(Vector3.new(-167.33985900878906, 938243, 156.6094207763672))end
 task.spawn(function()
 	local last,armed=0,true
 	while true do
