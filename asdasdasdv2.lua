@@ -36,19 +36,30 @@ local cfg={
 	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
 	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,
-	UFASelectedMobs={},
+	UFAOrderedMobs={},
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
 load()
+-- Migration from old UFASelectedMobs to new UFAOrderedMobs
+if cfg.UFASelectedMobs and type(cfg.UFASelectedMobs) == "table" then
+	cfg.UFAOrderedMobs = {}
+	for mobName, selected in pairs(cfg.UFASelectedMobs) do
+		if selected then table.insert(cfg.UFAOrderedMobs, mobName) end
+	end
+	cfg.UFASelectedMobs = nil
+	save()
+end
 if type(cfg.UFASelectedMob)=="string" and cfg.UFASelectedMob~="" then
-	cfg.UFASelectedMobs = cfg.UFASelectedMobs or {}
-	cfg.UFASelectedMobs[cfg.UFASelectedMob]=true
+	cfg.UFAOrderedMobs = cfg.UFAOrderedMobs or {}
+	if not table.find(cfg.UFAOrderedMobs, cfg.UFASelectedMob) then
+		table.insert(cfg.UFAOrderedMobs, cfg.UFASelectedMob)
+	end
 	cfg.UFASelectedMob=nil
 	save()
 end
-cfg.UFASelectedMobs = cfg.UFASelectedMobs or {}
+cfg.UFAOrderedMobs = cfg.UFAOrderedMobs or {}
 local targetAttempts={}
 
 -- persistent saved teleport
@@ -185,8 +196,8 @@ local function mk(t,pr,par)local i=Instance.new(t);for k,v in pairs(pr or{})do i
 do
 	local player=LP
 	local playerGui=player:WaitForChild("PlayerGui")
-	local function formatNumber(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.3fqn',n/1e18)end;if n>=1e15 then return string.format('%.3fqd',n/1e15)end;if n>=1e12 then return string.format('%.3ft',n/1e12)end
-		if n>=1e9 then return string.format('%.3fb',n/1e9)end;if n>=1e6 then return string.format('%.3fm',n/1e6)end;if n>=1e3 then return string.format('%.3fk',n/1e3)end return tostring(n)end
+	local function formatNumber(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.4fqn',n/1e18)end;if n>=1e15 then return string.format('%.4fqd',n/1e15)end;if n>=1e12 then return string.format('%.4ft',n/1e12)end
+		if n>=1e9 then return string.format('%.4fb',n/1e9)end;if n>=1e6 then return string.format('%.4fm',n/1e6)end;if n>=1e3 then return string.format('%.4fk',n/1e3)end return tostring(n)end
 	local function getNumberValue(c,n)if not c then return 0 end local v=c:FindFirstChild(n)if v and v:IsA('ValueBase')then return tonumber(v.Value)or 0 end return 0 end
 	local function getStringValue(c,n)if not c then return '' end local v=c:FindFirstChild(n)if v and v:IsA('ValueBase')then return tostring(v.Value or'')end return '' end
 	local function lightenColor(color,factor)factor=math.clamp(factor or 0.4,0,1)local r=color.R+(1-color.R)*factor local g=color.G+(1-color.G)*factor local b=color.B+(1-color.B)*factor return Color3.new(r,g,b)end
@@ -210,7 +221,7 @@ do
 	local function getPotionBonus(index)local hud=playerGui:FindFirstChild("HUD");if not hud then return "" end local topUi=hud:FindFirstChild("TopUi");if not topUi then return "" end local rank=topUi:FindFirstChild("Rank");if not rank then return "" end local data=rank:FindFirstChild("Data");if not data then return "" end local potionEffect=data:FindFirstChild("PotionEffect");if not potionEffect then return "" end local slot=potionEffect:FindFirstChild(tostring(index));if not slot then return "" end local design=slot:FindFirstChild("Design");if not design then return "" end local bonus=design:FindFirstChild("Bonus");if not bonus then return "" end if bonus:IsA("ValueBase")then return tostring(bonus.Value or"")end if bonus:IsA("TextLabel")or bonus:IsA("TextBox")or bonus:IsA("TextButton")then return tostring(bonus.Text or"")end return "" end
 	local initialTotalPower=getNumberValue(statsFolder,"TotalPower")
 	local function updateBoosts()for i=1,6 do local bonusText=getPotionBonus(i);local lbl=boostLabels[i];if bonusText~=""then lbl.Text=string.format("%s %s",BOOST_EMOJIS[i],bonusText);lbl.Visible=true else lbl.Text="";lbl.Visible=false end end end
-	local function updateStats()local s=statsFolder;local statTraining=getStringValue(s,"StatTraining");local trainingTick=getNumberValue(s,"TrainingTick");if statTraining==""then labels.Training.Text="📋 Training None";setTrainingDividersColor(nil)else labels.Training.Text=string.format("📋 Training %s +%s Per Tick",statTraining,formatNumber(trainingTick));setTrainingDividersColor(statTraining)end
+	local function updateStats()local s=statsFolder;local statTraining=getStringValue(s,"StatTraining");local rawTick=getNumberValue(s,"TrainingTick");local trainingTick=rawTick;if rawTick>=9e12 and rawTick<1e13 then trainingTick=rawTick*10 end;if statTraining==""then labels.Training.Text="📋 Training None";setTrainingDividersColor(nil)else labels.Training.Text=string.format("📋 Training %s +%s Per Tick",statTraining,formatNumber(trainingTick));setTrainingDividersColor(statTraining)end
 		local power=getNumberValue(s,"Power");local health=getNumberValue(s,"Health");local defense=getNumberValue(s,"Defense");local psychics=getNumberValue(s,"Psychics");local magic=getNumberValue(s,"Magic");local mobility=getNumberValue(s,"Mobility");local totalPower=getNumberValue(s,"TotalPower");local tokens=getNumberValue(s,"Tokens")
 		labels.Tokens.Text="💰 Tokens: "..formatNumber(tokens);labels.Power.Text="💪 Power: "..formatNumber(power);labels.Health.Text="❤️ Health: "..formatNumber(health);labels.Defense.Text="🛡️ Defense: "..formatNumber(defense);labels.Psychics.Text="🔮 Psychics: "..formatNumber(psychics);labels.Magic.Text="✨ Magic: "..formatNumber(magic);labels.Mobility.Text="💨 Mobility: "..formatNumber(mobility);labels.TotalPower.Text="📊 Total Power: "..formatNumber(totalPower)
 		local earned=math.max(0,totalPower-(initialTotalPower or totalPower));labels.TotalPowerEarned.Text="📈 Total Power Earned: "..formatNumber(earned)
@@ -571,7 +582,7 @@ local function uniqueMobNames()local seen, list = {}, {}
 	for _,name in pairs(BUCKET_NAME) do if name and name~="" and not seen[name] then seen[name]=true;table.insert(list,name) end end
 	table.sort(list);return list
 end
-local function isMobSelected(name)return cfg.UFASelectedMobs and cfg.UFASelectedMobs[name]==true end
+local function isMobSelected(name)return cfg.UFAOrderedMobs and table.find(cfg.UFAOrderedMobs, name) ~= nil end
 
 -- Player ESP (old visuals) with robust cleanup to prevent stuck overlays
 local function TPlayerESP(on)
@@ -665,13 +676,13 @@ local function TPlayerESP(on)
 
 	local function mkRec()
 		local b = Drawing.new('Square'); b.Filled=false; b.Thickness=2; b.Visible=false
-		local t = Drawing.new('Text'); t.Size=24; t.Center=true; t.Outline=true; t.OutlineColor=Color3.new(0,0,0); t.Visible=false
-		local clan = Drawing.new('Text'); clan.Size=20; clan.Center=true; clan.Outline=true; clan.OutlineColor=Color3.new(0,0,0); clan.Visible=false
-		local health = Drawing.new('Text'); health.Size=22; health.Center=true; health.Outline=true; health.OutlineColor=Color3.new(0,0,0); health.Color=Color3.fromRGB(100,255,100); health.Visible=false
-		local defense = Drawing.new('Text'); defense.Size=20; defense.Center=true; defense.Outline=true; defense.OutlineColor=Color3.new(0,0,0); defense.Color=Color3.fromRGB(0,150,255); defense.Visible=false
-		local power = Drawing.new('Text'); power.Size=20; power.Center=true; power.Outline=true; power.OutlineColor=Color3.new(0,0,0); power.Color=Color3.fromRGB(255,50,50); power.Visible=false
-		local magic = Drawing.new('Text'); magic.Size=20; magic.Center=true; magic.Outline=true; magic.OutlineColor=Color3.new(0,0,0); magic.Color=Color3.fromRGB(255,100,255); magic.Visible=false
-		local rep = Drawing.new('Text'); rep.Size=20; rep.Center=true; rep.Outline=true; rep.OutlineColor=Color3.new(0,0,0); rep.Color=Color3.fromRGB(255,255,255); rep.Visible=false
+		local t = Drawing.new('Text'); t.Size=20; t.Center=true; t.Outline=true; t.OutlineColor=Color3.new(0,0,0); t.Visible=false
+		local clan = Drawing.new('Text'); clan.Size=16; clan.Center=true; clan.Outline=true; clan.OutlineColor=Color3.new(0,0,0); clan.Visible=false
+		local health = Drawing.new('Text'); health.Size=16; health.Center=true; health.Outline=true; health.OutlineColor=Color3.new(0,0,0); health.Color=Color3.fromRGB(100,255,100); health.Visible=false
+		local defense = Drawing.new('Text'); defense.Size=16; defense.Center=true; defense.Outline=true; defense.OutlineColor=Color3.new(0,0,0); defense.Color=Color3.fromRGB(0,150,255); defense.Visible=false
+		local power = Drawing.new('Text'); power.Size=16; power.Center=true; power.Outline=true; power.OutlineColor=Color3.new(0,0,0); power.Color=Color3.fromRGB(255,50,50); power.Visible=false
+		local magic = Drawing.new('Text'); magic.Size=16; magic.Center=true; magic.Outline=true; magic.OutlineColor=Color3.new(0,0,0); magic.Color=Color3.fromRGB(255,100,255); magic.Visible=false
+		local rep = Drawing.new('Text'); rep.Size=16; rep.Center=true; rep.Outline=true; rep.OutlineColor=Color3.new(0,0,0); rep.Color=Color3.fromRGB(255,255,255); rep.Visible=false
 		return {b=b,t=t,clan=clan,health=health,defense=defense,power=power,magic=magic,rep=rep}
 	end
 
@@ -708,31 +719,31 @@ local function TPlayerESP(on)
 		for _,pl in ipairs(P:GetPlayers()) do
 			if pl ~= LP then
 				local char = pl.Character
-				local head = char and char:FindFirstChild('Head')
-				local hum = char and char:FindFirstChildOfClass('Humanoid')
+					local HumanoidRootPart = char and char:FindFirstChild('HumanoidRootPart')
+					local Humanoid = char and char:FindFirstChildOfClass('Humanoid')
 				local rec = ensure(pl)
-				if head and hum and hum.Health > 0 then
-					local pos, vis = Cam:WorldToViewportPoint(head.Position)
-					if vis then
-						local d = (Cam.CFrame.Position - head.Position).Magnitude
-						local sz = math.clamp((100/math.max(d,1))*100, 20, 80)
-						local col = Color3.fromHSV((tick()*0.2)%1, 1, 1)
-						local boxPos = Vector2.new(pos.X - sz/2, pos.Y - sz/2)
-
-						rec.b.Position = boxPos
-						rec.b.Size = Vector2.new(sz, sz)
-						rec.b.Color = col
+					if HumanoidRootPart and Humanoid and Humanoid.Health > 0 then
+						local Position, OnScreen = Cam:WorldToViewportPoint(HumanoidRootPart.Position)
+						if OnScreen then
+							-- Working scaling system from esph.lua
+							local scale = 1 / (Position.Z * math.tan(math.rad(Cam.FieldOfView * 0.5)) * 2) * 1000
+							local width, height = math.floor(4.5 * scale), math.floor(6 * scale)
+							local x, y = math.floor(Position.X), math.floor(Position.Y)
+							local xPosition, yPosition = math.floor(x - width * 0.5), math.floor((y - height * 0.5) + (0.5 * scale))
+							
+							-- Update box
+							rec.b.Size = Vector2.new(width, height)
+							rec.b.Position = Vector2.new(xPosition, yPosition)
 						rec.b.Visible = true
 
 						local clanName, clanColor = getPlayerClan(pl)
 						rec.t.Text = pl.Name
-						rec.t.Position = Vector2.new(pos.X, pos.Y - sz/2 - 18)
-						rec.t.Color = col
+						rec.t.Position = Vector2.new(x, yPosition - 25)
 						rec.t.Visible = true
 
 						if clanName then
 							rec.clan.Text = clanName
-							rec.clan.Position = Vector2.new(pos.X, pos.Y - sz/2 - 40)
+							rec.clan.Position = Vector2.new(x, yPosition - 45)
 							rec.clan.Color = clanColor
 							rec.clan.Visible = true
 						else
@@ -748,28 +759,28 @@ local function TPlayerESP(on)
 							rec.health.Visible=false; rec.defense.Visible=false; rec.power.Visible=false; rec.magic.Visible=false
 							rec.rep.Text =(repv==0) and "0" or formatNumber(repv)
 							rec.rep.Color = getRepColor(repv)
-							rec.rep.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
+							rec.rep.Position = Vector2.new(x, yPosition + height + 16)
 							rec.rep.Visible = true
 						else
 							rec.health.Text = formatNumber(ch).."/"..formatNumber(mh)
-							rec.health.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 16)
+							rec.health.Position = Vector2.new(x, yPosition + height + 16)
 							rec.health.Visible = true
 
 							rec.defense.Text = formatNumber(defv)
-							rec.defense.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 38)
+							rec.defense.Position = Vector2.new(x, yPosition + height + 38)
 							rec.defense.Visible = true
 
 							rec.power.Text = formatNumber(powv)
-							rec.power.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 60)
+							rec.power.Position = Vector2.new(x, yPosition + height + 60)
 							rec.power.Visible = true
 
 							rec.magic.Text = formatNumber(magv)
-							rec.magic.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 82)
+							rec.magic.Position = Vector2.new(x, yPosition + height + 82)
 							rec.magic.Visible = true
 
 							rec.rep.Text =(repv==0) and "0" or formatNumber(repv)
 							rec.rep.Color = getRepColor(repv)
-							rec.rep.Position = Vector2.new(pos.X, boxPos.Y + sz/2 + 104)
+							rec.rep.Position = Vector2.new(x, yPosition + height + 104)
 							rec.rep.Visible = true
 						end
 					else
@@ -982,89 +993,234 @@ end
 local function fireAt(v3)local a=ev('Events','Other','Ability');pcall(function()a:InvokeServer('Fireball',v3)end)end
 local function UFA(on)
 	getgenv().UniversalFireBallAimbot=on;if not on then return end
+	
+	print('Universal Fireball Aimbot: Starting...')
+	
+	-- Check if we have any mobs selected
+	if not cfg.UFAOrderedMobs or #cfg.UFAOrderedMobs == 0 then
+		print('Universal Fireball Aimbot: No mobs selected!')
+		return
+	end
+	
+	local currentTargetIndex = 1
+	local lastFireballTime = 0
+	local lastTargetMob = nil -- Track last targeted mob to prevent duplicates
+	local isFiring = false -- Prevent multiple simultaneous fires
+	
 	task.spawn(function()
 		while getgenv().UniversalFireBallAimbot do
-			pcall(function()
-				local enemies=workspace:FindFirstChild('Enemies');if not enemies then return end
-				local _,_,hrp=charHum();if not hrp then return end
-				local hasAny=false;for k,v in pairs(cfg.UFASelectedMobs) do if v then hasAny=true break end end
-				if not hasAny then return end
-				local myPos=hrp.Position
-				local bestPart,bestD=nil,math.huge
-				for _,bucket in ipairs(enemies:GetChildren()) do
-					for _,mob in ipairs(bucket:GetChildren()) do
+			if isFiring then 
+				task.wait(0.1)
+				continue 
+			end
+			
+			local currentTime = tick()
+			if (currentTime - lastFireballTime) >= (cfg.universalFireballInterval or 1.0) then
+				local targetMobName = cfg.UFAOrderedMobs[currentTargetIndex]
+				if targetMobName == lastTargetMob then
+					-- Skip to next mob to avoid duplicates
+					currentTargetIndex = currentTargetIndex + 1
+					if currentTargetIndex > #cfg.UFAOrderedMobs then 
+						currentTargetIndex = 1 
+					end
+					task.wait(0.2)
+					continue
+				end
+				
+				local enemies = workspace:FindFirstChild('Enemies')
+				if not enemies then 
+					task.wait(0.5)
+					continue 
+				end
+				
+				local _, _, hrp = charHum()
+				if not hrp then 
+					task.wait(0.5)
+					continue 
+				end
+				
+				local myPos = hrp.Position
+				local bestPart, bestD = nil, math.huge
+				local foundMob = false
+				
+				-- Look for the current target mob type
+				for _, bucket in ipairs(enemies:GetChildren()) do
+					for _, mob in ipairs(bucket:GetChildren()) do
 						if mob:IsA('Model') then
-							local dtag=mob:FindFirstChild('Dead');local alive=(not dtag or dtag.Value~=true)
+							local dtag = mob:FindFirstChild('Dead')
+							local alive = (not dtag or dtag.Value ~= true)
 							if alive then
-								local targetName=getMobDisplayName(mob)
-								if isMobSelected(targetName) then
-									local p=mob:FindFirstChild('HumanoidRootPart')
-									if p then local d=(myPos-p.Position).Magnitude;if d<bestD then bestD=d;bestPart=p end end
+								local mobName = getMobDisplayName(mob)
+								if mobName == targetMobName then
+									local p = mob:FindFirstChild('HumanoidRootPart')
+									if p then 
+										local d = (myPos - p.Position).Magnitude
+										if d < bestD then 
+											bestD = d
+											bestPart = p
+											foundMob = true
 								end
 							end
 						end
 					end
 				end
-				if bestPart then fireAt(bestPart.Position) end
-			end)
-			task.wait(math.max(0.01,tonumber(cfg.universalFireballInterval)or 1.0))
+					end
+				end
+				
+				if foundMob and bestPart then
+					isFiring = true
+					local success = pcall(function() 
+						fireAt(bestPart.Position) 
+					end)
+					
+					if success then
+						lastFireballTime = currentTime
+						lastTargetMob = targetMobName
+						currentTargetIndex = currentTargetIndex + 1
+						if currentTargetIndex > #cfg.UFAOrderedMobs then 
+							currentTargetIndex = 1 
+						end
+						task.wait(1.0) -- Longer wait after successful fire
+					else
+						currentTargetIndex = currentTargetIndex + 1
+						if currentTargetIndex > #cfg.UFAOrderedMobs then 
+							currentTargetIndex = 1 
+						end
+						task.wait(0.5)
+					end
+					isFiring = false
+				else
+					-- No mob of this type found, move to next
+					currentTargetIndex = currentTargetIndex + 1
+					if currentTargetIndex > #cfg.UFAOrderedMobs then 
+						currentTargetIndex = 1 
+					end
+					task.wait(0.3)
+				end
+			else
+				task.wait(0.1)
+			end
 		end
 	end)
 end
 
 local function CatAimbot(on)
 	getgenv().FireBallAimbot=on;if not on then return end
+	
+	print('Catacombs Fireball Aimbot: Starting...')
 	local targetOrder={15,14,12,17,13,10,4}
 	local currentTargetIndex=1
 	local lastFireballTime=0
+	local lastTargetFolder=nil -- Track last targeted folder to prevent duplicates
+	local isFiring=false -- Prevent multiple simultaneous fires
+	
 	for i=1,#targetOrder do targetAttempts[i]=0 end
 	local fallbackPositions={ [15]=Vector3.new(-200,45,-300),[14]=Vector3.new(-180,50,-280),[12]=Vector3.new(-160,40,-260),[17]=Vector3.new(-220,55,-320),[13]=Vector3.new(-140,45,-240),[10]=Vector3.new(-120,40,-220),[4]=Vector3.new(-100,35,-200)}
+	
 	task.spawn(function()
 		while getgenv().FireBallAimbot do
 			local player=P.LocalPlayer
 			if player and player.Character and player.Character:FindFirstChild('HumanoidRootPart') then
 				local humanoid=player.Character:FindFirstChild('Humanoid')
-				if humanoid and humanoid.Health<=0 then getgenv().FireBallAimbot=false;cfg.FireBallAimbot=false;save();break end
+				if humanoid and humanoid.Health<=0 then 
+					print('Catacombs Fireball Aimbot: Player is dead, stopping...')
+					getgenv().FireBallAimbot=false;cfg.FireBallAimbot=false;save();break 
+				end
+				
+				-- Prevent multiple simultaneous fires
+				if isFiring then
+					task.wait(0.1)
+					continue
+				end
+				
 				local currentTime=tick()
-				if (currentTime-lastFireballTime)>=(cfg.cityFireballCooldown or 0.2) then
+				-- Use proper fireball cooldown, not city cooldown
+				if (currentTime-lastFireballTime)>=(cfg.fireballCooldown or 0.3) then
 					local targetFolderNumber=targetOrder[currentTargetIndex]
+					
+					-- Skip if we just targeted this folder (prevent duplicate firing)
+					if targetFolderNumber == lastTargetFolder then
+						currentTargetIndex=currentTargetIndex+1
+						if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
+						task.wait(0.2)
+						continue
+					end
+					
+					print('Catacombs Fireball Aimbot: TARGETING folder ' .. targetFolderNumber .. ' (Index: ' .. currentTargetIndex .. '/7)')
 					local enemies=workspace:FindFirstChild('Enemies')
+					
 					if enemies then
 						local targetFolder=enemies:FindFirstChild(tostring(targetFolderNumber))
 						if targetFolder and targetFolder:IsA('Folder') then
 							local children=targetFolder:GetChildren()
+							print('Catacombs Fireball Aimbot: Checking folder ' .. targetFolderNumber .. ' with ' .. #children .. ' children')
+							
 							local targetPosition=nil
 							local foundMob=false
+							
 							for _,child in pairs(children)do
 								if child:IsA('Model') and child:FindFirstChild('HumanoidRootPart') then
 									local hrp=child:FindFirstChild('HumanoidRootPart')
-									if hrp and hrp.Position then targetPosition=hrp.Position;foundMob=true;break end
+									if hrp and hrp.Position then 
+										targetPosition=hrp.Position;foundMob=true
+										print('Catacombs Fireball Aimbot: Found Model mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+										break 
+									end
 								elseif child:IsA('BasePart') and child.Position and child.Position~=Vector3.new(0,0,0) then
-									targetPosition=child.Position;foundMob=true;break
+									targetPosition=child.Position;foundMob=true
+									print('Catacombs Fireball Aimbot: Found BasePart mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+									break
 								end
 							end
-							if not foundMob then targetPosition=fallbackPositions[targetFolderNumber] or Vector3.new(targetFolderNumber*20,5,targetFolderNumber*10) end
-							local success=pcall(function()fireAt(targetPosition)end)
-							if success then
-								lastFireballTime=currentTime
-								currentTargetIndex=currentTargetIndex+1
-								if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
-								task.wait(0.3)
-							else
-								currentTargetIndex=currentTargetIndex+1
-								if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
-								task.wait(0.1)
+							
+							if not foundMob then 
+								targetPosition=fallbackPositions[targetFolderNumber] or Vector3.new(targetFolderNumber*20,5,targetFolderNumber*10)
+								print('Catacombs Fireball Aimbot: No mobs in folder ' .. targetFolderNumber .. ', firing at strategic position ' .. tostring(targetPosition))
 							end
+							
+							-- Set firing flag to prevent duplicates
+							isFiring=true
+							local success=pcall(function()fireAt(targetPosition)end)
+							
+							if success then
+								if foundMob then
+									print('Catacombs Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/7) mob position ' .. tostring(targetPosition))
+								else
+									print('Catacombs Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/7) calculated position ' .. tostring(targetPosition))
+								end
+								lastFireballTime=currentTime
+								lastTargetFolder=targetFolderNumber
+								
+								-- Move to next target
+								currentTargetIndex=currentTargetIndex+1
+								if currentTargetIndex>#targetOrder then 
+									currentTargetIndex=1
+									print('Catacombs Fireball Aimbot: Completed cycle, restarting...')
+								end
+								
+								-- Wait longer before next target to prevent rapid firing
+								task.wait(1.0)
+							else
+								print('Catacombs Fireball Aimbot: Failed to fire at folder ' .. targetFolderNumber .. ', moving to next...')
+								currentTargetIndex=currentTargetIndex+1
+								if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
+								task.wait(0.5)
+							end
+							
+							-- Clear firing flag
+							isFiring=false
 						else
+							print('Catacombs Fireball Aimbot: Folder ' .. targetFolderNumber .. ' not found, moving to next...')
 							currentTargetIndex=currentTargetIndex+1
 							if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
-							task.wait(0.1)
+							task.wait(0.3)
 						end
 					else
+						print('Catacombs Fireball Aimbot: workspace.Enemies not found')
 						task.wait(0.5)
 					end
 				else
-					task.wait(0.05)
+					task.wait(0.1)
 				end
 			else
 				task.wait(0.1)
@@ -1075,50 +1231,126 @@ end
 
 local function CityAimbot(on)
 	getgenv().FireBallAimbotCity=on;if not on then return end
+	
+	print('City Fireball Aimbot: Starting...')
 	local targetOrder={6,9,5,3,2}
 	local currentTargetIndex=1
 	local lastFireballTime=0
-	local targetWaitTime=0.15
+	local lastTargetFolder=nil -- Track last targeted folder to prevent duplicates
+	local isFiring=false -- Prevent multiple simultaneous fires
+	
+	-- Strategic fallback positions for empty folders (near typical city spawn areas)
+	local fallbackPositions = {
+		[6] = Vector3.new(140, 30, 100),  -- City area 6
+		[9] = Vector3.new(200, 30, 160),  -- City area 9
+		[5] = Vector3.new(120, 25, 80),   -- City area 5
+		[3] = Vector3.new(80, 20, 60),    -- City area 3
+		[2] = Vector3.new(60, 25, 40),    -- City area 2
+	}
+	
 	task.spawn(function()
 		while getgenv().FireBallAimbotCity do
 			local player=P.LocalPlayer
 			if player and player.Character and player.Character:FindFirstChild('HumanoidRootPart') then
 				local humanoid=player.Character:FindFirstChild('Humanoid')
-				if humanoid and humanoid.Health<=0 then getgenv().FireBallAimbotCity=false;cfg.FireBallAimbotCity=false;save();break end
+				if humanoid and humanoid.Health<=0 then 
+					print('City Fireball Aimbot: Player is dead, stopping...')
+					getgenv().FireBallAimbotCity=false;cfg.FireBallAimbotCity=false;save();break 
+				end
+				
+				-- Prevent multiple simultaneous fires
+				if isFiring then
+					task.wait(0.1)
+					continue
+				end
+				
 				local currentTime=tick()
-				if (currentTime-lastFireballTime)>=(cfg.cityFireballCooldown or 0.2) then
+				if (currentTime-lastFireballTime)>=(cfg.cityFireballCooldown or 0.3) then
 					local targetFolderNumber=targetOrder[currentTargetIndex]
+					
+					-- Skip if we just targeted this folder (prevent duplicate firing)
+					if targetFolderNumber == lastTargetFolder then
+						currentTargetIndex=currentTargetIndex+1
+						if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
+						task.wait(0.2)
+						continue
+					end
+					
+					print('City Fireball Aimbot: TARGETING folder ' .. targetFolderNumber .. ' (Index: ' .. currentTargetIndex .. '/5)')
 					local enemies=workspace:FindFirstChild('Enemies')
+					
 					if enemies then
 						local targetFolder=enemies:FindFirstChild(tostring(targetFolderNumber))
 						if targetFolder and targetFolder:IsA('Folder') then
 							local children=targetFolder:GetChildren()
+							print('City Fireball Aimbot: Checking folder ' .. targetFolderNumber .. ' with ' .. #children .. ' children')
+							
 							local targetPosition=nil
 							local foundMob=false
+							
 							for _,child in pairs(children)do
 								if child:IsA('Model') and child:FindFirstChild('HumanoidRootPart') then
 									local hrp=child:FindFirstChild('HumanoidRootPart')
-									if hrp and hrp.Position then targetPosition=hrp.Position;foundMob=true;break end
+									if hrp and hrp.Position then 
+										targetPosition=hrp.Position;foundMob=true
+										print('City Fireball Aimbot: Found Model mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+										break 
+									end
 								elseif child:IsA('BasePart') and child.Position and child.Position~=Vector3.new(0,0,0) then
-									targetPosition=child.Position;foundMob=true;break
+									targetPosition=child.Position;foundMob=true
+									print('City Fireball Aimbot: Found BasePart mob "' .. child.Name .. '" at ' .. tostring(targetPosition))
+									break
 								end
 							end
-							if not foundMob then targetPosition=Vector3.new(0,25,0)+Vector3.new(targetFolderNumber*20,0,targetFolderNumber*10) end
+							
+							if not foundMob then 
+								targetPosition=fallbackPositions[targetFolderNumber] or Vector3.new(targetFolderNumber*20,5,targetFolderNumber*10)
+								print('City Fireball Aimbot: No mobs in folder ' .. targetFolderNumber .. ', firing at strategic position ' .. tostring(targetPosition))
+							end
+							
+							-- Set firing flag to prevent duplicates
+							isFiring=true
 							local success=pcall(function()fireAt(targetPosition)end)
+							
+							if success then
+								if foundMob then
+									print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) mob position ' .. tostring(targetPosition))
+								else
+									print('City Fireball Aimbot: Fired at folder ' .. targetFolderNumber .. ' (' .. currentTargetIndex .. '/5) calculated position ' .. tostring(targetPosition))
+								end
 							lastFireballTime=currentTime
+								lastTargetFolder=targetFolderNumber
+								
+								-- Move to next target
+								currentTargetIndex=currentTargetIndex+1
+								if currentTargetIndex>#targetOrder then 
+									currentTargetIndex=1
+									print('City Fireball Aimbot: Cycle completed, restarting...')
+								end
+								
+								-- Wait longer before next target to prevent rapid firing
+								task.wait(1.0)
+							else
+								print('City Fireball Aimbot: Failed to fire at folder ' .. targetFolderNumber .. ', moving to next...')
 							currentTargetIndex=currentTargetIndex+1
 							if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
-							task.wait(targetWaitTime)
+								task.wait(0.5)
+							end
+							
+							-- Clear firing flag
+							isFiring=false
 						else
+							print('City Fireball Aimbot: Folder ' .. targetFolderNumber .. ' not found, moving to next target...')
 							currentTargetIndex=currentTargetIndex+1
 							if currentTargetIndex>#targetOrder then currentTargetIndex=1 end
-							task.wait(targetWaitTime)
+							task.wait(0.3)
 						end
 					else
+						print('City Fireball Aimbot: workspace.Enemies not found')
 						task.wait(0.5)
 					end
 				else
-					task.wait(0.05)
+					task.wait(0.1)
 				end
 			else
 				task.wait(0.1)
@@ -1208,26 +1440,43 @@ local function TDualExotic(on)
 			return true
 		end
 
+		local lastDarkStoreTime = 0
+		local lastRegularStoreTime = 0
+		local DARK_STORE_INTERVAL = 3600 -- 60 minutes in seconds
+		local REGULAR_STORE_INTERVAL = 1200 -- 20 minutes in seconds
+
 		while getgenv().DualExoticShop do
+			local currentTime = tick()
 			local success = pcall(function()
 				local originalCFrame = humanoidRootPart.CFrame
 
-				if pad1 and gui1 and remote1 and safeTeleport(pad1.CFrame) then
+				-- Buy from Exotic Store 1 every 20 minutes
+				local timeSinceLastRegularStore = currentTime - lastRegularStoreTime
+				if timeSinceLastRegularStore >= REGULAR_STORE_INTERVAL and pad1 and gui1 and remote1 then
+					if safeTeleport(pad1.CFrame) then
 					buyPotions(gui1, remote1, false)
 					humanoidRootPart.CFrame = originalCFrame
+						lastRegularStoreTime = currentTime
 					task.wait(3)
+					end
 				end
 
-				if pad2 and gui2 and remote2 and safeTeleport(pad2.CFrame) then
+				-- Buy from Dark Exotic Store 2 every 60 minutes
+				local timeSinceLastDarkStore = currentTime - lastDarkStoreTime
+				if timeSinceLastDarkStore >= DARK_STORE_INTERVAL and pad2 and gui2 and remote2 then
+					if safeTeleport(pad2.CFrame) then
 					buyPotions(gui2, remote2, true)
 					humanoidRootPart.CFrame = originalCFrame
+						lastDarkStoreTime = currentTime
 					task.wait(3)
+					end
 				end
 			end)
 
 			if not success then task.wait(30) end
 
-			for i=1,1200 do
+			-- Wait 1 minute before next check
+			for i=1,60 do
 				if not getgenv().DualExoticShop then break end
 				task.wait(1)
 			end
@@ -1242,15 +1491,16 @@ end)end end
 local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=on;if not on then return end
 	task.spawn(function()
 		local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
-		local op,od,oh,om,oy,omob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
+		local op,od,oh,om,oy,omob,ot=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value,st.Tokens.Value
 		local function fmt(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.2f',n/1e18)..'QN' end;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
 			if n>=1e9 then return string.format('%.2f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.2f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.2f',n/1e3)..'k'end return tostring(n)end
+		local function fmtChange(n)local change=tonumber(n)or 0;local sign=change>=0 and '+'or'';return sign..fmt(math.abs(change))end
 		while getgenv().StatWebhook15m do for i=1,900 do if not getgenv().StatWebhook15m then break end task.wait(1)end;if not getgenv().StatWebhook15m then break end
-			local np,nd,nh,nm,ny,nmob=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value
-			if np>op or nd>od or nh>oh or nm>om or ny>oy or nmob>omob then
+			local np,nd,nh,nm,ny,nmob,nt=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value,st.Tokens.Value
+			if np>op or nd>od or nh>oh or nm>om or ny>oy or nmob>omob or nt~=ot then
 				local t=LP.Name..' Stats Gained Last 15 Minutes'
-				local d='💪 **Power:** '..fmt(np)..' → **'..fmt(np-op)..'**\n❤️ **Health:** '..fmt(nh)..' → **'..fmt(nh-oh)..'**\n🛡️ **Defense:** '..fmt(nd)..' → **'..fmt(nd-od)..'**\n🔮 **Psychics:** '..fmt(ny)..' → **'..fmt(ny-oy)..'**\n✨ **Magic:** '..fmt(nm)..' → **'..fmt(nm-om)..'**\n💨 **Mobility:** '..fmt(nmob)..' → **'..fmt(nmob-omob)..'**'
-				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy,omob=np,nd,nh,nm,ny,nmob
+				local d='💪 **Power:** '..fmt(np)..' → **'..fmt(np-op)..'**\n❤️ **Health:** '..fmt(nh)..' → **'..fmt(nh-oh)..'**\n🛡️ **Defense:** '..fmt(nd)..' → **'..fmt(nd-od)..'**\n🔮 **Psychics:** '..fmt(ny)..' → **'..fmt(ny-oy)..'**\n✨ **Magic:** '..fmt(nm)..' → **'..fmt(nm-om)..'**\n💨 **Mobility:** '..fmt(nmob)..' → **'..fmt(nmob-omob)..'**\n💰 **Tokens:** '..fmt(nt)..' → **'..fmtChange(nt-ot)..'**'
+				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy,omob,ot=np,nd,nh,nm,ny,nmob,nt
 			end
 		end
 	end)
@@ -1499,8 +1749,30 @@ local function TConsumeSuper(on)cfg.AutoConsumeSuper=on;save();getgenv().AutoCon
 local C1=Section(CScroll,'Mob FireBall Aimbot')
 Toggle(C1,'Universal FireBall Aimbot','UniversalFireBallAimbot',UFA);Slider(C1,'Universal Fireball Cooldown','universalFireballInterval',0.05,1.0,1.0,function()end)
 
--- Mob selection UI for Universal Fireball (2 columns, multi-select, green selected)
-mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Select Mobs (Universal Fireball)',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
+--- Custom Mob Order UI for Universal Fireball
+mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Custom Mob Order (Click mobs to add to sequence)',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
+
+-- Current order display
+local OrderLabel = mk('TextLabel',{Size=UDim2.new(1,-12,0,40),BackgroundTransparency=1,Text='Current Order: None',TextColor3=Color3.fromRGB(200,200,200),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.Gotham,TextWrapped=true},C1)
+
+local function updateOrderDisplay()
+	if cfg.UFAOrderedMobs and #cfg.UFAOrderedMobs > 0 then
+		OrderLabel.Text = 'Current Order: ' .. table.concat(cfg.UFAOrderedMobs, ' → ')
+	else
+		OrderLabel.Text = 'Current Order: None'
+	end
+end
+
+-- Clear order button
+local ClearBtn = mk('TextButton',{Size=UDim2.new(0,120,0,28),BackgroundColor3=Color3.fromRGB(180,50,50),BorderSizePixel=0,Text='Clear Order',TextColor3=Color3.fromRGB(255,255,255),TextScaled=true,Font=Enum.Font.Gotham},C1)
+mk('UICorner',{CornerRadius=UDim.new(0,6)},ClearBtn)
+ClearBtn.MouseButton1Click:Connect(function()
+	cfg.UFAOrderedMobs = {}
+	updateOrderDisplay()
+	save()
+end)
+
+-- Mob selection grid (2 columns, click to add to order)
 local MobGrid = mk('Frame',{Size=UDim2.new(1,0,0,0),BackgroundTransparency=1,AutomaticSize=Enum.AutomaticSize.Y},C1)
 local GridLayout = Instance.new('UIGridLayout')
 GridLayout.Parent = MobGrid
@@ -1508,27 +1780,54 @@ GridLayout.CellPadding = UDim2.new(0,8,0,8)
 GridLayout.CellSize = UDim2.new(0.5,-6,0,32)
 GridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 GridLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-local function paint(btn, selected)btn.BackgroundColor3=selected and Color3.fromRGB(40,140,40) or Color3.fromRGB(36,36,48)end
+
 local function makeMobButton(name)
-	local b=Instance.new('TextButton')
-	b.Name='Mob_'..name
-	b.Size=UDim2.new(0,0,0,32)
-	b.BackgroundColor3=Color3.fromRGB(36,36,48)
-	b.BorderSizePixel=0
-	b.Text=name
-	b.TextColor3=Color3.fromRGB(235,235,245)
-	b.TextScaled=true
-	b.Font=Enum.Font.Gotham
-	local corner=Instance.new('UICorner');corner.CornerRadius=UDim.new(0,8);corner.Parent=b
-	paint(b,isMobSelected(name))
-	b.Parent=MobGrid
+	local b = Instance.new('TextButton')
+	b.Name = 'Mob_' .. name
+	b.Size = UDim2.new(0,0,0,32)
+	b.BackgroundColor3 = Color3.fromRGB(36,36,48)
+	b.BorderSizePixel = 0
+	b.Text = name
+	b.TextColor3 = Color3.fromRGB(235,235,245)
+	b.TextScaled = true
+	b.Font = Enum.Font.Gotham
+	local corner = Instance.new('UICorner')
+	corner.CornerRadius = UDim.new(0,8)
+	corner.Parent = b
+	b.Parent = MobGrid
+	
 	b.MouseButton1Click:Connect(function()
-		cfg.UFASelectedMobs[name]=not isMobSelected(name)
-		paint(b,isMobSelected(name))
+		-- Add to ordered list if not already present
+		if not table.find(cfg.UFAOrderedMobs, name) then
+			table.insert(cfg.UFAOrderedMobs, name)
+			updateOrderDisplay()
 		save()
+		end
+	end)
+	
+	-- Visual feedback on hover
+	b.MouseEnter:Connect(function()
+		if not table.find(cfg.UFAOrderedMobs, name) then
+			b.BackgroundColor3 = Color3.fromRGB(50,50,60)
+		end
+	end)
+	b.MouseLeave:Connect(function()
+		if not table.find(cfg.UFAOrderedMobs, name) then
+			b.BackgroundColor3 = Color3.fromRGB(36,36,48)
+		end
 	end)
 end
-do local names=uniqueMobNames() for _,name in ipairs(names) do makeMobButton(name) end end
+
+-- Create mob buttons
+do 
+	local names = uniqueMobNames() 
+	for _, name in ipairs(names) do 
+		makeMobButton(name) 
+	end 
+end
+
+-- Initialize display
+updateOrderDisplay()
 
 Toggle(C1,'FireBall Aimbot Catacombs Preset','FireBallAimbot',CatAimbot);Slider(C1,'Fireball Cooldown','fireballCooldown',0.05,1.0,0.1,function()end)
 Toggle(C1,'FireBall Aimbot City Preset','FireBallAimbotCity',CityAimbot);Slider(C1,'City Fireball Cooldown','cityFireballCooldown',0.05,1.0,0.5,function()end)
@@ -1628,4 +1927,6 @@ local LB=Btn(Cfg,'Load Config',function()
 	getgenv().SmartPanic = cfg.SmartPanic and true or false
 end)
 SB.Position=UDim2.new(0,0,0,0);LB.Position=UDim2.new(0,270,0,0)
+local SHK=Btn(Cfg,"Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")",function()waitingKey=true;SHK.Text='Press any key...'end);SetHideBtn=SHK;SHK.Position=UDim2.new(0,540,0,0)
+local SHK=Btn(Cfg,"Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")",function()waitingKey=true;SHK.Text='Press any key...'end);SetHideBtn=SHK;SHK.Position=UDim2.new(0,540,0,0)
 local SHK=Btn(Cfg,"Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")",function()waitingKey=true;SHK.Text='Press any key...'end);SetHideBtn=SHK;SHK.Position=UDim2.new(0,540,0,0)
