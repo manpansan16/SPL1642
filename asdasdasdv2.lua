@@ -1,7 +1,7 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 local P=game:GetService('Players');while not P.LocalPlayer or not workspace.CurrentCamera do task.wait() end
 local U=game:GetService('UserInputService');local R=game:GetService('RunService');local H=game:GetService('HttpService')
-local L=game:GetService('Lighting');local RS=game:GetService('ReplicatedStorage')
+local L=game:GetService('Lighting');local RS=game:GetService('ReplicatedStorage');local TS=game:GetService('TeleportService')
 local LP=P.LocalPlayer;local Cam=workspace.CurrentCamera
 
 -- Destroy PlayerGui.VendingMachine.VendingMachine on start (no GUI toggle)
@@ -35,7 +35,7 @@ local cfg={
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
 	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
-	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,
+	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,ServerHop=false,TeleportOnStart=true,
 	UFAOrderedMobs={},
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
@@ -70,15 +70,38 @@ local function tableToCF(t)if type(t)=='table' and #t==12 then return CFrame.new
 local function persistSave(cf)local ok,err=pcall(function()writefile(SAVEP_FILE,H:JSONEncode(cfToTable(cf)))end)end
 local function loadPersistedSave()if isfile(SAVEP_FILE)then local ok,data=pcall(function()return H:JSONDecode(readfile(SAVEP_FILE))end);if ok then local cf=tableToCF(data);if cf then savedCFrame=cf end end end end
 loadPersistedSave()
--- Auto-teleport to saved position on execute (controlled by getgenv().TeleportOnStart)
+-- Auto-teleport to saved position on execute (controlled by cfg.TeleportOnStart)
 task.spawn(function()
-	if getgenv and getgenv().TeleportOnStart then
+	if cfg.TeleportOnStart then
 		local cf = savedCFrame
 		if not cf then loadPersistedSave(); cf = savedCFrame end
 		if cf then
 			local char = LP.Character or LP.CharacterAdded:Wait()
 			local hrp = char:WaitForChild("HumanoidRootPart", 10)
-			if hrp then pcall(function() char:PivotTo(cf) end) end
+			if hrp then 
+				pcall(function() 
+					-- Wait for character to be fully loaded
+					task.wait(2)
+					
+					-- Apply position and rotation multiple times to ensure it sticks
+					for i = 1, 3 do
+						char:PivotTo(cf)
+						task.wait(0.1)
+						hrp.CFrame = cf
+						task.wait(0.1)
+					end
+					
+					-- Also set the camera to look in the same direction
+					local camera = workspace.CurrentCamera
+					if camera then
+						local lookDirection = cf.LookVector
+						camera.CFrame = CFrame.lookAt(camera.CFrame.Position, camera.CFrame.Position + lookDirection)
+					end
+					
+					print("Teleported to saved position with rotation:", cf)
+					print("Look direction:", cf.LookVector)
+				end) 
+			end
 		end
 	end
 end)
@@ -214,20 +237,51 @@ do
 	local labels={Timer=createLabel("Timer","",Color3.fromRGB(255,255,255)),SepTop=createSeparator("SepTop"),Training=createLabel("Training","📋 Training",Color3.fromRGB(255,255,255)),SepBottom=createSeparator("SepBottom")}
 	local boostRow=createBoostRow()local BOOST_EMOJIS={"💪","❤️","🛡️","🔮","✨","💨"}local boostLabels={}for i=1,6 do boostLabels[i]=createBoostLabel(i,boostRow)end
 	labels.Tokens=createSmallLabel("Tokens","💰 Tokens",Color3.fromRGB(255,170,0),0.25,Color3.fromRGB(200,120,0))
-	labels.Power=createLabel("Power","💪 Power",Color3.fromRGB(255,80,80));labels.Health=createLabel("Health","❤️ Health",Color3.fromRGB(80,255,80));labels.Defense=createLabel("Defense","🛡️ Defense",Color3.fromRGB(80,80,255));labels.Psychics=createLabel("Psychics","🔮 Psychics",Color3.fromRGB(160,80,200));labels.Magic=createLabel("Magic","✨ Magic",Color3.fromRGB(255,140,200));labels.Mobility=createLabel("Mobility","💨 Mobility",Color3.fromRGB(255,255,120));labels.TotalPower=createLabel("TotalPower","📊 Total Power",Color3.fromRGB(255,255,255));labels.TotalPowerEarned=createLabel("TotalPowerEarned","📈 Total Power Earned",Color3.fromRGB(255,255,255))
+	labels.Power=createLabel("Power","💪 Power",Color3.fromRGB(255,80,80));labels.Health=createLabel("Health","❤️ Health",Color3.fromRGB(80,255,80));labels.Defense=createLabel("Defense","🛡️ Defense",Color3.fromRGB(80,80,255));labels.Psychics=createLabel("Psychics","🔮 Psychics",Color3.fromRGB(160,80,200));labels.Magic=createLabel("Magic","✨ Magic",Color3.fromRGB(255,140,200));labels.Mobility=createLabel("Mobility","💨 Mobility",Color3.fromRGB(255,255,120));labels.TotalPower=createLabel("TotalPower","📊 Total Power",Color3.fromRGB(255,255,255));labels.TotalPowerEarned=createLabel("TotalPowerEarned","📈 Total Power Earned",Color3.fromRGB(255,255,255));labels.MobKills=createSmallLabel("MobKills","⚔️ Mob Kills",Color3.fromRGB(255,100,100),0.25,Color3.fromRGB(200,50,50))
 	local startTime=os.time()labels.Timer.Text="00:00:00"
 	local function updateTimer()local elapsed=os.time()-startTime;local hours=math.floor(elapsed/3600);local minutes=math.floor((elapsed%3600)/60);local seconds=elapsed%60;labels.Timer.Text=string.format("%02d:%02d:%02d",hours,minutes,seconds)end
 	local function setTrainingDividersColor(statName)local color=STAT_COLORS[statName];if color then labels.SepTop.BackgroundColor3=color;labels.SepBottom.BackgroundColor3=color;labels.SepTop.Visible=true;labels.SepBottom.Visible=true else labels.SepTop.Visible=false;labels.SepBottom.Visible=false end end
 	local function getPotionBonus(index)local hud=playerGui:FindFirstChild("HUD");if not hud then return "" end local topUi=hud:FindFirstChild("TopUi");if not topUi then return "" end local rank=topUi:FindFirstChild("Rank");if not rank then return "" end local data=rank:FindFirstChild("Data");if not data then return "" end local potionEffect=data:FindFirstChild("PotionEffect");if not potionEffect then return "" end local slot=potionEffect:FindFirstChild(tostring(index));if not slot then return "" end local design=slot:FindFirstChild("Design");if not design then return "" end local bonus=design:FindFirstChild("Bonus");if not bonus then return "" end if bonus:IsA("ValueBase")then return tostring(bonus.Value or"")end if bonus:IsA("TextLabel")or bonus:IsA("TextBox")or bonus:IsA("TextButton")then return tostring(bonus.Text or"")end return "" end
 	local initialTotalPower=getNumberValue(statsFolder,"TotalPower")
+	local sessionMobKills=0
 	local function updateBoosts()for i=1,6 do local bonusText=getPotionBonus(i);local lbl=boostLabels[i];if bonusText~=""then lbl.Text=string.format("%s %s",BOOST_EMOJIS[i],bonusText);lbl.Visible=true else lbl.Text="";lbl.Visible=false end end end
 	local function updateStats()local s=statsFolder;local statTraining=getStringValue(s,"StatTraining");local rawTick=getNumberValue(s,"TrainingTick");local trainingTick=rawTick;if rawTick>=9e12 and rawTick<1e13 then trainingTick=rawTick*10 end;if statTraining==""then labels.Training.Text="📋 Training None";setTrainingDividersColor(nil)else labels.Training.Text=string.format("📋 Training %s +%s Per Tick",statTraining,formatNumber(trainingTick));setTrainingDividersColor(statTraining)end
 		local power=getNumberValue(s,"Power");local health=getNumberValue(s,"Health");local defense=getNumberValue(s,"Defense");local psychics=getNumberValue(s,"Psychics");local magic=getNumberValue(s,"Magic");local mobility=getNumberValue(s,"Mobility");local totalPower=getNumberValue(s,"TotalPower");local tokens=getNumberValue(s,"Tokens")
 		labels.Tokens.Text="💰 Tokens: "..formatNumber(tokens);labels.Power.Text="💪 Power: "..formatNumber(power);labels.Health.Text="❤️ Health: "..formatNumber(health);labels.Defense.Text="🛡️ Defense: "..formatNumber(defense);labels.Psychics.Text="🔮 Psychics: "..formatNumber(psychics);labels.Magic.Text="✨ Magic: "..formatNumber(magic);labels.Mobility.Text="💨 Mobility: "..formatNumber(mobility);labels.TotalPower.Text="📊 Total Power: "..formatNumber(totalPower)
 		local earned=math.max(0,totalPower-(initialTotalPower or totalPower));labels.TotalPowerEarned.Text="📈 Total Power Earned: "..formatNumber(earned)
+		labels.MobKills.Text="⚔️ Mob Kills: "..sessionMobKills
 	end
 	task.spawn(function()while task.wait(1) do updateTimer();updateStats();updateBoosts() end end)
 	U.InputBegan:Connect(function(i,gp)if gp then return end if i.KeyCode==Enum.KeyCode.P then screenGui.Enabled=not screenGui.Enabled end end)
+	
+	-- Track mob kills
+	local function trackMobKills()
+		local enemiesRoot = workspace:FindFirstChild("Enemies")
+		if not enemiesRoot then return end
+		
+		for _, bucket in pairs(enemiesRoot:GetChildren()) do
+			if tonumber(bucket.Name) then
+				for _, mob in pairs(bucket:GetDescendants()) do
+					if mob:IsA("Model") and mob:FindFirstChild("Humanoid") then
+						local humanoid = mob:FindFirstChild("Humanoid")
+						if humanoid.Health <= 0 and not mob:GetAttribute("Tracked") then
+							mob:SetAttribute("Tracked", true)
+							sessionMobKills = sessionMobKills + 1
+							print("Mob killed! Total kills this session:", sessionMobKills)
+						end
+					end
+				end
+			end
+		end
+	end
+	
+	-- Check for mob kills every 0.5 seconds
+	task.spawn(function()
+		while true do
+			trackMobKills()
+			task.wait(0.5)
+		end
+	end)
 end
 
 local BG=mk('Frame',{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1},G)
@@ -359,6 +413,7 @@ Btn(row,'Save Place',function()
 		_G.__SavedCFrame=cf
 		savedCFrame=cf
 		persistSave(cf)
+		print("Saved position and rotation:", cf)
 	end
 end)
 Btn(row,'Teleport To Save',function()
@@ -811,6 +866,7 @@ local function TMobESP(on)
 		for _, c in ipairs(rec.conns or {}) do pcall(function() c:Disconnect() end) end
 		if rec.box then pcall(function() rec.box:Destroy() end) end
 		if rec.bill then pcall(function() rec.bill:Destroy() end) end
+		if rec.distanceLabel then pcall(function() rec.distanceLabel:Destroy() end) end
 	end
 	local function disableAll()
 		for _, rec in pairs(M._records or {}) do clearRecord(rec) end
@@ -887,22 +943,34 @@ local function TMobESP(on)
 		bill.Name = "EnemyESP2_Label"
 		bill.Adornee = part
 		bill.AlwaysOnTop = true
-		-- Smaller label
-		bill.Size = UDim2.new(0, 140, 0, 18)
+		-- Larger label to fit both name and distance
+		bill.Size = UDim2.new(0, 140, 0, 36)
 		bill.StudsOffset = Vector3.new(0, 2.5, 0)
 		bill.MaxDistance = 1e6
 		bill.Parent = M.HOLDER
 
 		local tl = Instance.new("TextLabel")
 		tl.BackgroundTransparency = 1
-		tl.Size = UDim2.new(1, 0, 1, 0)
+		tl.Size = UDim2.new(1, 0, 0.5, 0)
+		tl.Position = UDim2.new(0, 0, 0, 0)
 		tl.Font = Enum.Font.GothamBold
 		tl.TextSize = 12
 		tl.TextColor3 = col
 		tl.TextStrokeTransparency = 0.3
 		tl.Text = text
 		tl.Parent = bill
-		return bill, tl
+
+		local distanceLabel = Instance.new("TextLabel")
+		distanceLabel.BackgroundTransparency = 1
+		distanceLabel.Size = UDim2.new(1, 0, 0.5, 0)
+		distanceLabel.Position = UDim2.new(0, 0, 0.5, 0)
+		distanceLabel.Font = Enum.Font.GothamBold
+		distanceLabel.TextSize = 12
+		distanceLabel.TextColor3 = col
+		distanceLabel.TextStrokeTransparency = 0.3
+		distanceLabel.Text = "0m"
+		distanceLabel.Parent = bill
+		return bill, tl, distanceLabel
 	end
 
 	local function attachToModel(model)
@@ -916,9 +984,9 @@ local function TMobESP(on)
 		local label = getMobDisplayName(model)
 
 		local box = makeBox(part, col)
-		local bill, billLabel = makeBill(part, label, col)
+		local bill, billLabel, distanceLabel = makeBill(part, label, col)
 
-		local rec = {box=box, bill=bill, billLabel=billLabel, part=part, conns={}}
+		local rec = {box=box, bill=bill, billLabel=billLabel, distanceLabel=distanceLabel, part=part, conns={}}
 		M._records[model] = rec
 
 		table.insert(rec.conns, part:GetPropertyChangedSignal("Size"):Connect(function()
@@ -936,6 +1004,16 @@ local function TMobESP(on)
 		end))
 		local function refreshName()
 			if rec.billLabel then rec.billLabel.Text = getMobDisplayName(model) end
+		end
+		local function updateDistance()
+			if not rec.distanceLabel or not rec.part then return end
+			local char = LP.Character
+			if not char then return end
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if not hrp then return end
+			local distance = (hrp.Position - rec.part.Position).Magnitude
+			local distanceText = string.format("%.0fm", distance)
+			rec.distanceLabel.Text = distanceText
 		end
 		local hum = model:FindFirstChildOfClass("Humanoid")
 		if hum then table.insert(rec.conns, hum:GetPropertyChangedSignal("DisplayName"):Connect(refreshName)) end
@@ -961,7 +1039,24 @@ local function TMobESP(on)
 		end
 	end
 
-	table.insert(M._conns, R.Heartbeat:Connect(function() if not M.enabled then return end fullScan() end))
+	table.insert(M._conns, R.Heartbeat:Connect(function() 
+		if not M.enabled then return end 
+		fullScan()
+		-- Update distances for all active mobs
+		for _, rec in pairs(M._records) do
+			if rec.distanceLabel and rec.part then
+				local char = LP.Character
+				if char then
+					local hrp = char:FindFirstChild("HumanoidRootPart")
+					if hrp then
+						local distance = (hrp.Position - rec.part.Position).Magnitude
+						local distanceText = string.format("%.0fm", distance)
+						rec.distanceLabel.Text = distanceText
+					end
+				end
+			end
+		end
+	end))
 	local root = enemiesRoot()
 	if root then
 		table.insert(M._conns, root.DescendantAdded:Connect(function(inst)
@@ -1569,6 +1664,116 @@ end
 	LP.CharacterAdded:Connect(function(nc) hook(nc:WaitForChild('Humanoid',10)) end)
 end
 
+-- Server Hop when YTPVP members join
+local function TServerHop(on)
+	cfg.ServerHop=on;save();getgenv().ServerHop=on
+	if on then
+		-- Check existing players with retry mechanism
+		task.spawn(function()
+			for attempt = 1, 3 do
+				for _, player in pairs(P:GetPlayers()) do
+					if player ~= LP then
+						local success, clanId = pcall(function()
+							-- Use the same method as Player ESP - check ReplicatedStorage data
+							local dataFolder = RS:FindFirstChild("Data")
+							if not dataFolder then
+								print("No Data folder in ReplicatedStorage for", player.Name)
+								return nil
+							end
+							
+							local playerData = dataFolder:FindFirstChild(player.Name)
+							if not playerData then
+								print("No player data folder for", player.Name)
+								return nil
+							end
+							
+							local stats = playerData:FindFirstChild("Stats")
+							if not stats then
+								print("No stats folder in player data for", player.Name)
+								return nil
+							end
+							
+							local clanJoined = stats:FindFirstChild("ClanJoined")
+							if not clanJoined then
+								print("No ClanJoined in player data stats for", player.Name)
+								return nil
+							end
+							
+							local clanValue = clanJoined.Value
+							print("Found ClanJoined value for", player.Name, ":", clanValue)
+							return clanValue
+						end)
+						
+						print("Checking player:", player.Name, "Clan ID:", clanId)
+						
+						if success and clanId and (clanId == 11 or clanId == 3704) then
+							webhook('Server Hop', 'YTPVP Member Detected!', 'Player: '..player.Name..' (Clan ID: '..clanId..')\nServer hopping in 3 seconds...', nil)
+							print("YTPVP member found! Server hopping...")
+							task.wait(3)
+							TS:Teleport(game.PlaceId)
+							return
+						end
+					end
+				end
+				if attempt < 3 then
+					task.wait(2) -- Wait 2 seconds before retry
+				end
+			end
+		end)
+		
+		-- Monitor new players
+		P.PlayerAdded:Connect(function(player)
+			if not getgenv().ServerHop then return end
+			task.wait(2) -- Wait for character to load
+			
+			local success, clanId = pcall(function()
+				-- Use the same method as Player ESP - check ReplicatedStorage data
+				local dataFolder = RS:FindFirstChild("Data")
+				if not dataFolder then
+					print("New player no Data folder in ReplicatedStorage for", player.Name)
+					return nil
+				end
+				
+				local playerData = dataFolder:FindFirstChild(player.Name)
+				if not playerData then
+					print("New player no player data folder for", player.Name)
+					return nil
+				end
+				
+				local stats = playerData:FindFirstChild("Stats")
+				if not stats then
+					print("New player no stats folder in player data for", player.Name)
+					return nil
+				end
+				
+				local clanJoined = stats:FindFirstChild("ClanJoined")
+				if not clanJoined then
+					print("New player no ClanJoined in player data stats for", player.Name)
+					return nil
+				end
+				
+				local clanValue = clanJoined.Value
+				print("New player found ClanJoined value for", player.Name, ":", clanValue)
+				return clanValue
+			end)
+			
+			print("New player joined:", player.Name, "Clan ID:", clanId)
+			
+			if success and clanId and (clanId == 11 or clanId == 3704) then
+				webhook('Server Hop', 'YTPVP Member Joined!', 'Player: '..player.Name..' (Clan ID: '..clanId..')\nServer hopping in 3 seconds...', nil)
+				print("YTPVP member joined! Server hopping...")
+				task.wait(3)
+				TS:Teleport(game.PlaceId)
+			end
+		end)
+	end
+end
+
+-- Toggle for auto-teleport to saved position on script start
+local function TTeleportOnStart(on)
+	cfg.TeleportOnStart=on;save()
+end
+
 local SG={gui=nil,run=false}
 local function TStatGui(on)cfg.StatGui=on;save();getgenv().StatGui=on;if not on then SG.run=false;if SG.gui then pcall(function()SG.gui:Destroy()end)SG.gui=nil end return end
 	-- retained but no UI toggle
@@ -1855,6 +2060,8 @@ Toggle(U1,'Panic Webhook','PanicWebhook',function(on)cfg.PanicWebhook=on;save()e
 Toggle(U1,'Stat Webhook (15m)','StatWebhook15m',TStatWH)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Security',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Kick On Untrusted Players','KickOnUntrustedPlayers',TKickUntrusted)
+Toggle(U1,'Server Hop','ServerHop',TServerHop)
+Toggle(U1,'Auto Teleport On Start','TeleportOnStart',TTeleportOnStart)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Auto Ability',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Auto Invisible','AutoInvisible',TInv);Toggle(U1,'Auto Resize','AutoResize',TResize);Toggle(U1,'Auto Fly','AutoFly',TFly)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Guis',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
@@ -1916,6 +2123,8 @@ local LB=Btn(Cfg,'Load Config',function()
 	ap(cfg.InfiniteZoom,function()return getgenv().InfiniteZoom or false end,TInfiniteZoom)
 	ap(cfg.AutoConsumePower,function()return getgenv().AutoConsumePower or false end,TConsumePower)
 	ap(cfg.KickOnUntrustedPlayers,function()return getgenv().KickOnUntrustedPlayers or false end,TKickUntrusted)
+	ap(cfg.ServerHop,function()return getgenv().ServerHop or false end,TServerHop)
+	ap(cfg.TeleportOnStart,function()return cfg.TeleportOnStart end,TTeleportOnStart)
 	ap(cfg.AutoConsumeHealth,function()return getgenv().AutoConsumeHealth or false end,TConsumeHealth)
 	ap(cfg.AutoConsumeDefense,function()return getgenv().AutoConsumeDefense or false end,TConsumeDefense)
 	ap(cfg.AutoConsumePsychic,function()return getgenv().AutoConsumePsychic or false end,TConsumePsychic)
@@ -1927,6 +2136,4 @@ local LB=Btn(Cfg,'Load Config',function()
 	getgenv().SmartPanic = cfg.SmartPanic and true or false
 end)
 SB.Position=UDim2.new(0,0,0,0);LB.Position=UDim2.new(0,270,0,0)
-local SHK=Btn(Cfg,"Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")",function()waitingKey=true;SHK.Text='Press any key...'end);SetHideBtn=SHK;SHK.Position=UDim2.new(0,540,0,0)
-local SHK=Btn(Cfg,"Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")",function()waitingKey=true;SHK.Text='Press any key...'end);SetHideBtn=SHK;SHK.Position=UDim2.new(0,540,0,0)
 local SHK=Btn(Cfg,"Set Hide Key ("..(cfg.HideGUIKey or'RightControl')..")",function()waitingKey=true;SHK.Text='Press any key...'end);SetHideBtn=SHK;SHK.Position=UDim2.new(0,540,0,0)
