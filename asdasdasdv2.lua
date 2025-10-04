@@ -33,7 +33,7 @@ local cfg={
 	UltimateAFKOptimization=false,NoClip=false,PlayerESP=false,MobESP=false,AutoWashDishes=false,
 	AutoNinjaSideTask=false,AutoAnimatronicsSideTask=false,AutoMutantsSideTask=false,DualExoticShop=false,
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
-	AutoInvisible=false,AutoResize=false,AutoFly=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
+	AutoInvisible=false,AutoResize=false,AutoFly=false,AutoTrainStrength=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
 	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,ServerHop=false,TeleportOnStart=true,
 	UFAOrderedMobs={},
@@ -1664,10 +1664,99 @@ end
 	LP.CharacterAdded:Connect(function(nc) hook(nc:WaitForChild('Humanoid',10)) end)
 end
 
+-- Auto-execute check for place hopping
+if game.PlaceId == 79106917651793 then
+	print("Auto-execute: In PvP server, teleporting back to main game...")
+	-- Disable server hop temporarily to prevent loop
+	getgenv().ServerHop = false
+	-- Add a small delay to prevent immediate re-triggering
+	task.wait(2)
+	TS:Teleport(137681066791460) -- Main game ID
+else
+	-- We're in main game, re-enable server hop after delay
+	task.spawn(function()
+		task.wait(10) -- Wait 10 seconds after joining main game
+		if cfg.ServerHop then
+			getgenv().ServerHop = true
+			print("Re-enabled server hop after delay")
+		end
+	end)
+end
+
 -- Server Hop when YTPVP members join
 local function TServerHop(on)
 	cfg.ServerHop=on;save();getgenv().ServerHop=on
 	if on then
+		-- Use global variables that persist across script executions
+		if not getgenv().lastServerHopTime then
+			getgenv().lastServerHopTime = 0
+		end
+		if not getgenv().lastServerId then
+			getgenv().lastServerId = nil
+		end
+		
+		-- Check if we just rejoined the same server and need to hop again
+		task.spawn(function()
+			task.wait(5) -- Wait for server to fully load
+			
+			local currentServerId = game.JobId
+			local currentPlayerCount = #P:GetPlayers()
+			
+			-- If we have previous server info and we're in the same server
+			if getgenv().lastServerId and getgenv().serverHopReason == "YTPVP_DETECTED" then
+				local timeSinceHop = tick() - (getgenv().lastServerHopTime or 0)
+				
+				print("Checking server after rejoin...")
+				print("Previous JobId:", getgenv().lastServerId)
+				print("Current JobId:", currentServerId)
+				print("Time since hop:", timeSinceHop, "seconds")
+				
+				-- Same server detection
+				if currentServerId == getgenv().lastServerId and timeSinceHop < 300 then -- Within 5 minutes
+					print("⚠️ SAME SERVER DETECTED! Hopping again...")
+					webhook('Server Hop', '⚠️ Same Server Detected', 'Yummy rejoined the same server. Attempting hop again...\n\nJobId: '..currentServerId, nil)
+					
+					-- Try again with small delay
+					task.wait(2)
+					game:Shutdown()
+				else
+					print("✅ Successfully joined different server!")
+					print("Clearing server hop flags...")
+					-- Clear the hop reason since we successfully changed servers
+					getgenv().serverHopReason = nil
+					getgenv().lastServerId = currentServerId
+				end
+			end
+		end)
+		-- Function to trigger automatic server hop for AFK farming
+		local function performAutoServerHop(playerName, clanId)
+			print("🚨 YTPVP MEMBER DETECTED! 🚨")
+			print("Player:", playerName, "Clan ID:", clanId)
+			print("Initiating automatic server hop for AFK farming...")
+			
+			-- Store current server info before leaving
+			getgenv().lastServerId = game.JobId
+			getgenv().lastServerPlayerCount = #P:GetPlayers()
+			getgenv().serverHopReason = "YTPVP_DETECTED"
+			getgenv().lastServerHopTime = tick()
+			
+			print("Storing server info - JobId:", game.JobId, "Players:", #P:GetPlayers())
+			
+			-- Send webhook notification
+			webhook('YTPVP Alert', '🚨 YTPVP Member Detected!', 'Player: '..playerName..' (Clan ID: '..clanId..')\n\n🔄 Automatically server hopping...', nil)
+			
+			-- Write to file for external automation (if needed)
+			pcall(function()
+				writefile("server_hop_trigger.txt", playerName .. "|" .. clanId .. "|" .. tick())
+			end)
+			
+			-- Close Roblox and let Yummy handle rejoining to a different server
+			task.spawn(function()
+				print("Closing Roblox for server hop - Yummy will handle rejoining...")
+				task.wait(2) -- Small delay to ensure webhook is sent
+				game:Shutdown()
+			end)
+		end
 		-- Check existing players with retry mechanism
 		task.spawn(function()
 			for attempt = 1, 3 do
@@ -1706,11 +1795,8 @@ local function TServerHop(on)
 						
 						print("Checking player:", player.Name, "Clan ID:", clanId)
 						
-						if success and clanId and (clanId == 11 or clanId == 3704) then
-							webhook('Server Hop', 'YTPVP Member Detected!', 'Player: '..player.Name..' (Clan ID: '..clanId..')\nServer hopping in 3 seconds...', nil)
-							print("YTPVP member found! Server hopping...")
-							task.wait(3)
-							TS:Teleport(game.PlaceId)
+						if success and clanId and (clanId == 11 or clanId == 3704 or clanId == 999) then
+							performAutoServerHop(player.Name, clanId)
 							return
 						end
 					end
@@ -1759,11 +1845,8 @@ local function TServerHop(on)
 			
 			print("New player joined:", player.Name, "Clan ID:", clanId)
 			
-			if success and clanId and (clanId == 11 or clanId == 3704) then
-				webhook('Server Hop', 'YTPVP Member Joined!', 'Player: '..player.Name..' (Clan ID: '..clanId..')\nServer hopping in 3 seconds...', nil)
-				print("YTPVP member joined! Server hopping...")
-				task.wait(3)
-				TS:Teleport(game.PlaceId)
+			if success and clanId and (clanId == 11 or clanId == 3704 or clanId == 999) then
+				performAutoServerHop(player.Name, clanId)
 			end
 		end)
 	end
@@ -1844,6 +1927,9 @@ end
 local function TFly(on)cfg.AutoFly=on;save();getgenv().AutoFly=on;if AA.fly then AA.fly:Disconnect()AA.fly=nil end;if not on then return end
 	local a=ev('Events','Other','Ability');local last=0
 	AA.fly=R.Heartbeat:Connect(function()local n=os.clock();if n-last<0.5 then return end;last=n;local tv=LP:FindFirstChild('TempValues');local f=tv and tv:FindFirstChild('IsFlying');if not(f and f.Value==true)then pcall(function()a:InvokeServer('Fly',Vector3.new(1932.461181640625,56.015625,-1965.3206787109375))end)end end)
+end
+local function TTrainStrength(on)cfg.AutoTrainStrength=on;save();getgenv().AutoTrainStrength=on;if not on then return end
+	pcall(function()game:GetService("VirtualInputManager"):SendKeyEvent(true,Enum.KeyCode.One,false,nil)end)
 end
 
 local HExp
@@ -2063,7 +2149,7 @@ Toggle(U1,'Kick On Untrusted Players','KickOnUntrustedPlayers',TKickUntrusted)
 Toggle(U1,'Server Hop','ServerHop',TServerHop)
 Toggle(U1,'Auto Teleport On Start','TeleportOnStart',TTeleportOnStart)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Auto Ability',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
-Toggle(U1,'Auto Invisible','AutoInvisible',TInv);Toggle(U1,'Auto Resize','AutoResize',TResize);Toggle(U1,'Auto Fly','AutoFly',TFly)
+Toggle(U1,'Auto Invisible','AutoInvisible',TInv);Toggle(U1,'Auto Resize','AutoResize',TResize);Toggle(U1,'Auto Fly','AutoFly',TFly);Toggle(U1,'Auto Train Strength','AutoTrainStrength',TTrainStrength)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Guis',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Quick Teleport Gui','QuickTeleports',TQuickTeleports)
 
@@ -2118,6 +2204,7 @@ local LB=Btn(Cfg,'Load Config',function()
 	ap(cfg.AutoInvisible,function()return getgenv().AutoInvisible or false end,TInv)
 	ap(cfg.AutoResize,function()return getgenv().AutoResize or false end,TResize)
 	ap(cfg.AutoFly,function()return getgenv().AutoFly or false end,TFly)
+	ap(cfg.AutoTrainStrength,function()return getgenv().AutoTrainStrength or false end,TTrainStrength)
 	ap(cfg.HealthExploit,function()return getgenv().HealthExploit or false end,THealthExploit)
 	ap(cfg.GammaAimbot,function()return getgenv().GammaAimbot or false end,TGamma)
 	ap(cfg.InfiniteZoom,function()return getgenv().InfiniteZoom or false end,TInfiniteZoom)
