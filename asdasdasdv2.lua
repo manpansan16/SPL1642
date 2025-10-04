@@ -1112,8 +1112,10 @@ local function UFA(on)
 			local currentTime = tick()
 			if (currentTime - lastFireballTime) >= (cfg.universalFireballInterval or 1.0) then
 				local targetMobName = cfg.UFAOrderedMobs[currentTargetIndex]
-				if targetMobName == lastTargetMob then
-					-- Skip to next mob to avoid duplicates
+				
+				-- For single mob selection, don't skip if it's the same mob
+				if #cfg.UFAOrderedMobs > 1 and targetMobName == lastTargetMob then
+					-- Skip to next mob to avoid duplicates (only for multiple mobs)
 					currentTargetIndex = currentTargetIndex + 1
 					if currentTargetIndex > #cfg.UFAOrderedMobs then 
 						currentTargetIndex = 1 
@@ -1154,11 +1156,11 @@ local function UFA(on)
 											bestD = d
 											bestPart = p
 											foundMob = true
+										end
+									end
 								end
 							end
 						end
-					end
-				end
 					end
 				end
 				
@@ -1171,24 +1173,35 @@ local function UFA(on)
 					if success then
 						lastFireballTime = currentTime
 						lastTargetMob = targetMobName
-						currentTargetIndex = currentTargetIndex + 1
-						if currentTargetIndex > #cfg.UFAOrderedMobs then 
-							currentTargetIndex = 1 
+						
+						-- Only cycle through targets if we have multiple mobs selected
+						if #cfg.UFAOrderedMobs > 1 then
+							currentTargetIndex = currentTargetIndex + 1
+							if currentTargetIndex > #cfg.UFAOrderedMobs then 
+								currentTargetIndex = 1 
+							end
 						end
+						-- For single mob, keep targeting the same mob
+						
 						task.wait(1.0) -- Longer wait after successful fire
 					else
-						currentTargetIndex = currentTargetIndex + 1
-						if currentTargetIndex > #cfg.UFAOrderedMobs then 
-							currentTargetIndex = 1 
+						-- Only cycle through targets if we have multiple mobs selected
+						if #cfg.UFAOrderedMobs > 1 then
+							currentTargetIndex = currentTargetIndex + 1
+							if currentTargetIndex > #cfg.UFAOrderedMobs then 
+								currentTargetIndex = 1 
+							end
 						end
 						task.wait(0.5)
 					end
 					isFiring = false
 				else
-					-- No mob of this type found, move to next
-					currentTargetIndex = currentTargetIndex + 1
-					if currentTargetIndex > #cfg.UFAOrderedMobs then 
-						currentTargetIndex = 1 
+					-- No mob of this type found, move to next (only for multiple mobs)
+					if #cfg.UFAOrderedMobs > 1 then
+						currentTargetIndex = currentTargetIndex + 1
+						if currentTargetIndex > #cfg.UFAOrderedMobs then 
+							currentTargetIndex = 1 
+						end
 					end
 					task.wait(0.3)
 				end
