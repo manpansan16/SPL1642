@@ -1011,7 +1011,7 @@ local function TPlayerESP(on)
 	local function mkRec()
 		local b = Drawing.new('Square'); b.Filled=false; b.Thickness=2; b.Visible=false
 		local t = Drawing.new('Text'); t.Size=20; t.Center=true; t.Outline=true; t.OutlineColor=Color3.new(0,0,0); t.Visible=false
-		local clan = Drawing.new('Text'); clan.Size=16; clan.Center=true; clan.Outline=true; clan.OutlineColor=Color3.new(0,0,0); clan.Visible=false
+		local clan = Drawing.new('Text'); clan.Size=32; clan.Center=true; clan.Outline=true; clan.OutlineColor=Color3.new(0,0,0); clan.Visible=false
 		local health = Drawing.new('Text'); health.Size=16; health.Center=true; health.Outline=true; health.OutlineColor=Color3.new(0,0,0); health.Color=Color3.fromRGB(100,255,100); health.Visible=false
 		local defense = Drawing.new('Text'); defense.Size=16; defense.Center=true; defense.Outline=true; defense.OutlineColor=Color3.new(0,0,0); defense.Color=Color3.fromRGB(0,150,255); defense.Visible=false
 		local power = Drawing.new('Text'); power.Size=16; power.Center=true; power.Outline=true; power.OutlineColor=Color3.new(0,0,0); power.Color=Color3.fromRGB(255,50,50); power.Visible=false
@@ -1087,7 +1087,7 @@ local function TPlayerESP(on)
 						local ch, mh = getPlayerHealth(pl)
 						local defv, powv, magv, repv = getPlayerStats(pl)
 						local combined = defv + magv + powv
-						local low = combined < 1e17
+						local low = combined < 1e18
 
 						if low then
 							rec.health.Visible=false; rec.defense.Visible=false; rec.power.Visible=false; rec.magic.Visible=false
@@ -1866,6 +1866,7 @@ local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=
 	task.spawn(function()
 		local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
 		local op,od,oh,om,oy,omob,ot=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value,st.Tokens.Value
+		local scriptStartTime = os.time()  -- Add this line
 		local function fmt(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.2f',n/1e18)..'QN' end;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
 			if n>=1e9 then return string.format('%.2f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.2f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.2f',n/1e3)..'k'end return tostring(n)end
 		local function fmtChange(n)local change=tonumber(n)or 0;local sign=change>=0 and '+'or'';return sign..fmt(math.abs(change))end
@@ -1873,7 +1874,15 @@ local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=
 			local np,nd,nh,nm,ny,nmob,nt=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value,st.Tokens.Value
 			if np>op or nd>od or nh>oh or nm>om or ny>oy or nmob>omob or nt~=ot then
 				local t=LP.Name..' Stats Gained Last 15 Minutes'
-				local d='💪 **Power:** '..fmt(np)..' → **'..fmt(np-op)..'**\n❤️ **Health:** '..fmt(nh)..' → **'..fmt(nh-oh)..'**\n🛡️ **Defense:** '..fmt(nd)..' → **'..fmt(nd-od)..'**\n🔮 **Psychics:** '..fmt(ny)..' → **'..fmt(ny-oy)..'**\n✨ **Magic:** '..fmt(nm)..' → **'..fmt(nm-om)..'**\n💨 **Mobility:** '..fmt(nmob)..' → **'..fmt(nmob-omob)..'**\n💰 **Tokens:** '..fmt(nt)..' → **'..fmtChange(nt-ot)..'**\n⚔️ **Mob Kills:** '..(getgenv().sessionMobKills or 0)..'**'
+				-- Add script runtime calculation
+				local currentTime = os.time()
+				local scriptRuntime = currentTime - scriptStartTime
+				local hours = math.floor(scriptRuntime / 3600)
+				local minutes = math.floor((scriptRuntime % 3600) / 60)
+				local seconds = scriptRuntime % 60
+				local runtimeText = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+				
+				local d='💪 **Power:** '..fmt(np)..' → **'..fmt(np-op)..'**\n❤️ **Health:** '..fmt(nh)..' → **'..fmt(nh-oh)..'**\n🛡️ **Defense:** '..fmt(nd)..' → **'..fmt(nd-od)..'**\n🔮 **Psychics:** '..fmt(ny)..' → **'..fmt(ny-oy)..'**\n✨ **Magic:** '..fmt(nm)..' → **'..fmt(nm-om)..'**\n💨 **Mobility:** '..fmt(nmob)..' → **'..fmt(nmob-omob)..'**\n💰 **Tokens:** '..fmt(nt)..' → **'..fmtChange(nt-ot)..'**\n⚔️ **Mob Kills:** '..(getgenv().sessionMobKills or 0)..'**\n⏱️ **Script Runtime:** '..runtimeText..'**'
 				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy,omob,ot=np,nd,nh,nm,ny,nmob,nt
 			end
 		end
