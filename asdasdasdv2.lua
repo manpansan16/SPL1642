@@ -1,3 +1,4 @@
+
 if not game:IsLoaded() then game.Loaded:Wait() end
 local P=game:GetService('Players');while not P.LocalPlayer or not workspace.CurrentCamera do task.wait() end
 local U=game:GetService('UserInputService');local R=game:GetService('RunService');local H=game:GetService('HttpService')
@@ -24,7 +25,7 @@ local function webhook(user,title,desc,ping)
 	local pl={username=user,content=content,embeds={{title=title,description=desc,color=16711680,footer={text='Roblox • '..os.date('%H:%M')}}},allowed_mentions={parse={},users=allowed or {}}}
 	pcall(function()r({Url=WURL,Method='POST',Headers={['Content-Type']='application/json'},Body=H:JSONEncode(pl)})end)
 end
-local function deathWH(n,k)webhook('Death Bot','⚠️ Player Killed!',n..' was killed.',WID)end
+local function deathWH(n,k)webhook('Death Bot','⚠️ Player Killed!',n..' was killed by '..(k or 'Unknown')..'.',WID)end
 local function panicWH(n)webhook('Panic Bot','Panic Activated',n..' Triggered Panic',WID)end
 
 local cfg={
@@ -169,10 +170,200 @@ local function initDeathPanic()
 		local h=c:WaitForChild('Humanoid',10);if not h then return end
 		local lastD,dsent,armed=nil,false,true
 		local lastP,MIN=0,5
+		local lastDamageTime=0
+		
+		-- Enhanced damage tracking using game's kill log system
+		h.HealthChanged:Connect(function(hp,oldHp)
+			if oldHp and hp < oldHp then
+				-- Health decreased, try to find killer from game's systems
+				local currentTime=tick()
+				lastDamageTime=currentTime
+				
+				-- Method 1: Check game's kill feed/death messages in PlayerGui
+				local playerGui=LP:FindFirstChild('PlayerGui')
+				if playerGui then
+					-- Look for common kill feed locations
+					local killFeedLocations={
+						'KillFeed','KillLog','DeathLog','CombatLog','Notifications',
+						'HUD','TopUi','BottomUi','LeftUi','RightUi'
+					}
+					
+					for _,locationName in pairs(killFeedLocations)do
+						local location=playerGui:FindFirstChild(locationName)
+						if location then
+							-- Search for recent death messages
+							for _,child in pairs(location:GetDescendants())do
+								if child:IsA('TextLabel')or child:IsA('TextButton')then
+									local text=child.Text:lower()
+									if text:find('killed')or text:find('died')or text:find('eliminated')then
+										-- Extract killer name from death message
+										local killerName=extractKillerFromText(text)
+										if killerName then
+											lastD=killerName
+											break
+										end
+									end
+								end
+							end
+						end
+						if lastD then break end
+					end
+				end
+				
+				-- Method 2: Check ReplicatedStorage for kill data
+				if not lastD then
+					local rs=game:GetService('ReplicatedStorage')
+					local killData=rs:FindFirstChild('KillData')or rs:FindFirstChild('KillLog')or rs:FindFirstChild('CombatData')
+					if killData then
+						-- Try to get recent kill information
+						pcall(function()
+							local recentKill=killData:GetAttribute('LastKill')or killData:GetAttribute('RecentKill')
+							if recentKill and type(recentKill)=='string'then
+								lastD=recentKill
+							end
+						end)
+					end
+				end
+				
+				-- Method 2.5: Check for mob kills in kill feed text
+				if not lastD then
+					local playerGui=LP:FindFirstChild('PlayerGui')
+					if playerGui then
+						for _,locationName in pairs({'KillFeed','KillLog','DeathLog','CombatLog','Notifications','HUD','TopUi','BottomUi','LeftUi','RightUi'})do
+							local location=playerGui:FindFirstChild(locationName)
+							if location then
+								for _,child in pairs(location:GetDescendants())do
+									if child:IsA('TextLabel')or child:IsA('TextButton')then
+										local text=child.Text:lower()
+										-- Look for mob kill patterns
+										if text:find('killed by')or text:find('eliminated by')then
+											local mobName=extractMobFromText(text)
+											if mobName then
+												lastD=mobName
+												break
+											end
+										end
+									end
+								end
+							end
+							if lastD then break end
+						end
+					end
+				end
+				
+				-- Method 3: Check for nearby players (fallback for close combat)
+				if not lastD then
+					local hrp=c:FindFirstChild('HumanoidRootPart')
+					if hrp then
+						for _,pl in pairs(P:GetPlayers())do
+							if pl~=LP and pl.Character and pl.Character:FindFirstChild('HumanoidRootPart')then
+								local dist=(hrp.Position-pl.Character.HumanoidRootPart.Position).Magnitude
+								if dist<20 then -- Reduced range for close combat only
+									lastD=pl.Name
+									break
+								end
+							end
+						end
+					end
+				end
+				
+				-- Method 4: Check for nearby mobs (fallback for mob kills)
+				if not lastD then
+					local hrp=c:FindFirstChild('HumanoidRootPart')
+					if hrp then
+						local enemies=workspace:FindFirstChild('Enemies')
+						if enemies then
+							for _,bucket in pairs(enemies:GetChildren())do
+								if tonumber(bucket.Name)then
+									for _,mob in pairs(bucket:GetDescendants())do
+										if mob:IsA('Model')and mob:FindFirstChild('HumanoidRootPart')and mob:FindFirstChild('Humanoid')then
+											local mobHrp=mob.HumanoidRootPart
+											local dist=(hrp.Position-mobHrp.Position).Magnitude
+											if dist<30 then -- Within 30 studs
+												-- Check if mob is alive and aggressive
+												local mobHumanoid=mob:FindFirstChild('Humanoid')
+												if mobHumanoid and mobHumanoid.Health>0 then
+													lastD=mob.Name
+													break
+												end
+											end
+										end
+									end
+								end
+								if lastD then break end
+							end
+						end
+					end
+				end
+			end
+		end)
+		
+		-- Helper function to extract killer name from death message text
+		function extractKillerFromText(text)
+			-- Common patterns: "PlayerName killed You", "You were killed by PlayerName", etc.
+			local patterns={
+				'([%w_]+) killed',
+				'killed by ([%w_]+)',
+				'eliminated by ([%w_]+)',
+				'([%w_]+) eliminated'
+			}
+			
+			for _,pattern in pairs(patterns)do
+				local match=text:match(pattern)
+				if match and match:lower()~='you'and match:lower()~='yourself'then
+					return match
+				end
+			end
+			return nil
+		end
+		
+		-- Helper function to extract mob name from death message text
+		function extractMobFromText(text)
+			-- Common mob kill patterns: "You were killed by Old Knight", "Eliminated by Ancient Gladiator", etc.
+			local mobPatterns={
+				'killed by ([%w%s]+)',
+				'eliminated by ([%w%s]+)',
+				'died to ([%w%s]+)',
+				'defeated by ([%w%s]+)'
+			}
+			
+			-- Common mob names in the game
+			local knownMobs={
+				'old knight','ancient gladiator','village guard','mountain guard',
+				'hell emperor','demon','judger','dominator','veteran',
+				'upper mountain guard','lower mountain guard','catacombs guard'
+			}
+			
+			for _,pattern in pairs(mobPatterns)do
+				local match=text:match(pattern)
+				if match then
+					local mobName=match:lower():gsub('^%s*(.-)%s*$','%1') -- Trim whitespace
+					-- Check if it's a known mob
+					for _,knownMob in pairs(knownMobs)do
+						if mobName:find(knownMob)then
+							return match:gsub('^%s*(.-)%s*$','%1') -- Return original case
+						end
+					end
+					-- If not a known mob, still return it (might be a new mob)
+					return match:gsub('^%s*(.-)%s*$','%1')
+				end
+			end
+			return nil
+		end
+		
 		h.Died:Connect(function()
-			if cfg.DeathWebhook and not dsent then dsent=true;disableAimbots();deathWH(LP.Name,(lastD and lastD.Name)or'Unknown') else disableAimbots() end
+			if cfg.DeathWebhook and not dsent then 
+				dsent=true
+				disableAimbots()
+				local killerName=lastD or 'Unknown'
+				deathWH(LP.Name,killerName)
+			else 
+				disableAimbots() 
+			end
 			armed=true
 		end)
+		
+		-- Panic system
 		h.HealthChanged:Connect(function(hp)
 			local m=h.MaxHealth;if not m or m<=0 then return end
 			local r,now=hp/m,os.clock()
@@ -180,8 +371,20 @@ local function initDeathPanic()
 				if(now-lastP)<MIN then return end;lastP=now;armed=false;disableAimbots()
 			elseif r>=REARM then armed=true end
 		end)
+		
+		-- Enhanced damage detection through touched events
 		task.defer(function()
-			for _,p in ipairs(workspace:GetDescendants())do if p:IsA('BasePart')then p.Touched:Connect(function(hit)local pl=P:GetPlayerFromCharacter(hit.Parent);if pl then lastD=pl.Character end end)end end
+			for _,p in ipairs(workspace:GetDescendants())do 
+				if p:IsA('BasePart')then 
+					p.Touched:Connect(function(hit)
+						local pl=P:GetPlayerFromCharacter(hit.Parent)
+						if pl and pl~=LP then 
+							lastD=pl.Name
+							lastDamageTime=tick()
+						end
+					end)
+				end 
+			end
 		end)
 	end
 	if LP.Character then hook(LP.Character) end;LP.CharacterAdded:Connect(hook)
@@ -243,13 +446,13 @@ do
 	local function setTrainingDividersColor(statName)local color=STAT_COLORS[statName];if color then labels.SepTop.BackgroundColor3=color;labels.SepBottom.BackgroundColor3=color;labels.SepTop.Visible=true;labels.SepBottom.Visible=true else labels.SepTop.Visible=false;labels.SepBottom.Visible=false end end
 	local function getPotionBonus(index)local hud=playerGui:FindFirstChild("HUD");if not hud then return "" end local topUi=hud:FindFirstChild("TopUi");if not topUi then return "" end local rank=topUi:FindFirstChild("Rank");if not rank then return "" end local data=rank:FindFirstChild("Data");if not data then return "" end local potionEffect=data:FindFirstChild("PotionEffect");if not potionEffect then return "" end local slot=potionEffect:FindFirstChild(tostring(index));if not slot then return "" end local design=slot:FindFirstChild("Design");if not design then return "" end local bonus=design:FindFirstChild("Bonus");if not bonus then return "" end if bonus:IsA("ValueBase")then return tostring(bonus.Value or"")end if bonus:IsA("TextLabel")or bonus:IsA("TextBox")or bonus:IsA("TextButton")then return tostring(bonus.Text or"")end return "" end
 	local initialTotalPower=getNumberValue(statsFolder,"TotalPower")
-	local sessionMobKills=0
+	getgenv().sessionMobKills=getgenv().sessionMobKills or 0
 	local function updateBoosts()for i=1,6 do local bonusText=getPotionBonus(i);local lbl=boostLabels[i];if bonusText~=""then lbl.Text=string.format("%s %s",BOOST_EMOJIS[i],bonusText);lbl.Visible=true else lbl.Text="";lbl.Visible=false end end end
 	local function updateStats()local s=statsFolder;local statTraining=getStringValue(s,"StatTraining");local rawTick=getNumberValue(s,"TrainingTick");local trainingTick=rawTick;if rawTick>=9e12 and rawTick<1e13 then trainingTick=rawTick*10 end;if statTraining==""then labels.Training.Text="📋 Training None";setTrainingDividersColor(nil)else labels.Training.Text=string.format("📋 Training %s +%s Per Tick",statTraining,formatNumber(trainingTick));setTrainingDividersColor(statTraining)end
 		local power=getNumberValue(s,"Power");local health=getNumberValue(s,"Health");local defense=getNumberValue(s,"Defense");local psychics=getNumberValue(s,"Psychics");local magic=getNumberValue(s,"Magic");local mobility=getNumberValue(s,"Mobility");local totalPower=getNumberValue(s,"TotalPower");local tokens=getNumberValue(s,"Tokens")
 		labels.Tokens.Text="💰 Tokens: "..formatNumber(tokens);labels.Power.Text="💪 Power: "..formatNumber(power);labels.Health.Text="❤️ Health: "..formatNumber(health);labels.Defense.Text="🛡️ Defense: "..formatNumber(defense);labels.Psychics.Text="🔮 Psychics: "..formatNumber(psychics);labels.Magic.Text="✨ Magic: "..formatNumber(magic);labels.Mobility.Text="💨 Mobility: "..formatNumber(mobility);labels.TotalPower.Text="📊 Total Power: "..formatNumber(totalPower)
 		local earned=math.max(0,totalPower-(initialTotalPower or totalPower));labels.TotalPowerEarned.Text="📈 Total Power Earned: "..formatNumber(earned)
-		labels.MobKills.Text="⚔️ Mob Kills: "..sessionMobKills
+		labels.MobKills.Text="⚔️ Mob Kills: "..(getgenv().sessionMobKills or 0)
 	end
 	task.spawn(function()while task.wait(1) do updateTimer();updateStats();updateBoosts() end end)
 	U.InputBegan:Connect(function(i,gp)if gp then return end if i.KeyCode==Enum.KeyCode.P then screenGui.Enabled=not screenGui.Enabled end end)
@@ -262,12 +465,41 @@ do
 		for _, bucket in pairs(enemiesRoot:GetChildren()) do
 			if tonumber(bucket.Name) then
 				for _, mob in pairs(bucket:GetDescendants()) do
-					if mob:IsA("Model") and mob:FindFirstChild("Humanoid") then
+					if mob:IsA("Model") and not mob:GetAttribute("Tracked") then
 						local humanoid = mob:FindFirstChild("Humanoid")
-						if humanoid.Health <= 0 and not mob:GetAttribute("Tracked") then
+						local isDead = false
+						
+						-- Method 1: Check if humanoid health is 0 or below
+						if humanoid and humanoid.Health <= 0 then
+							isDead = true
+						end
+						
+						-- Method 2: Check for "Dead" attribute/value
+						if not isDead then
+							local deadAttr = mob:GetAttribute("Dead")
+							if deadAttr == true then
+								isDead = true
+							end
+						end
+						
+						-- Method 3: Check for "Dead" child object
+						if not isDead then
+							local deadChild = mob:FindFirstChild("Dead")
+							if deadChild and deadChild:IsA("BoolValue") and deadChild.Value == true then
+								isDead = true
+							end
+						end
+						
+						-- Method 4: Check if mob is being removed (Parent is nil)
+						if not isDead and not mob.Parent then
+							isDead = true
+						end
+						
+						if isDead then
 							mob:SetAttribute("Tracked", true)
-							sessionMobKills = sessionMobKills + 1
-							print("Mob killed! Total kills this session:", sessionMobKills)
+							getgenv().sessionMobKills = (getgenv().sessionMobKills or 0) + 1
+							print("Mob killed! Total kills this session:", getgenv().sessionMobKills)
+							print("Dead mob detected:", mob.Name)
 						end
 					end
 				end
@@ -275,11 +507,58 @@ do
 		end
 	end
 	
-	-- Check for mob kills every 0.5 seconds
+	-- Real-time mob death monitoring
+	local function monitorMobDeaths()
+		local enemiesRoot = workspace:FindFirstChild("Enemies")
+		if not enemiesRoot then return end
+		
+		for _, bucket in pairs(enemiesRoot:GetChildren()) do
+			if tonumber(bucket.Name) then
+				for _, mob in pairs(bucket:GetDescendants()) do
+					if mob:IsA("Model") and not mob:GetAttribute("DeathMonitored") then
+						local humanoid = mob:FindFirstChild("Humanoid")
+						if humanoid then
+							mob:SetAttribute("DeathMonitored", true)
+							
+							-- Monitor humanoid health changes
+							humanoid.HealthChanged:Connect(function(health)
+								if health <= 0 and not mob:GetAttribute("Tracked") then
+									mob:SetAttribute("Tracked", true)
+									getgenv().sessionMobKills = (getgenv().sessionMobKills or 0) + 1
+									print("Mob killed (real-time)! Total kills this session:", getgenv().sessionMobKills)
+									print("Dead mob detected:", mob.Name)
+								end
+							end)
+							
+							-- Monitor for mob removal
+							mob.AncestryChanged:Connect(function()
+								if not mob.Parent and not mob:GetAttribute("Tracked") then
+									mob:SetAttribute("Tracked", true)
+									getgenv().sessionMobKills = (getgenv().sessionMobKills or 0) + 1
+									print("Mob killed (removed)! Total kills this session:", getgenv().sessionMobKills)
+									print("Removed mob detected:", mob.Name)
+								end
+							end)
+						end
+					end
+				end
+			end
+		end
+	end
+	
+	-- Check for mob kills every 0.5 seconds (backup method)
 	task.spawn(function()
 		while true do
 			trackMobKills()
 			task.wait(0.5)
+		end
+	end)
+	
+	-- Monitor mob deaths in real-time
+	task.spawn(function()
+		while true do
+			monitorMobDeaths()
+			task.wait(2) -- Check for new mobs every 2 seconds
 		end
 	end)
 end
@@ -1112,10 +1391,8 @@ local function UFA(on)
 			local currentTime = tick()
 			if (currentTime - lastFireballTime) >= (cfg.universalFireballInterval or 1.0) then
 				local targetMobName = cfg.UFAOrderedMobs[currentTargetIndex]
-				
-				-- For single mob selection, don't skip if it's the same mob
-				if #cfg.UFAOrderedMobs > 1 and targetMobName == lastTargetMob then
-					-- Skip to next mob to avoid duplicates (only for multiple mobs)
+				if targetMobName == lastTargetMob then
+					-- Skip to next mob to avoid duplicates
 					currentTargetIndex = currentTargetIndex + 1
 					if currentTargetIndex > #cfg.UFAOrderedMobs then 
 						currentTargetIndex = 1 
@@ -1156,11 +1433,11 @@ local function UFA(on)
 											bestD = d
 											bestPart = p
 											foundMob = true
-										end
-									end
 								end
 							end
 						end
+					end
+				end
 					end
 				end
 				
@@ -1173,35 +1450,24 @@ local function UFA(on)
 					if success then
 						lastFireballTime = currentTime
 						lastTargetMob = targetMobName
-						
-						-- Only cycle through targets if we have multiple mobs selected
-						if #cfg.UFAOrderedMobs > 1 then
-							currentTargetIndex = currentTargetIndex + 1
-							if currentTargetIndex > #cfg.UFAOrderedMobs then 
-								currentTargetIndex = 1 
-							end
+						currentTargetIndex = currentTargetIndex + 1
+						if currentTargetIndex > #cfg.UFAOrderedMobs then 
+							currentTargetIndex = 1 
 						end
-						-- For single mob, keep targeting the same mob
-						
 						task.wait(1.0) -- Longer wait after successful fire
 					else
-						-- Only cycle through targets if we have multiple mobs selected
-						if #cfg.UFAOrderedMobs > 1 then
-							currentTargetIndex = currentTargetIndex + 1
-							if currentTargetIndex > #cfg.UFAOrderedMobs then 
-								currentTargetIndex = 1 
-							end
+						currentTargetIndex = currentTargetIndex + 1
+						if currentTargetIndex > #cfg.UFAOrderedMobs then 
+							currentTargetIndex = 1 
 						end
 						task.wait(0.5)
 					end
 					isFiring = false
 				else
-					-- No mob of this type found, move to next (only for multiple mobs)
-					if #cfg.UFAOrderedMobs > 1 then
-						currentTargetIndex = currentTargetIndex + 1
-						if currentTargetIndex > #cfg.UFAOrderedMobs then 
-							currentTargetIndex = 1 
-						end
+					-- No mob of this type found, move to next
+					currentTargetIndex = currentTargetIndex + 1
+					if currentTargetIndex > #cfg.UFAOrderedMobs then 
+						currentTargetIndex = 1 
 					end
 					task.wait(0.3)
 				end
@@ -1607,7 +1873,7 @@ local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=
 			local np,nd,nh,nm,ny,nmob,nt=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value,st.Tokens.Value
 			if np>op or nd>od or nh>oh or nm>om or ny>oy or nmob>omob or nt~=ot then
 				local t=LP.Name..' Stats Gained Last 15 Minutes'
-				local d='💪 **Power:** '..fmt(np)..' → **'..fmt(np-op)..'**\n❤️ **Health:** '..fmt(nh)..' → **'..fmt(nh-oh)..'**\n🛡️ **Defense:** '..fmt(nd)..' → **'..fmt(nd-od)..'**\n🔮 **Psychics:** '..fmt(ny)..' → **'..fmt(ny-oy)..'**\n✨ **Magic:** '..fmt(nm)..' → **'..fmt(nm-om)..'**\n💨 **Mobility:** '..fmt(nmob)..' → **'..fmt(nmob-omob)..'**\n💰 **Tokens:** '..fmt(nt)..' → **'..fmtChange(nt-ot)..'**'
+				local d='💪 **Power:** '..fmt(np)..' → **'..fmt(np-op)..'**\n❤️ **Health:** '..fmt(nh)..' → **'..fmt(nh-oh)..'**\n🛡️ **Defense:** '..fmt(nd)..' → **'..fmt(nd-od)..'**\n🔮 **Psychics:** '..fmt(ny)..' → **'..fmt(ny-oy)..'**\n✨ **Magic:** '..fmt(nm)..' → **'..fmt(nm-om)..'**\n💨 **Mobility:** '..fmt(nmob)..' → **'..fmt(nmob-omob)..'**\n💰 **Tokens:** '..fmt(nt)..' → **'..fmtChange(nt-ot)..'**\n⚔️ **Mob Kills:** '..(getgenv().sessionMobKills or 0)..'**'
 				webhook('Stat Bot',t,d,nil);op,od,oh,om,oy,omob,ot=np,nd,nh,nm,ny,nmob,nt
 			end
 		end
@@ -1696,80 +1962,149 @@ else
 	end)
 end
 
--- Server Hop when YTPVP members join
+-- YTPVP Teleport System (replaces server hop)
 local function TServerHop(on)
 	cfg.ServerHop=on;save();getgenv().ServerHop=on
 	if on then
-		-- Use global variables that persist across script executions
-		if not getgenv().lastServerHopTime then
-			getgenv().lastServerHopTime = 0
+		-- Initialize global variables for position tracking
+		if not getgenv().savedPosition then
+			getgenv().savedPosition = nil
 		end
-		if not getgenv().lastServerId then
-			getgenv().lastServerId = nil
+		if not getgenv().ytpvpPlayers then
+			getgenv().ytpvpPlayers = {}
+		end
+		if not getgenv().isAtSafeLocation then
+			getgenv().isAtSafeLocation = false
 		end
 		
-		-- Check if we just rejoined the same server and need to hop again
-		task.spawn(function()
-			task.wait(5) -- Wait for server to fully load
-			
-			local currentServerId = game.JobId
-			local currentPlayerCount = #P:GetPlayers()
-			
-			-- If we have previous server info and we're in the same server
-			if getgenv().lastServerId and getgenv().serverHopReason == "YTPVP_DETECTED" then
-				local timeSinceHop = tick() - (getgenv().lastServerHopTime or 0)
-				
-				print("Checking server after rejoin...")
-				print("Previous JobId:", getgenv().lastServerId)
-				print("Current JobId:", currentServerId)
-				print("Time since hop:", timeSinceHop, "seconds")
-				
-				-- Same server detection
-				if currentServerId == getgenv().lastServerId and timeSinceHop < 300 then -- Within 5 minutes
-					print("⚠️ SAME SERVER DETECTED! Hopping again...")
-					webhook('Server Hop', '⚠️ Same Server Detected', 'Yummy rejoined the same server. Attempting hop again...\n\nJobId: '..currentServerId, nil)
-					
-					-- Try again with small delay
-					task.wait(2)
-					game:Shutdown()
-				else
-					print("✅ Successfully joined different server!")
-					print("Clearing server hop flags...")
-					-- Clear the hop reason since we successfully changed servers
-					getgenv().serverHopReason = nil
-					getgenv().lastServerId = currentServerId
-				end
+		-- Safe coordinates from console output
+		local SAFE_COORDS = Vector3.new(-652.32, 105128.62, -853.16)
+		
+		-- Function to save current position
+		local function saveCurrentPosition()
+			local char = LP.Character
+			if char and char:FindFirstChild("HumanoidRootPart") then
+				getgenv().savedPosition = char.HumanoidRootPart.CFrame
+				print("📍 Position saved for YTPvP teleport")
 			end
-		end)
-		-- Function to trigger automatic server hop for AFK farming
-		local function performAutoServerHop(playerName, clanId)
+		end
+		
+		-- Function to teleport to safe location
+		local function teleportToSafeLocation(playerName, clanId)
 			print("🚨 YTPVP MEMBER DETECTED! 🚨")
 			print("Player:", playerName, "Clan ID:", clanId)
-			print("Initiating automatic server hop for AFK farming...")
+			print("Teleporting to safe location...")
 			
-			-- Store current server info before leaving
-			getgenv().lastServerId = game.JobId
-			getgenv().lastServerPlayerCount = #P:GetPlayers()
-			getgenv().serverHopReason = "YTPVP_DETECTED"
-			getgenv().lastServerHopTime = tick()
+			-- Save current position if not already saved
+			if not getgenv().savedPosition then
+				saveCurrentPosition()
+			end
 			
-			print("Storing server info - JobId:", game.JobId, "Players:", #P:GetPlayers())
+			-- Add player to tracking list
+			getgenv().ytpvpPlayers[playerName] = true
+			getgenv().isAtSafeLocation = true
 			
 			-- Send webhook notification
-			webhook('YTPVP Alert', '🚨 YTPVP Member Detected!', 'Player: '..playerName..' (Clan ID: '..clanId..')\n\n🔄 Automatically server hopping...', nil)
+			webhook('YTPVP Alert', '🚨 YTPVP Member Detected!', 'Player: '..playerName..' (Clan ID: '..clanId..')\n\n📍 Teleporting to safe location...', nil)
 			
-			-- Write to file for external automation (if needed)
+			-- Teleport to safe coordinates
+			local char = LP.Character or LP.CharacterAdded:Wait()
+			local hrp = char:WaitForChild("HumanoidRootPart")
+			
 			pcall(function()
-				writefile("server_hop_trigger.txt", playerName .. "|" .. clanId .. "|" .. tick())
-			end)
-			
-			-- Close Roblox and let Yummy handle rejoining to a different server
-			task.spawn(function()
-				print("Closing Roblox for server hop - Yummy will handle rejoining...")
-				task.wait(2) -- Small delay to ensure webhook is sent
-				game:Shutdown()
+				local safeCFrame = CFrame.new(SAFE_COORDS)
+				-- Apply teleport multiple times to ensure it sticks
+				for i = 1, 3 do
+					char:PivotTo(safeCFrame)
+					task.wait(0.1)
+					hrp.CFrame = safeCFrame
+					task.wait(0.1)
+				end
+				print("✅ Teleported to safe location:", SAFE_COORDS)
 			end)
 		end
+		
+		-- Function to check if any YTPvP players are still in server
+		local function checkYTPvPPlayers()
+			local ytpvpStillPresent = false
+			local currentPlayers = {}
+			
+			-- Get current player list
+			for _, player in pairs(P:GetPlayers()) do
+				if player ~= LP then
+					currentPlayers[player.Name] = true
+					
+					-- Check if this player is YTPvP
+					local success, clanId = pcall(function()
+						local dataFolder = RS:FindFirstChild("Data")
+						if not dataFolder then return nil end
+						
+						local playerData = dataFolder:FindFirstChild(player.Name)
+						if not playerData then return nil end
+						
+						local stats = playerData:FindFirstChild("Stats")
+						if not stats then return nil end
+						
+						local clanJoined = stats:FindFirstChild("ClanJoined")
+						if not clanJoined then return nil end
+						
+						return clanJoined.Value
+					end)
+					
+					if success and clanId and (clanId == 11 or clanId == 3704 or clanId == 999) then
+						ytpvpStillPresent = true
+						-- Add to tracking if not already tracked
+						if not getgenv().ytpvpPlayers[player.Name] then
+							getgenv().ytpvpPlayers[player.Name] = true
+							print("🔄 YTPvP player still in server:", player.Name)
+						end
+					end
+				end
+			end
+			
+			-- Remove players who left from tracking
+			for playerName, _ in pairs(getgenv().ytpvpPlayers or {}) do
+				if not currentPlayers[playerName] then
+					getgenv().ytpvpPlayers[playerName] = nil
+					print("✅ YTPvP player left:", playerName)
+				end
+			end
+			
+			-- If no YTPvP players left and we're at safe location, teleport back
+			if not ytpvpStillPresent and getgenv().isAtSafeLocation and getgenv().savedPosition then
+				print("🏠 All YTPvP players left! Returning to original position...")
+				
+				local char = LP.Character
+				if char and char:FindFirstChild("HumanoidRootPart") then
+					pcall(function()
+						-- Apply return teleport multiple times to ensure it sticks
+						for i = 1, 3 do
+							char:PivotTo(getgenv().savedPosition)
+							task.wait(0.1)
+							char.HumanoidRootPart.CFrame = getgenv().savedPosition
+							task.wait(0.1)
+						end
+						print("✅ Returned to original position")
+						
+						-- Send webhook notification
+						webhook('YTPVP Alert', '✅ Safe to Return', 'All YTPvP members have left. Returning to original position.', nil)
+					end)
+				end
+				
+				-- Clear tracking variables
+				getgenv().savedPosition = nil
+				getgenv().ytpvpPlayers = {}
+				getgenv().isAtSafeLocation = false
+			end
+		end
+		
+		-- Monitor for YTPvP players leaving every 5 seconds
+		task.spawn(function()
+			while cfg.ServerHop do
+				task.wait(5)
+				checkYTPvPPlayers()
+			end
+		end)
 		-- Check existing players with retry mechanism
 		task.spawn(function()
 			for attempt = 1, 3 do
@@ -1809,7 +2144,7 @@ local function TServerHop(on)
 						print("Checking player:", player.Name, "Clan ID:", clanId)
 						
 						if success and clanId and (clanId == 11 or clanId == 3704 or clanId == 999) then
-							performAutoServerHop(player.Name, clanId)
+							teleportToSafeLocation(player.Name, clanId)
 							return
 						end
 					end
@@ -1859,7 +2194,7 @@ local function TServerHop(on)
 			print("New player joined:", player.Name, "Clan ID:", clanId)
 			
 			if success and clanId and (clanId == 11 or clanId == 3704 or clanId == 999) then
-				performAutoServerHop(player.Name, clanId)
+				teleportToSafeLocation(player.Name, clanId)
 			end
 		end)
 	end
@@ -2159,7 +2494,7 @@ Toggle(U1,'Panic Webhook','PanicWebhook',function(on)cfg.PanicWebhook=on;save()e
 Toggle(U1,'Stat Webhook (15m)','StatWebhook15m',TStatWH)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Security',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Kick On Untrusted Players','KickOnUntrustedPlayers',TKickUntrusted)
-Toggle(U1,'Server Hop','ServerHop',TServerHop)
+Toggle(U1,'YTPVP Teleport','ServerHop',TServerHop)
 Toggle(U1,'Auto Teleport On Start','TeleportOnStart',TTeleportOnStart)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Auto Ability',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},U1)
 Toggle(U1,'Auto Invisible','AutoInvisible',TInv);Toggle(U1,'Auto Resize','AutoResize',TResize);Toggle(U1,'Auto Fly','AutoFly',TFly);Toggle(U1,'Auto Train Strength','AutoTrainStrength',TTrainStrength)
