@@ -1391,6 +1391,20 @@ local function UFA(on)
 			local currentTime = tick()
 			if (currentTime - lastFireballTime) >= (cfg.universalFireballInterval or 1.0) then
 				local targetMobName = cfg.UFAOrderedMobs[currentTargetIndex]
+				-- Only skip if we have more than 1 mob and it's the same as last target
+				if targetMobName == lastTargetMob and #cfg.UFAOrderedMobs > 1 then
+					-- Skip to next mob to avoid duplicates
+					currentTargetIndex = currentTargetIndex + 1
+					if currentTargetIndex > #cfg.UFAOrderedMobs then 
+						currentTargetIndex = 1 
+					end
+					task.wait(0.2)
+					continue
+				end
+			
+			local currentTime = tick()
+			if (currentTime - lastFireballTime) >= (cfg.universalFireballInterval or 1.0) then
+				local targetMobName = cfg.UFAOrderedMobs[currentTargetIndex]
 				if targetMobName == lastTargetMob then
 					-- Skip to next mob to avoid duplicates
 					currentTargetIndex = currentTargetIndex + 1
