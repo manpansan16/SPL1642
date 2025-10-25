@@ -36,7 +36,7 @@ local cfg={
 	VendingPotionAutoBuy=false,RemoveMapClutter=false,StatWebhook15m=false,KillAura=false,StatGui=false,
 	AutoInvisible=false,AutoResize=false,AutoFly=false,AutoTrainStrength=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
-	KickOnUntrustedPlayers=false,AutoBlock=false,SpamBlock=false,FireballAimbotH=false,CombatLog=false,ServerHop=false,TeleportOnStart=true,
+	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,ServerHop=false,TeleportOnStart=true,
 	UFAOrderedMobs={},
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
@@ -1954,49 +1954,6 @@ end
 	LP.CharacterAdded:Connect(function(nc) hook(nc:WaitForChild('Humanoid',10)) end)
 end
 
--- Spam Block (spam block every 1 second)
-local SB={conn=nil,charConn=nil,loop=nil}
-local function TSpamBlock(on)
-	cfg.SpamBlock=on;save();getgenv().SpamBlock=on
-	local function stop()if SB.conn then SB.conn:Disconnect() SB.conn=nil end;if SB.charConn then SB.charConn:Disconnect() SB.charConn=nil end;if SB.loop then SB.loop:Disconnect() SB.loop=nil end end
-	if not on then stop();return end
-	local function startLoop(h)
-		if SB.loop then SB.loop:Disconnect() SB.loop=nil end
-		if not h then return end
-		local last=0
-		SB.loop=R.Heartbeat:Connect(function()
-			if not getgenv().SpamBlock then return end
-			if not h.Parent or h.Health<=0 then return end
-			local now=os.clock()
-			if now-last>=1.0 then
-				last=now
-				pcall(function()ev('Events','Other','Ability'):InvokeServer('Block',Vector3.new(-938.988037109375,-1597.0552978515625,-3059.690673828125))end)
-			end
-		end)
-	end
-	SB.charConn=LP.CharacterAdded:Connect(function(c)local h=c:WaitForChild('Humanoid',10)startLoop(h)end)
-	local c=LP.Character or LP.CharacterAdded:Wait()
-	startLoop(c:FindFirstChildOfClass('Humanoid'))
-end
-
--- Fireball Aimbot (H key) - similar to Gamma Ray but uses Fireball
-local function fireFireballAt(pos)local a=ev('Events','Other','Ability');pcall(function()a:InvokeServer('Fireball',pos)end)end
-local FConn
-local function TFireballH(on)cfg.FireballAimbotH=on;save();getgenv().FireballAimbotH=on
-	if FConn then FConn:Disconnect()FConn=nil end
-	if on then
-		FConn=U.InputBegan:Connect(function(i,gp)
-			if gp then return end
-			if i.KeyCode==Enum.KeyCode.H then
-				local t=nearestNonSafePlayer()
-				if t and t.Character and t.Character:FindFirstChild('HumanoidRootPart')then
-					fireFireballAt(t.Character.HumanoidRootPart.Position)
-				end
-			end
-		end)
-	end
-end
-
 -- Auto-execute check for place hopping
 if game.PlaceId == 79106917651793 then
 	print("Auto-execute: In PvP server, teleporting back to main game...")
@@ -2529,9 +2486,7 @@ Toggle(C1,'Smart Panic','SmartPanic',function(on)cfg.SmartPanic=on;getgenv().Sma
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Pvp',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
 Toggle(C1,'Kill Aura','KillAura',TKA)
 Toggle(C1,'Gamma Ray Aimbot (g key)','GammaAimbot',TGamma)
-Toggle(C1,'Fireball Aimbot (h Key)','FireballAimbotH',TFireballH)
 Toggle(C1,'Auto Block','AutoBlock',TAutoBlock)
-Toggle(C1,'Spam Block','SpamBlock',TSpamBlock)
 Toggle(C1,'Combat Log','CombatLog',TCombatLog)
 
 local M1=Section(Move,'Movement Features')
@@ -2623,8 +2578,6 @@ local LB=Btn(Cfg,'Load Config',function()
 	ap(cfg.AutoConsumeMobility,function()return getgenv().AutoConsumeMobility or false end,TConsumeMobility)
 	ap(cfg.AutoConsumeSuper,function()return getgenv().AutoConsumeSuper or false end,TConsumeSuper)
 	ap(cfg.AutoBlock,function()return getgenv().AutoBlock or false end,TAutoBlock)
-	ap(cfg.SpamBlock,function()return getgenv().SpamBlock or false end,TSpamBlock)
-	ap(cfg.FireballAimbotH,function()return getgenv().FireballAimbotH or false end,TFireballH)
 	ap(cfg.CombatLog,function()return getgenv().CombatLog or false end,TCombatLog)
 	getgenv().SmartPanic = cfg.SmartPanic and true or false
 end)
