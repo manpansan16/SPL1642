@@ -1954,7 +1954,8 @@ end
 	LP.CharacterAdded:Connect(function(nc) hook(nc:WaitForChild('Humanoid',10)) end)
 end
 
--- Auto-execute check for place hopping
+-- Auto-execute check for place hopping (DISABLED - allows PvP servers)
+--[[
 if game.PlaceId == 79106917651793 then
 	print("Auto-execute: In PvP server, teleporting back to main game...")
 	-- Disable server hop temporarily to prevent loop
@@ -1972,6 +1973,7 @@ else
 		end
 	end)
 end
+--]]
 
 -- YTPVP Teleport System (replaces server hop)
 local function TServerHop(on)
