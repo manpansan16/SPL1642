@@ -1,3 +1,4 @@
+
 if not game:IsLoaded() then game.Loaded:Wait() end
 local P=game:GetService('Players');while not P.LocalPlayer or not workspace.CurrentCamera do task.wait() end
 local U=game:GetService('UserInputService');local R=game:GetService('RunService');local H=game:GetService('HttpService')
@@ -36,7 +37,6 @@ local cfg={
 	AutoInvisible=false,AutoResize=false,AutoFly=false,AutoTrainStrength=false,HealthExploit=false,GammaAimbot=false,InfiniteZoom=false,
 	AutoConsumePower=false,AutoConsumeHealth=false,AutoConsumeDefense=false,AutoConsumePsychic=false,AutoConsumeMagic=false,AutoConsumeMobility=false,AutoConsumeSuper=false,QuickTeleports=false,
 	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,ServerHop=false,TeleportOnStart=true,
-	SpamBlock=false,FireballAimbotH=false,
 	UFAOrderedMobs={},
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
 }
@@ -954,12 +954,12 @@ local function TPlayerESP(on)
 	local function formatNumber(num)
 		local absNum = math.abs(num)
 		if absNum == 0 then return "Concealed"
-		elseif absNum >= 1e18 then return string.format("%.2fqn", num/1e18)
-		elseif absNum >= 1e15 then return string.format("%.2fqd", num/1e15)
-		elseif absNum >= 1e12 then return string.format("%.2ft",  num/1e12)
-			elseif absNum >= 1e9  then return string.format("%.2fb",  num/1e9)
-		elseif absNum >= 1e6  then return string.format("%.2fm",  num/1e6)
-		elseif absNum >= 1e3  then return string.format("%.2fk",  num/1e3)
+		elseif absNum >= 1e18 then return string.format("%.2fQn", num/1e18)
+		elseif absNum >= 1e15 then return string.format("%.2fQd", num/1e15)
+		elseif absNum >= 1e12 then return string.format("%.2fT",  num/1e12)
+		elseif absNum >= 1e9  then return string.format("%.2fB",  num/1e9)
+		elseif absNum >= 1e6  then return string.format("%.2fM",  num/1e6)
+		elseif absNum >= 1e3  then return string.format("%.2fK",  num/1e3)
 		else return tostring(num) end
 	end
 
@@ -1868,7 +1868,7 @@ local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=
 		local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
 		local op,od,oh,om,oy,omob,ot=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value,st.Tokens.Value
 		local scriptStartTime = os.time()  -- Add this line
-		local function fmt(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.2f',n/1e18)..'qn' end;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
+		local function fmt(n)n=tonumber(n)or 0;if n>=1e18 then return string.format('%.2f',n/1e18)..'QN' end;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
 			if n>=1e9 then return string.format('%.2f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.2f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.2f',n/1e3)..'k'end return tostring(n)end
 		local function fmtChange(n)local change=tonumber(n)or 0;local sign=change>=0 and '+'or'';return sign..fmt(math.abs(change))end
 		while getgenv().StatWebhook15m do for i=1,900 do if not getgenv().StatWebhook15m then break end task.wait(1)end;if not getgenv().StatWebhook15m then break end
@@ -1927,59 +1927,6 @@ local function TAutoBlock(on)
 	startLoop(c:FindFirstChildOfClass('Humanoid'))
 end
 
--- Spam Block (spam every 1 second)
-local SB={conn=nil,charConn=nil,loop=nil}
-local function TSpamBlock(on)
-	cfg.SpamBlock=on;save();getgenv().SpamBlock=on
-	local function stop()if SB.conn then SB.conn:Disconnect() SB.conn=nil end;if SB.charConn then SB.charConn:Disconnect() SB.charConn=nil end;if SB.loop then SB.loop:Disconnect() SB.loop=nil end end
-	if not on then stop();return end
-	local function startLoop(h)
-		if SB.loop then SB.loop:Disconnect() SB.loop=nil end
-		if not h then return end
-		SB.loop=R.Heartbeat:Connect(function()
-			if not getgenv().SpamBlock then return end
-			if not h.Parent or h.Health<=0 then return end
-			pcall(function()ev('Events','Other','Ability'):InvokeServer('Block',Vector3.new(-938.988037109375,-1597.0552978515625,-3059.690673828125))end)
-		end)
-	end
-	SB.charConn=LP.CharacterAdded:Connect(function(c)local h=c:WaitForChild('Humanoid',10)startLoop(h)end)
-	local c=LP.Character or LP.CharacterAdded:Wait()
-	startLoop(c:FindFirstChildOfClass('Humanoid'))
-end
-
--- Fireball Aimbot (H Key) - targets nearest player (ignoring 1nedu and 209Flaw)
-local function nearestNonSafePlayer()
-	local _,_,hrp=charHum();if not hrp then return nil end
-	local ignored={["1nedu"]=true,["209Flaw"]=true}
-	local best,bestD=nil,math.huge
-	for _,p in ipairs(P:GetPlayers())do
-		if p~=LP and not ignored[p.Name] and p.Character and p.Character:FindFirstChild('HumanoidRootPart')then
-			local tv=p:FindFirstChild('TempValues');local sz=tv and tv:FindFirstChild('SafeZone')
-			if not sz or sz.Value~=1 then
-				local d=(hrp.Position-p.Character.HumanoidRootPart.Position).Magnitude
-				if d<bestD then best,bestD=p,d end
-			end
-		end
-	end
-	return best
-end
-local function fireFireballAt(pos)local a=ev('Events','Other','Ability');pcall(function()a:InvokeServer('Fireball',pos)end)end
-local FBConn
-local function TFireballAimbotH(on)cfg.FireballAimbotH=on;save();getgenv().FireballAimbotH=on
-	if FBConn then FBConn:Disconnect()FBConn=nil end
-	if on then
-		FBConn=U.InputBegan:Connect(function(i,gp)
-			if gp then return end
-			if i.KeyCode==Enum.KeyCode.H then
-				local t=nearestNonSafePlayer()
-				if t and t.Character and t.Character:FindFirstChild('HumanoidRootPart')then
-					fireFireballAt(t.Character.HumanoidRootPart.Position)
-				end
-			end
-		end)
-	end
-end
-
 -- Combat Log (kick under 10% HP)
 local CL={conn=nil}
 local function TCombatLog(on)
@@ -2004,59 +1951,6 @@ end
 	local c=LP.Character or LP.CharacterAdded:Wait()
 	hook(c:FindFirstChildOfClass('Humanoid'))
 	LP.CharacterAdded:Connect(function(nc) hook(nc:WaitForChild('Humanoid',10)) end)
-end
-
--- Spam Block function
-local SB={conn=nil,charConn=nil,loop=nil}
-local function TSpamBlock(on)
-	cfg.SpamBlock=on;save();getgenv().SpamBlock=on
-	local function stop()if SB.conn then SB.conn:Disconnect() SB.conn=nil end;if SB.charConn then SB.charConn:Disconnect() SB.charConn=nil end;if SB.loop then SB.loop:Disconnect() SB.loop=nil end end
-	if not on then stop();return end
-	local function startLoop(h)
-		if SB.loop then SB.loop:Disconnect() SB.loop=nil end
-		if not h then return end
-		SB.loop=R.Heartbeat:Connect(function()
-			if not getgenv().SpamBlock then return end
-			if not h.Parent or h.Health<=0 then return end
-			pcall(function()ev('Events','Other','Ability'):InvokeServer('Block',Vector3.new(-938.988037109375,-1597.0552978515625,-3059.690673828125))end)
-		end)
-	end
-	SB.charConn=LP.CharacterAdded:Connect(function(c)local h=c:WaitForChild('Humanoid',10)startLoop(h)end)
-	local c=LP.Character or LP.CharacterAdded:Wait()
-	startLoop(c:FindFirstChildOfClass('Humanoid'))
-end
-
--- Fireball Aimbot H function
-local function nearestNonSafePlayer()
-	local _,_,hrp=charHum();if not hrp then return nil end
-	local ignored={["1nedu"]=true,["209Flaw"]=true}
-	local best,bestD=nil,math.huge
-	for _,p in ipairs(P:GetPlayers())do
-		if p~=LP and not ignored[p.Name] and p.Character and p.Character:FindFirstChild('HumanoidRootPart')then
-			local tv=p:FindFirstChild('TempValues');local sz=tv and tv:FindFirstChild('SafeZone')
-			if not sz or sz.Value~=1 then
-				local d=(hrp.Position-p.Character.HumanoidRootPart.Position).Magnitude
-				if d<bestD then best,bestD=p,d end
-			end
-		end
-	end
-	return best
-end
-local function fireFireballAt(pos)local a=ev('Events','Other','Ability');pcall(function()a:InvokeServer('Fireball',pos)end)end
-local FBConn
-local function TFireballAimbotH(on)cfg.FireballAimbotH=on;save();getgenv().FireballAimbotH=on
-	if FBConn then FBConn:Disconnect()FBConn=nil end
-	if on then
-		FBConn=U.InputBegan:Connect(function(i,gp)
-			if gp then return end
-			if i.KeyCode==Enum.KeyCode.H then
-				local t=nearestNonSafePlayer()
-				if t and t.Character and t.Character:FindFirstChild('HumanoidRootPart')then
-					fireFireballAt(t.Character.HumanoidRootPart.Position)
-				end
-			end
-		end)
-	end
 end
 
 -- Auto-execute check for place hopping
@@ -2427,7 +2321,7 @@ end
 
 local function nearestNonSafePlayer()
 	local _,_,hrp=charHum();if not hrp then return nil end
-	local ignored={["1nedu"]=true,["209Flaw"]=true}
+	local ignored={["1nedu"]=true,["209flaw"]=true}
 	local best,bestD=nil,math.huge
 	for _,p in ipairs(P:GetPlayers())do
 		if p~=LP and not ignored[p.Name] and p.Character and p.Character:FindFirstChild('HumanoidRootPart')then
@@ -2590,11 +2484,10 @@ mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Panic'
 Toggle(C1,'Smart Panic','SmartPanic',function(on)cfg.SmartPanic=on;getgenv().SmartPanic=on;save()end)
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Pvp',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
 Toggle(C1,'Kill Aura','KillAura',TKA)
-Toggle(C1,'Spam Block','SpamBlock',TSpamBlock)
 Toggle(C1,'Gamma Ray Aimbot (g key)','GammaAimbot',TGamma)
-Toggle(C1,'Fireball Aimbot (h Key)','FireballAimbotH',TFireballAimbotH)
 Toggle(C1,'Auto Block','AutoBlock',TAutoBlock)
 Toggle(C1,'Combat Log','CombatLog',TCombatLog)
+
 local M1=Section(Move,'Movement Features')
 Toggle(M1,'No Clip','NoClip',TNoClip)
 Toggle(M1,'Infinite Zoom','InfiniteZoom',TInfiniteZoom)
@@ -2685,8 +2578,6 @@ local LB=Btn(Cfg,'Load Config',function()
 	ap(cfg.AutoConsumeSuper,function()return getgenv().AutoConsumeSuper or false end,TConsumeSuper)
 	ap(cfg.AutoBlock,function()return getgenv().AutoBlock or false end,TAutoBlock)
 	ap(cfg.CombatLog,function()return getgenv().CombatLog or false end,TCombatLog)
-	ap(cfg.SpamBlock,function()return getgenv().SpamBlock or false end,TSpamBlock)
-	ap(cfg.FireballAimbotH,function()return getgenv().FireballAimbotH or false end,TFireballAimbotH)
 	getgenv().SmartPanic = cfg.SmartPanic and true or false
 end)
 SB.Position=UDim2.new(0,0,0,0);LB.Position=UDim2.new(0,270,0,0)
