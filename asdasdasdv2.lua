@@ -1088,7 +1088,7 @@ local function TPlayerESP(on)
 						local ch, mh = getPlayerHealth(pl)
 						local defv, powv, magv, repv = getPlayerStats(pl)
 						local combined = defv + magv + powv
-						local low = combined < 1e18
+						local low = combined < 5e17
 
 						if low then
 							rec.health.Visible=false; rec.defense.Visible=false; rec.power.Visible=false; rec.magic.Visible=false
