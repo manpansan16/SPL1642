@@ -1,3 +1,4 @@
+
 if not game:IsLoaded() then game.Loaded:Wait() end
 local P=game:GetService('Players');while not P.LocalPlayer or not workspace.CurrentCamera do task.wait() end
 local U=game:GetService('UserInputService');local R=game:GetService('RunService');local H=game:GetService('HttpService')
@@ -38,7 +39,6 @@ local cfg={
 	KickOnUntrustedPlayers=false,AutoBlock=false,CombatLog=false,ServerHop=false,TeleportOnStart=true,
 	UFAOrderedMobs={},
 	fireballCooldown=0.1,cityFireballCooldown=0.5,universalFireballInterval=1.0,HideGUIKey='RightControl',
-	BlockMacro=false,FireballAimbot=false,
 }
 local function save()pcall(function()writefile('SuperPowerLeague_Config.json',H:JSONEncode(cfg))end)end
 local function load()pcall(function()if isfile('SuperPowerLeague_Config.json')then for k,v in pairs(H:JSONDecode(readfile('SuperPowerLeague_Config.json')))do cfg[k]=v end end end)end
@@ -1088,7 +1088,7 @@ local function TPlayerESP(on)
 						local ch, mh = getPlayerHealth(pl)
 						local defv, powv, magv, repv = getPlayerStats(pl)
 						local combined = defv + magv + powv
-						local low = combined < 1e23
+						local low = combined < 5e17
 
 						if low then
 							rec.health.Visible=false; rec.defense.Visible=false; rec.power.Visible=false; rec.magic.Visible=false
@@ -1928,21 +1928,6 @@ local function TAutoBlock(on)
 	startLoop(c:FindFirstChildOfClass('Humanoid'))
 end
 
-local BMConn
-local function TBlockMacro(on)
-    cfg.BlockMacro = on; save(); getgenv().BlockMacro = on
-    if BMConn then BMConn:Disconnect(); BMConn = nil end
-    if not on then return end
-    BMConn = task.spawn(function()
-        while getgenv().BlockMacro do
-            pcall(function()
-                RS.Events.Other.Ability:InvokeServer("Block", Vector3.new(-639.5137, -1551.8866, -3492.3779))
-            end)
-            task.wait(0.5)
-        end
-    end)
-end
-
 -- Combat Log (kick under 10% HP)
 local CL={conn=nil}
 local function TCombatLog(on)
@@ -2245,7 +2230,7 @@ local function TQuickTeleports(on)
 	getgenv().QuickTeleports = on
 	if not on then if QuickTeleportsGUI then pcall(function() QuickTeleportsGUI:Destroy() end) QuickTeleportsGUI=nil end return end
 	local Players=game:GetService("Players");local ReplicatedStorage=game:GetService("ReplicatedStorage");local LocalPlayer=Players.LocalPlayer
-	local ScreenGui=Instance.new("ScreenGui")ScreenGui.ResetOnSpawn=false;ScreenGui.Parent=LocalPlayer:WaitForChild("PlayerGui") QuickTeleportsGUI=ScreenGui
+	local ScreenGui=Instance.new("ScreenGui")ScreenGui.ResetOnSpawn=false ScreenGui.Parent=LocalPlayer:WaitForChild("PlayerGui") QuickTeleportsGUI=ScreenGui
 	local Frame=Instance.new("Frame")Frame.Size=UDim2.new(0,180,0,240)Frame.Position=UDim2.new(0,20,1,-260)Frame.BackgroundColor3=Color3.fromRGB(30,30,30)Frame.BorderSizePixel=0 Frame.Active=true Frame.Draggable=true Frame.Parent=ScreenGui
 	local UICorner=Instance.new("UICorner")UICorner.CornerRadius=UDim.new(0,8)UICorner.Parent=Frame
 	local Title=Instance.new("TextLabel")Title.Size=UDim2.new(1,0,0,25)Title.BackgroundTransparency=1 Title.Text="Teleports"Title.TextColor3=Color3.fromRGB(255,255,255)Title.TextSize=14 Title.Font=Enum.Font.GothamSemibold Title.Parent=Frame
@@ -2304,7 +2289,9 @@ local function TFly(on)cfg.AutoFly=on;save();getgenv().AutoFly=on;if AA.fly then
 	local a=ev('Events','Other','Ability');local last=0
 	AA.fly=R.Heartbeat:Connect(function()local n=os.clock();if n-last<0.5 then return end;last=n;local tv=LP:FindFirstChild('TempValues');local f=tv and tv:FindFirstChild('IsFlying');if not(f and f.Value==true)then pcall(function()a:InvokeServer('Fly',Vector3.new(1932.461181640625,56.015625,-1965.3206787109375))end)end end)
 end
-local function TTrainStrength(on)cfg.AutoTrainStrength=on;save();getgenv().AutoTrainStrength=on;if on then pcall(function()game:GetService("VirtualInputManager"):SendKeyEvent(true,Enum.KeyCode.One,false,nil)end)end end
+local function TTrainStrength(on)cfg.AutoTrainStrength=on;save();getgenv().AutoTrainStrength=on;if not on then return end
+	pcall(function()game:GetService("VirtualInputManager"):SendKeyEvent(true,Enum.KeyCode.One,false,nil)end)
+end
 
 local HExp
 local function resolvePart(which)
@@ -2365,23 +2352,6 @@ local function TGamma(on)cfg.GammaAimbot=on;save();getgenv().GammaAimbot=on
 			end
 		end)
 	end
-end
-
-local FConn
-local function TFireballAim(on)
-    cfg.FireballAimbot = on; save(); getgenv().FireballAimbot = on
-    if FConn then FConn:Disconnect(); FConn = nil end
-    if on then
-        FConn = U.InputBegan:Connect(function(i, gp)
-            if gp then return end
-            if i.KeyCode == Enum.KeyCode.H then
-                local t = nearestNonSafePlayer()
-                if t and t.Character and t.Character:FindFirstChild('HumanoidRootPart') then
-                    fireAt(t.Character.HumanoidRootPart.Position)
-                end
-            end
-        end)
-    end
 end
 
 local function TInfiniteZoom(on)
@@ -2518,9 +2488,7 @@ Toggle(C1,'Smart Panic','SmartPanic',function(on)cfg.SmartPanic=on;getgenv().Sma
 mk('TextLabel',{Size=UDim2.new(1,-12,0,22),BackgroundTransparency=1,Text='Pvp',TextColor3=Color3.fromRGB(235,235,245),TextXAlignment=Enum.TextXAlignment.Left,TextScaled=true,Font=Enum.Font.GothamBold},C1)
 Toggle(C1,'Kill Aura','KillAura',TKA)
 Toggle(C1,'Gamma Ray Aimbot (g key)','GammaAimbot',TGamma)
-Toggle(C1,'Fireball Player Aimbot (h key)','FireballAimbot',TFireballAim)
 Toggle(C1,'Auto Block','AutoBlock',TAutoBlock)
-Toggle(C1,'Block Macro','BlockMacro',TBlockMacro)
 Toggle(C1,'Combat Log','CombatLog',TCombatLog)
 
 local M1=Section(Move,'Movement Features')
@@ -2612,9 +2580,7 @@ local LB=Btn(Cfg,'Load Config',function()
 	ap(cfg.AutoConsumeMobility,function()return getgenv().AutoConsumeMobility or false end,TConsumeMobility)
 	ap(cfg.AutoConsumeSuper,function()return getgenv().AutoConsumeSuper or false end,TConsumeSuper)
 	ap(cfg.AutoBlock,function()return getgenv().AutoBlock or false end,TAutoBlock)
-	ap(cfg.BlockMacro,function()return getgenv().BlockMacro or false end,TBlockMacro)
 	ap(cfg.CombatLog,function()return getgenv().CombatLog or false end,TCombatLog)
-	ap(cfg.FireballAimbot,function()return getgenv().FireballAimbot or false end,TFireballAim)
 	getgenv().SmartPanic = cfg.SmartPanic and true or false
 end)
 SB.Position=UDim2.new(0,0,0,0);LB.Position=UDim2.new(0,270,0,0)
