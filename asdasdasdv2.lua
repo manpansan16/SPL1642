@@ -422,8 +422,8 @@ local function mk(t,pr,par)local i=Instance.new(t);for k,v in pairs(pr or{})do i
 do
 	local player=LP
 	local playerGui=player:WaitForChild("PlayerGui")
-	local function formatNumber(n)n=tonumber(n)or 0;if n>=1e21 then return string.format('%.4fsx',n/1e21)end;if n>=1e18 then return string.format('%.4fqn',n/1e18)end;if n>=1e15 then return string.format('%.4fqd',n/1e15)end;if n>=1e12 then return string.format('%.4ft',n/1e12)end
-		if n>=1e9 then return string.format('%.4fb',n/1e9)end;if n>=1e6 then return string.format('%.4fm',n/1e6)end;if n>=1e3 then return string.format('%.4fk',n/1e3)end return tostring(n)end
+	local function formatNumber(n)n=tonumber(n)or 0;if n>=1e24 then return string.format('%.4fsp',n/1e24)end;if n>=1e21 then return string.format('%.4fsx',n/1e21)end;if n>=1e18 then return string.format('%.4fqn',n/1e18)end;if n>=1e15 then return string.format('%.4fqd',n/1e15)end;if n>=1e12 then return string.format('%.4ft',n/1e12)end
+	if n>=1e9 then return string.format('%.4fb',n/1e9)end;if n>=1e6 then return string.format('%.4fm',n/1e6)end;if n>=1e3 then return string.format('%.4fk',n/1e3)end return tostring(n)end
 	local function getNumberValue(c,n)if not c then return 0 end local v=c:FindFirstChild(n)if v and v:IsA('ValueBase')then return tonumber(v.Value)or 0 end return 0 end
 	local function getStringValue(c,n)if not c then return '' end local v=c:FindFirstChild(n)if v and v:IsA('ValueBase')then return tostring(v.Value or'')end return '' end
 	local function lightenColor(color,factor)factor=math.clamp(factor or 0.4,0,1)local r=color.R+(1-color.R)*factor local g=color.G+(1-color.G)*factor local b=color.B+(1-color.B)*factor return Color3.new(r,g,b)end
@@ -951,18 +951,19 @@ local function TPlayerESP(on)
 	-- re-enable: hard clear any leftovers first
 	clearAll()
 
-	local function formatNumber(num)
-		local absNum = math.abs(num)
-		if absNum == 0 then return "Concealed"
-		elseif absNum >= 1e21 then return string.format("%.2fsx", num/1e21)
-		elseif absNum >= 1e18 then return string.format("%.2fqn", num/1e18)
-		elseif absNum >= 1e15 then return string.format("%.2fqd", num/1e15)
-		elseif absNum >= 1e12 then return string.format("%.2ft",  num/1e12)
-			elseif absNum >= 1e9  then return string.format("%.2fb",  num/1e9)
-		elseif absNum >= 1e6  then return string.format("%.2fm",  num/1e6)
-		elseif absNum >= 1e3  then return string.format("%.2fk",  num/1e3)
-		else return tostring(num) end
-	end
+local function formatNumber(num)
+	local absNum = math.abs(num)
+	if absNum == 0 then return "Concealed"
+	elseif absNum >= 1e24 then return string.format("%.2fsp", num/1e24)
+	elseif absNum >= 1e21 then return string.format("%.2fsx", num/1e21)
+	elseif absNum >= 1e18 then return string.format("%.2fqn", num/1e18)
+	elseif absNum >= 1e15 then return string.format("%.2fqd", num/1e15)
+	elseif absNum >= 1e12 then return string.format("%.2ft",  num/1e12)
+		elseif absNum >= 1e9  then return string.format("%.2fb",  num/1e9)
+	elseif absNum >= 1e6  then return string.format("%.2fm",  num/1e6)
+	elseif absNum >= 1e3  then return string.format("%.2fk",  num/1e3)
+	else return tostring(num) end
+end
 
 	local function getPlayerStats(player)
 		local ok, statsFolder = pcall(function() return RS.Data[player.Name].Stats end)
@@ -1869,7 +1870,7 @@ local function TStatWH(on)cfg.StatWebhook15m=on;save();getgenv().StatWebhook15m=
 		local st=RS:WaitForChild('Data'):WaitForChild(LP.Name):WaitForChild('Stats')
 		local op,od,oh,om,oy,omob,ot=st.Power.Value,st.Defense.Value,st.Health.Value,st.Magic.Value,st.Psychics.Value,st.Mobility.Value,st.Tokens.Value
 		local scriptStartTime = os.time()  -- Add this line
-		local function fmt(n)n=tonumber(n)or 0;if n>=1e21 then return string.format('%.2f',n/1e21)..'sx' end;if n>=1e18 then return string.format('%.2f',n/1e18)..'qn' end;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
+		local function fmt(n)n=tonumber(n)or 0;if n>=1e24 then return string.format('%.2f',n/1e24)..'sp' end;if n>=1e21 then return string.format('%.2f',n/1e21)..'sx' end;if n>=1e18 then return string.format('%.2f',n/1e18)..'qn' end;if n>=1e15 then return string.format('%.2f',n/1e15)..'qd' end;if n>=1e12 then return string.format('%.2f',n/1e12)..'t' end
 			if n>=1e9 then return string.format('%.2f',n/1e9)..'b'end;if n>=1e6 then return string.format('%.2f',n/1e6)..'m'end;if n>=1e3 then return string.format('%.2f',n/1e3)..'k'end return tostring(n)end
 		local function fmtChange(n)local change=tonumber(n)or 0;local sign=change>=0 and '+'or'';return sign..fmt(math.abs(change))end
 		while getgenv().StatWebhook15m do for i=1,900 do if not getgenv().StatWebhook15m then break end task.wait(1)end;if not getgenv().StatWebhook15m then break end
